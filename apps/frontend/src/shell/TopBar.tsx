@@ -8,7 +8,7 @@ const ROLE_ZH: Record<string, string> = { hq_finance: '本部财务', investee_f
 
 // 子系统跳转（.env VITE_* 配置，空值不渲染）
 const SUB_SYSTEMS = [
-  { name: '信投运营管理系统', url: import.meta.env.VITE_OPS_URL as string | undefined },
+  { name: '运营管理系统', url: import.meta.env.VITE_OPS_URL as string | undefined },
   { name: '青山知识库', url: import.meta.env.VITE_KB_URL as string | undefined },
   { name: 'CoWork', url: import.meta.env.VITE_COWORK_URL as string | undefined },
 ].filter((s) => s.url)
