@@ -13,9 +13,9 @@ services:
       - .env
     ports:
       # 认证就绪前不对公网：仅映射宿主 loopback
-      - "127.0.0.1:8100:8000"
+      - "127.0.0.1:8097:8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8097/healthz"]
       interval: 5s
       timeout: 3s
       retries: 24
@@ -30,7 +30,7 @@ services:
     image: xinhere-frontend:latest
     container_name: xinhere-frontend
     ports:
-      - "8095:80"
+      - "8096:80"
     depends_on:
       backend:
         condition: service_healthy
