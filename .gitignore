@@ -1,0 +1,18 @@
+# 环境与密钥（一律不入库，部署时按 .env.example 或运维文档配置）
+.env
+.docker.env
+*.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# 工具缓存
+.trae/
+.DS_Store

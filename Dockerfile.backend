@@ -1,0 +1,31 @@
+# XinHere 后端镜像（build context = xinhere 根）
+# 注意：插件/契约按 __file__ parents[5] 相对定位（app/platform/plugins/loader.py、
+# app/platform/events/registry.py），容器内必须保留 apps/backend/app 目录深度：
+#   /app/apps/backend/app/... → 根 /app → /app/plugins、/app/packages/contracts
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# 依赖层（利用构建缓存：requirements 先于源码）
+COPY apps/backend/requirements.txt /app/apps/backend/requirements.txt
+RUN pip install -r /app/apps/backend/requirements.txt
+
+# 源码 + 迁移 + 插件 + 契约生成物
+COPY apps/backend/app /app/apps/backend/app
+COPY apps/backend/alembic /app/apps/backend/alembic
+COPY apps/backend/alembic.ini /app/apps/backend/alembic.ini
+COPY plugins /app/plugins
+COPY packages/contracts /app/packages/contracts
+
+# 健康检查用 curl（python:slim 不带）
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/apps/backend
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,42 @@
+# XinHere 全栈编排：挂外部 ai_network（pg_db / model-api / xin-ai 容器名直达）
+# env_file 语义（docker compose config 实测）：列表后者覆盖前者同名片段 →
+# .env 为本项目覆盖层，.docker.env 属 xin-ai 容器共享配置（只读）。
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: xinhere-backend:latest
+    container_name: xinhere-backend
+    env_file:
+      - .docker.env
+      - .env
+    ports:
+      # 认证就绪前不对公网：仅映射宿主 loopback
+      - "127.0.0.1:8100:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 10s
+    networks:
+      - ai_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: xinhere-frontend:latest
+    container_name: xinhere-frontend
+    ports:
+      - "8095:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ai_network
+
+networks:
+  ai_network:
+    external: true

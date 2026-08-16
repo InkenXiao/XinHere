@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cash.json",
+  "title": "现金保障倍数事件族 payload",
+  "$defs": {
+    "CashValues": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "avail_cash": {"type": "number"}, "pooled_fund": {"type": "number"},
+        "avail_credit": {"type": "number"}, "monthly_outflow": {"type": "number"}
+      },
+      "required": ["avail_cash", "pooled_fund", "avail_credit", "monthly_outflow"]
+    },
+    "CashFormStart": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "form_id": {"type": "string"}, "company": {"type": "string"}, "period": {"type": "string"},
+        "fields": {"$ref": "#/$defs/CashValues"},
+        "prev": {"$ref": "#/$defs/CashValues"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["form_id", "company", "period", "fields", "version"]
+    },
+    "CashFormFieldUpdate": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "form_id": {"type": "string"},
+        "draft": {"$ref": "#/$defs/CashValues"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["form_id", "draft", "version"]
+    },
+    "CashFormSubmit": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "form_id": {"type": "string"},
+        "values": {"$ref": "#/$defs/CashValues"},
+        "ratio": {"type": "number"},
+        "lamp": {"type": "string", "enum": ["r", "y", "g"]},
+        "summary": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["form_id", "values", "ratio", "lamp", "summary", "version"]
+    }
+  }
+}

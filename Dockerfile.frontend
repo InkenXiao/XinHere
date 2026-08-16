@@ -1,0 +1,17 @@
+# XinHere 前端镜像（build context = xinhere 根）
+# vite/tsconfig 以 ../../packages/contracts 相对解析 @contracts，构建阶段须保留目录相对布局
+FROM node:20-alpine AS build
+
+WORKDIR /build
+COPY apps/frontend/package.json apps/frontend/package-lock.json /build/apps/frontend/
+COPY packages/contracts /build/packages/contracts
+WORKDIR /build/apps/frontend
+RUN npm ci
+COPY apps/frontend /build/apps/frontend
+# apps/frontend/.env: VITE_API_BASE=/api/v1（相对路径，走 nginx 反代）
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /build/apps/frontend/dist /usr/share/nginx/html
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

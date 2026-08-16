@@ -1,0 +1,15 @@
+# 直接依赖钉版清单（与 apps/backend/.venv 实测版本一致；pip install -r 可复现）
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+sqlalchemy==2.0.52
+psycopg[binary]==3.3.4
+pydantic-settings==2.15.0
+httpx==0.28.1
+langgraph==1.2.11
+langchain-openai==1.5.1
+deepagents==0.7.6
+langgraph-checkpoint-postgres==3.1.2
+alembic==1.19.1
+sse-starlette==3.4.8
+bcrypt==5.0.0
+pytest==9.1.1

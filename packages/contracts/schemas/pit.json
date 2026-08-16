@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "pit.json",
+  "title": "投后报告与待办事件 payload",
+  "$defs": {
+    "PitReportStart": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "report_id": {"type": "string"},
+        "company_ids": {"type": "array", "items": {"type": "string"}},
+        "period": {"type": "string"},
+        "outline": {"type": "array", "items": {"type": "string"}},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["report_id", "company_ids", "period", "outline", "version"]
+    },
+    "PitReportUpdate": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "report_id": {"type": "string"},
+        "section_idx": {"type": "integer"},
+        "content": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["report_id", "section_idx", "content", "version"]
+    },
+    "PitReportDone": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "report_id": {"type": "string"}, "summary": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["report_id", "summary", "version"]
+    },
+    "TodoChanged": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "box": {"type": "string", "enum": ["assignee", "dispatcher"]},
+        "todo_id": {"type": "string"},
+        "status": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["box", "todo_id", "status", "version"]
+    }
+  }
+}

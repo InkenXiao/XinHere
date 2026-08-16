@@ -1,0 +1,14 @@
+# 构建上下文瘦身
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/dist
+ui/
+docs/
+.trae/
+*.md
+.docker.env
+.env
+scripts/
+tests/

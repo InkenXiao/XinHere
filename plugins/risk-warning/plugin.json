@@ -1,0 +1,19 @@
+{
+  "name": "risk-warning",
+  "version": "1.0.0",
+  "domain": "financial",
+  "description": "风险预警财务指标填报与现金保障倍数试算",
+  "tools": ["dispatch_risk_fill", "get_risk_fill_status", "start_cash_guarantee_fill"],
+  "events": [
+    "risk/fill-start",
+    "risk/report-update",
+    "risk/submit",
+    "risk/review",
+    "cash/form-start",
+    "cash/form-field-update",
+    "cash/form-submit"
+  ],
+  "component": { "kinds": ["risk-dispatch-confirm", "risk-fill-form", "cash-guarantee-form"], "version": 1 },
+  "permissions": { "tables": ["risk_fill_batches", "risk_fill_reports", "risk_fill_items", "cash_guarantee_reports"] },
+  "event_namespace": "risk"
+}

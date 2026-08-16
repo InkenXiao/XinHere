@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kpi.json",
+  "title": "经营者考核事件族 payload",
+  "$defs": {
+    "KpiIndicatorInput": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "indicator_id": {"type": "string"}, "dim": {"type": "string"}, "name": {"type": "string"},
+        "kpi_type": {"type": "string"}, "content": {"type": "string"},
+        "base_score": {"type": "string"}, "max_score": {"type": "string"}
+      },
+      "required": ["indicator_id", "dim", "name", "kpi_type", "content", "base_score", "max_score"]
+    },
+    "KpiMilestoneInput": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "indicator_id": {"type": "string"}, "content": {"type": "string"},
+        "plan_date": {"type": "string"}, "material": {"type": "string"}
+      },
+      "required": ["indicator_id", "content", "plan_date", "material"]
+    },
+    "KpiBatchStart": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "period": {"type": "string"},
+        "companies": {"type": "array", "items": {"type": "string"}},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "period", "companies", "version"]
+    },
+    "KpiIndicatorUpdate": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "company": {"type": "string"},
+        "indicators": {"type": "array", "items": {"$ref": "#/$defs/KpiIndicatorInput"}},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "company", "indicators", "version"]
+    },
+    "KpiMsSplit": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "company": {"type": "string"},
+        "milestones": {"type": "array", "items": {"$ref": "#/$defs/KpiMilestoneInput"}},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "company", "milestones", "version"]
+    },
+    "KpiMsFeedback": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "feedback_id": {"type": "string"}, "company": {"type": "string"},
+        "milestone_content": {"type": "string"},
+        "status": {"type": "string"}, "progress": {"type": "integer"},
+        "actual_date": {"type": "string"}, "status_note": {"type": "string"},
+        "lamp": {"$ref": "#/$defs/Lamp"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["feedback_id", "company", "milestone_content", "status", "progress", "lamp", "version"]
+    },
+    "KpiLampAdjust": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "company": {"type": "string"}, "indicator_name": {"type": "string"},
+        "old_lamp": {"$ref": "#/$defs/Lamp"}, "new_lamp": {"$ref": "#/$defs/Lamp"},
+        "reason": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["company", "indicator_name", "old_lamp", "new_lamp", "reason", "version"]
+    },
+    "KpiReview": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "company": {"type": "string"},
+        "approve": {"type": "boolean"}, "comment": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "company", "approve", "version"]
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "risk.json",
+  "title": "风险预警填报事件族 payload",
+  "$defs": {
+    "RiskField": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"k": {"type": "string"}, "v": {"type": "string"}, "pf": {"type": "boolean"}},
+      "required": ["k", "v"]
+    },
+    "RiskItem": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "idx": {"type": "integer"}, "name": {"type": "string"},
+        "lamp": {"$ref": "#/$defs/Lamp"},
+        "fields": {"type": "array", "items": {"$ref": "#/$defs/RiskField"}}
+      },
+      "required": ["idx", "name", "lamp", "fields"]
+    },
+    "RiskFillStart": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "period": {"type": "string"},
+        "companies": {"type": "array", "items": {"type": "string"}},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "period", "companies", "version"]
+    },
+    "RiskReportUpdate": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "company": {"type": "string"},
+        "status": {"type": "string", "enum": ["unfilled", "filled", "reviewed"]},
+        "lamp_r": {"type": "integer"}, "lamp_y": {"type": "integer"}, "lamp_g": {"type": "integer"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "company", "status", "lamp_r", "lamp_y", "lamp_g", "version"]
+    },
+    "RiskSubmit": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "company": {"type": "string"},
+        "summary": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "company", "summary", "version"]
+    },
+    "RiskReview": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "batch_id": {"type": "string"}, "company": {"type": "string"},
+        "approve": {"type": "boolean"}, "comment": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["batch_id", "company", "approve", "version"]
+    }
+  }
+}

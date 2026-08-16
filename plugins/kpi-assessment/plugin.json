@@ -1,0 +1,18 @@
+{
+  "name": "kpi-assessment",
+  "version": "1.0.0",
+  "domain": "financial",
+  "description": "经营者考核：指标下发、里程碑拆分、反馈亮灯、亮灯调整",
+  "tools": ["dispatch_kpi_fill", "dispatch_ms_feedback", "adjust_lamp"],
+  "events": [
+    "kpi/batch-start",
+    "kpi/indicator-update",
+    "kpi/ms-split",
+    "kpi/ms-feedback",
+    "kpi/lamp-adjust",
+    "kpi/review"
+  ],
+  "component": { "kinds": ["kpi-fill-form", "ms-feedback-form", "lamp-adjust-panel"], "version": 1 },
+  "permissions": { "tables": ["kpi_batches", "kpi_indicators", "kpi_milestones", "kpi_ms_feedbacks", "kpi_lamp_adjustments"] },
+  "event_namespace": "kpi"
+}

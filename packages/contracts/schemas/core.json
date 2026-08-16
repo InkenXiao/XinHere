@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "core.json",
+  "title": "核心框架事件 payload",
+  "$defs": {
+    "Lamp": {"type": "string", "enum": ["r", "y", "g"]},
+    "Usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prompt": {"type": "integer"},
+        "completion": {"type": "integer"}
+      },
+      "required": ["prompt", "completion"]
+    },
+    "TurnStart": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"turn": {"type": "integer"}, "version": {"type": "integer", "const": 1}},
+      "required": ["turn", "version"]
+    },
+    "TurnEnd": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "turn": {"type": "integer"},
+        "reason": {"type": "string", "enum": ["completed", "blocked", "aborted", "error", "max_tokens", "crashed"]},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["turn", "reason", "version"]
+    },
+    "StepStart": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"turn": {"type": "integer"}, "step": {"type": "integer"}, "version": {"type": "integer", "const": 1}},
+      "required": ["turn", "step", "version"]
+    },
+    "StepEnd": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"turn": {"type": "integer"}, "step": {"type": "integer"}, "version": {"type": "integer", "const": 1}},
+      "required": ["turn", "step", "version"]
+    },
+    "UserMessage": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "content": {"type": "string"},
+        "source": {"type": "string", "enum": ["human", "inject"]},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["content", "source", "version"]
+    },
+    "AssistantChunk": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "turn": {"type": "integer"}, "step": {"type": "integer"},
+        "delta": {"type": "string"}, "version": {"type": "integer", "const": 1}
+      },
+      "required": ["turn", "step", "delta", "version"]
+    },
+    "AssistantMessage": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "turn": {"type": "integer"}, "step": {"type": "integer"},
+        "content": {"type": "string"},
+        "usage": {"$ref": "#/$defs/Usage"},
+        "source_event_seqs": {"type": "array", "items": {"type": "integer"}},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["turn", "step", "content", "source_event_seqs", "version"]
+    },
+    "ToolCall": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "call_id": {"type": "string"}, "name": {"type": "string"},
+        "arguments": {"type": "object"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["call_id", "name", "arguments", "version"]
+    },
+    "ToolResult": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "call_id": {"type": "string"}, "name": {"type": "string"},
+        "content": {"type": "string"}, "is_error": {"type": "boolean"},
+        "outcome": {"type": "string", "enum": ["unknown"]},
+        "refs": {"type": "array", "items": {"type": "integer"}},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["call_id", "name", "content", "is_error", "refs", "version"]
+    },
+    "ComponentRequest": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "component_id": {"type": "string"}, "kind": {"type": "string"},
+        "kind_version": {"type": "integer"},
+        "props": {"type": "object"},
+        "interrupt_id": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["component_id", "kind", "kind_version", "props", "interrupt_id", "version"]
+    },
+    "ComponentSubmit": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "component_id": {"type": "string"},
+        "action": {"type": "string", "enum": ["submit", "cancelled"]},
+        "values": {"type": "object"},
+        "summary": {"type": "string"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["component_id", "action", "summary", "version"]
+    },
+    "FeedbackRecord": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"text": {"type": "string"}, "version": {"type": "integer", "const": 1}},
+      "required": ["text", "version"]
+    }
+  }
+}
