@@ -1,6 +1,12 @@
-# XinHere 全栈编排：挂外部 ai_network（pg_db / model-api / xin-ai 容器名直达）
-# env_file 语义（docker compose config 实测）：列表后者覆盖前者同名片段 →
-# .env 为本项目覆盖层，.docker.env 属 xin-ai 容器共享配置（只读）。
+# XinHere 全栈编排（生产·本机）：挂外部 ai_network（pg_db / model-api / xin-ai 容器名直达）
+# ----------------------------------------------------------------------------
+# 发布设计（改码/改配置均不重建镜像）：
+#   - 后端镜像只含 Python 依赖；源码/插件/契约/alembic 卷挂载进容器 → 改代码重启即生效
+#   - 前端镜像为纯 nginx；dist 产物 + nginx.conf 卷挂载 → 改前端代码重新 build dist 后重启
+#   - 环境变量经 env_file 注入（.docker.env 共享基础设施 + .env 生产覆盖层）→ 改配置 up -d 即生效
+#   - 仅依赖(requirements.txt / package.json)变化时才需要 docker compose build（见 deploy/publish.sh）
+# 一次性发布入口：bash deploy/publish.sh（含前端构建、依赖检测、alembic 迁移、启动）
+# ----------------------------------------------------------------------------
 services:
   backend:
     build:
@@ -11,15 +17,24 @@ services:
     env_file:
       - .docker.env
       - .env
+    volumes:
+      # 源码/迁移/插件/契约：与镜像内 /app 布局一致（勿删，缺挂载即缺文件）
+      - ./apps/backend/app:/app/apps/backend/app
+      - ./apps/backend/alembic:/app/apps/backend/alembic
+      - ./apps/backend/alembic.ini:/app/apps/backend/alembic.ini
+      - ./plugins:/app/plugins
+      - ./packages/contracts:/app/packages/contracts
     ports:
       # 认证就绪前不对公网：仅映射宿主 loopback
       - "127.0.0.1:8097:8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8097/healthz"]
+      # 容器内应用监听 8000 (8097 仅为宿主 loopback 映射端口)
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 5s
       timeout: 3s
       retries: 24
       start_period: 10s
+    restart: unless-stopped
     networks:
       - ai_network
 
@@ -29,11 +44,19 @@ services:
       dockerfile: Dockerfile.frontend
     image: xinhere-frontend:latest
     container_name: xinhere-frontend
+    env_file:
+      # VITE_* 前端运行时配置（nginx entrypoint 渲染为 config.js）
+      - .env
+    volumes:
+      # 宿主构建产物 + nginx 配置（改前端代码/反代配置无需重建镜像）
+      - ./apps/frontend/dist:/usr/share/nginx/html
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf
     ports:
       - "8096:80"
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
     networks:
       - ai_network
 

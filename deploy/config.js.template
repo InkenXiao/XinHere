@@ -1,0 +1,9 @@
+// 前端运行时配置（由 nginx entrypoint 用 envsubst 渲染生成，勿手改此产物）
+// 未设置的变量渲染为空串，前端 config.ts 会回退到构建期 VITE_* 与默认值。
+window.__ENV__ = {
+  API_BASE: "$VITE_API_BASE",
+  OPS_URL: "$VITE_OPS_URL",
+  KB_URL: "$VITE_KB_URL",
+  COWORK_URL: "$VITE_COWORK_URL",
+  MOCK: "$VITE_MOCK"
+};

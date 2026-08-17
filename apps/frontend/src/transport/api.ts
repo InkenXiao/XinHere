@@ -1,7 +1,8 @@
 // REST 统一封装：Bearer 注入、X-Request-Id 透出、{code,message} 错误体解析、401 登出
 // 所有 /api/v1 请求必须经此模块，禁组件内裸 fetch
+import { runtimeEnv } from '@/config'
 
-export const API_BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) || '/api/v1'
+export const API_BASE: string = runtimeEnv.API_BASE || '/api/v1'
 
 const TOKEN_KEY = 'xinhere.token'
 
@@ -42,9 +43,9 @@ export function onUnauthorized(fn: () => void) {
   unauthorizedHandler = fn
 }
 
-/** 本地 mock 开关：env VITE_MOCK=1 或 URL ?mock=1，默认关 */
+/** 本地 mock 开关：运行时配置 VITE_MOCK=1 / 构建期 VITE_MOCK=1 或 URL ?mock=1，默认关 */
 export function mockEnabled(): boolean {
-  if (import.meta.env.VITE_MOCK === '1') return true
+  if (runtimeEnv.MOCK === '1') return true
   try {
     return new URLSearchParams(window.location.search).has('mock')
   } catch {

@@ -1,16 +1,17 @@
 // 顶栏：brand+slogan / 子系统外链 / 连接态 / 用户菜单
 import { useEffect, useRef, useState } from 'react'
+import { runtimeEnv } from '@/config'
 import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { useUiStore } from '@/state/uiStore'
 
 const ROLE_ZH: Record<string, string> = { hq_finance: '本部财务', investee_finance: '被投财务' }
 
-// 子系统跳转（.env VITE_* 配置，空值不渲染）
+// 子系统跳转（运行时配置 window.__ENV__，空值不渲染）
 const SUB_SYSTEMS = [
-  { name: '运营管理系统', url: import.meta.env.VITE_OPS_URL as string | undefined },
-  { name: '青山知识库', url: import.meta.env.VITE_KB_URL as string | undefined },
-  { name: 'CoWork', url: import.meta.env.VITE_COWORK_URL as string | undefined },
+  { name: '运营管理系统', url: runtimeEnv.OPS_URL || undefined },
+  { name: '青山知识库', url: runtimeEnv.KB_URL || undefined },
+  { name: 'CoWork', url: runtimeEnv.COWORK_URL || undefined },
 ].filter((s) => s.url)
 
 export default function TopBar() {

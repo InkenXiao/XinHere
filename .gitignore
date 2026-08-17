@@ -16,3 +16,6 @@ dist/
 # 工具缓存
 .trae/
 .DS_Store
+
+# 发布状态（依赖哈希，用于判断是否需重建镜像）
+.deploy-hash
