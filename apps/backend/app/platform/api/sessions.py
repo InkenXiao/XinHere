@@ -147,6 +147,7 @@ def get_session(session_id: str, user: SysUser = Depends(current_user), db: Sess
 class ChatIn(BaseModel):
     message: str
     kb_ids: list[str] | None = None
+    model: str | None = None  # 前端模型选择参数（值对 value，如 LLM）；None=默认 MAIN_MODEL
 
 
 @router.post("/{session_id}/chat")
@@ -176,9 +177,9 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         )
     ) + 1
     store.append(session_id, "turn/start", {"turn": turn, "version": 1}, turn=turn)
-    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s msg=%.80s",
-                session_id, turn, user.username, body.kb_ids, message)
-    executor.start_turn(session_id, user, message, request_id)
+    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s model=%s msg=%.80s",
+                session_id, turn, user.username, body.kb_ids, body.model, message)
+    executor.start_turn(session_id, user, message, request_id, model=body.model)
 
     async def gen():
         try:

@@ -41,6 +41,7 @@ class RunHandle:
     user_id: str
     request_id: str
     status: str = "running"  # running / waiting_interrupt / done
+    model: str | None = None  # 前端模型选择参数（None=默认 MAIN_MODEL）
     cancel_event: threading.Event = field(default_factory=threading.Event)
     pending_interrupt_id: str | None = None
     pending_component_id: str | None = None
@@ -69,7 +70,7 @@ class AgentExecutor:
         self._saver.setup()
         self._ready.set()
 
-    def _build_graph(self, tool_ctx: ToolCtx):
+    def _build_graph(self, tool_ctx: ToolCtx, model: str | None = None):
         from deepagents import create_deep_agent
 
         from ...services import skills as skills_svc
@@ -85,7 +86,7 @@ class AgentExecutor:
             logger.info("技能过滤 user=%s sid=%s 可用工具=%s",
                         tool_ctx.user_id, tool_ctx.session_id, sorted(t.name for t in tools))
         return create_deep_agent(
-            model=build_model(),
+            model=build_model(model=model),
             tools=tools,
             checkpointer=self._saver,
             system_prompt=SYSTEM_PROMPT,
@@ -100,7 +101,8 @@ class AgentExecutor:
                 return None
             return h
 
-    def start_turn(self, session_id: str, user: SysUser, content: str, request_id: str) -> int:
+    def start_turn(self, session_id: str, user: SysUser, content: str, request_id: str,
+                   model: str | None = None) -> int:
         """登记 run 并起后台线程；返回 turn 号。调用方需先落 user/message 与 turn/start。"""
         with SessionLocal() as db:
             turn = db.scalar(
@@ -109,10 +111,12 @@ class AgentExecutor:
                     PlatformSessionEvent.type == "turn/start",
                 )
             )
-        handle = RunHandle(session_id=session_id, turn=turn, user_id=user.user_id, request_id=request_id)
+        handle = RunHandle(session_id=session_id, turn=turn, user_id=user.user_id,
+                           request_id=request_id, model=model)
         with self._lock:
             self._runs[session_id] = handle
-        logger.info("run 启动 sid=%s turn=%d user=%s req=%s", session_id, turn, user.username, request_id)
+        logger.info("run 启动 sid=%s turn=%d user=%s req=%s model=%s",
+                    session_id, turn, user.username, request_id, model or settings.main_model)
         threading.Thread(
             target=self._run, args=(handle, content, None), name=f"run-{session_id[:8]}-t{turn}", daemon=True
         ).start()
@@ -174,7 +178,7 @@ class AgentExecutor:
         translator = EventTranslator(store, sid, handle.turn)
         try:
             self._ready.wait(timeout=30)
-            graph = self._build_graph(tool_ctx)
+            graph = self._build_graph(tool_ctx, model=handle.model)
             config = {"configurable": {"thread_id": sid}}
             input_ = (
                 Command(resume=resume_value)

@@ -19,7 +19,7 @@ interface SessionState {
   loadSessions: () => Promise<void>
   openSession: (id: string) => Promise<void>
   newSession: () => Promise<void>
-  send: (text: string, kbIds?: string[]) => Promise<void>
+  send: (text: string, kbIds?: string[], model?: string) => Promise<void>
   cancel: () => Promise<void>
   componentEmit: (componentId: string) => {
     update: (draft: Record<string, unknown>) => Promise<void>
@@ -71,13 +71,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     await get().loadSessions()
   },
 
-  async send(text, kbIds) {
+  async send(text, kbIds, model) {
     const cur = get().current
     if (!cur || get().sending) return
     set({ sending: true, asmError: null })
     useUiStore.getState().setExecDone(false)
     abortCtl = new AbortController()
     const sid = cur.session_id
+    // 模型参数：调用方显式指定优先，否则取全局当前选择（值对 value，如 LLM）
+    const modelParam = model ?? useUiStore.getState().modelValue
     let sawEvents = false
     const handlers = {
       onEvent: (evt: PlatformEvent) => {
@@ -93,7 +95,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       },
     }
     try {
-      await streamChat(sid, { message: text, kb_ids: kbIds }, handlers, abortCtl.signal)
+      await streamChat(sid, { message: text, kb_ids: kbIds, model: modelParam }, handlers, abortCtl.signal)
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
       // 断线：指数退避重连（GET events SSE 续流，after_seq），不清屏

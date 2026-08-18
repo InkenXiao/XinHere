@@ -6,11 +6,13 @@ from ...core.config import settings
 
 
 def build_model(**overrides) -> ChatOpenAI:
-    """推理型模型：max_tokens 必须 >=4096；reasoning_content 不入历史（langchain 放 additional_kwargs）。"""
+    """推理型模型：max_tokens 必须 >=4096；reasoning_content 不入历史（langchain 放 additional_kwargs）。
+    调用方可在 overrides 传 model 覆盖默认（前端模型选择的值对参数）。"""
+    model = overrides.pop("model", None) or settings.main_model
     return ChatOpenAI(
         base_url=settings.main_api_url,
         api_key=settings.main_api_key,
-        model=settings.main_model,
+        model=model,
         max_tokens=max(settings.llm_max_tokens, 4096),
         timeout=120,
         **overrides,

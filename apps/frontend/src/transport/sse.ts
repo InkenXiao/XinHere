@@ -90,7 +90,7 @@ async function readStream(res: Response, handlers: SseHandlers): Promise<void> {
 /** POST chat → SSE 流（一次 run） */
 export async function streamChat(
   sessionId: string,
-  body: { message: string; kb_ids?: string[] },
+  body: { message: string; kb_ids?: string[]; model?: string },
   handlers: SseHandlers,
   signal?: AbortSignal,
 ): Promise<void> {

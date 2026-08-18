@@ -36,6 +36,8 @@ interface UiState {
   sceneTarget: SceneTarget | null // 待办「去填报/去审批」打开的场景组件
   templateSkill: string | null // 模版选择 Modal 当前技能 key（null=关闭）
   skillSettingsOpen: boolean // 技能设置 Modal
+  modelValue: string // 当前模型参数（值对 value，如 LLM；展示名由 MODEL_OPTIONS 映射）
+  heroKb: string[] // Hero 区选中的知识库 value 列表
   toasts: ToastItem[]
   toggleTheme: () => void
   setActiveScreen: (v: 'work' | 'dash') => void
@@ -46,6 +48,8 @@ interface UiState {
   openTemplateModal: (skillKey: string) => void
   closeTemplateModal: () => void
   setSkillSettingsOpen: (v: boolean) => void
+  setModelValue: (v: string) => void
+  setHeroKb: (v: string[]) => void
   toast: (text: string, kind?: 'info' | 'err') => void
   dismissToast: (id: number) => void
 }
@@ -61,6 +65,8 @@ export const useUiStore = create<UiState>((set) => ({
   sceneTarget: null,
   templateSkill: null,
   skillSettingsOpen: false,
+  modelValue: 'LLM',
+  heroKb: [],
   toasts: [],
   toggleTheme: () =>
     set((s) => {
@@ -80,6 +86,8 @@ export const useUiStore = create<UiState>((set) => ({
   openTemplateModal: (skillKey) => set({ templateSkill: skillKey }),
   closeTemplateModal: () => set({ templateSkill: null }),
   setSkillSettingsOpen: (v) => set({ skillSettingsOpen: v }),
+  setModelValue: (v) => set({ modelValue: v }),
+  setHeroKb: (v) => set({ heroKb: v }),
   toast: (text, kind = 'info') => {
     const id = ++toastSeq
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))

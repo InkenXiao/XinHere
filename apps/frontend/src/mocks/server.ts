@@ -384,7 +384,7 @@ export async function mockApi<T>(method: string, path: string, body?: unknown): 
 
 export async function mockSse(
   sessionId: string,
-  ctx: { kind: 'chat'; body: { message: string; kb_ids?: string[] } } | { kind: 'events'; afterSeq: number },
+  ctx: { kind: 'chat'; body: { message: string; kb_ids?: string[]; model?: string } } | { kind: 'events'; afterSeq: number },
   handlers: SseHandlers,
 ) {
   await delay(150)

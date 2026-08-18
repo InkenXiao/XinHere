@@ -278,6 +278,25 @@ input, textarea, select { font: inherit; }
 .model-chip:hover { border-color: rgba(250,138,57,.45); }
 .model-chip .m-ico { color: var(--accent); }
 .model-chip .caret { font-size: 9px; color: var(--faint); }
+.hero-tool-item.on { color: var(--accent); background: var(--glass); }
+
+/* Hero 下拉（知识库/模型选择，向上展开） */
+.hero-select { position: relative; display: inline-flex; }
+.hero-drop {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  min-width: 190px; padding: 6px; z-index: 40;
+  background: var(--card-bg); border: 1px solid var(--glass-bd); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.28); backdrop-filter: blur(14px);
+  animation: heroDropIn .16s ease;
+}
+@keyframes heroDropIn { from { opacity: 0; transform: translateX(-50%) translateY(4px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+.hero-drop-item {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px;
+  font-size: 13px; color: var(--text); cursor: pointer; white-space: nowrap; transition: .15s;
+}
+.hero-drop-item:hover { background: var(--glass-2); }
+.hero-drop-item.sel { color: var(--accent); }
+.hero-drop-item .tick { width: 14px; font-size: 12px; color: var(--accent); }
 
 .hero-actions { margin: 18px auto 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .hero-actions .chip {
