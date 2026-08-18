@@ -8,6 +8,8 @@ import TopBar from '@/shell/TopBar'
 import ScreenWork from '@/shell/ScreenWork'
 import ScreenDashboard from '@/shell/ScreenDashboard'
 import SceneModal from '@/shell/SceneModal'
+import TemplateModal from '@/shell/TemplateModal'
+import SkillSettingsModal from '@/shell/SkillSettingsModal'
 import ToastHost from '@/primitives/Toast'
 
 export default function App() {
@@ -44,6 +46,8 @@ export default function App() {
         <ScreenDashboard />
       </div>
       <SceneModal />
+      <TemplateModal />
+      <SkillSettingsModal />
       <ToastHost />
     </>
   )

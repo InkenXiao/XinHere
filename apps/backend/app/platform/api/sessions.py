@@ -21,6 +21,7 @@ from ...persistence.models import (
     SysUser,
 )
 from ...persistence.session import get_db
+from ...services import skills as skills_svc
 from ..agent.component_handlers import HANDLERS, apply_update_draft
 from ..agent.executor import executor
 from ..agent.stream_bridge import bridge
@@ -107,6 +108,17 @@ def list_sessions(
         .order_by(PlatformSession.updated_at.desc())
         .limit(limit).offset(offset)
     ).all()
+    # 任务类型归类：取会话内 tool/call 工具名映射技能（历史记录按任务类型分组）
+    tool_names: dict[str, list[str]] = {}
+    if rows:
+        tool_rows = db.execute(
+            select(PlatformSessionEvent.session_id, PlatformSessionEvent.data["name"].astext)
+            .where(PlatformSessionEvent.session_id.in_([s.session_id for s in rows]),
+                   PlatformSessionEvent.type == "tool/call")
+            .order_by(PlatformSessionEvent.session_id, PlatformSessionEvent.seq)
+        ).all()
+        for sid, name in tool_rows:
+            tool_names.setdefault(str(sid), []).append(name)
     items = []
     for s in rows:
         last_msg = db.scalars(
@@ -120,6 +132,7 @@ def list_sessions(
             **_header(s),
             "last_message": (last_msg.get("content", "")[:100] if last_msg else None),
             "pending_interaction": bool(_pending_components(db, str(s.session_id))),
+            "task_type": skills_svc.session_task_type(tool_names.get(str(s.session_id), [])),
         })
     return {"items": items, "total": int(total or 0)}
 

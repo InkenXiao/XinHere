@@ -1,9 +1,25 @@
 // 屏2 看板：总览/场景分布/待办漏斗/风险专项/14 天趋势（手绘 SVG，不引图表库）
+// 无数据时（新用户默认无数据）整体空态「开发中，敬请期待」（对齐设计稿）
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/transport/api'
 import type { DashboardSummary } from '@/types'
 import { SCENE_ZH, TODO_STATUS_ZH } from '@/utils'
 import { KanbanGrid, LampStats } from '@/plugins/KanbanCard'
+import EmptyState from '@/primitives/EmptyState'
+
+// 是否全空（新用户默认态）
+function isEmpty(d: DashboardSummary | null): boolean {
+  if (!d) return false // 未加载完成时不闪空态
+  return (
+    d.overview.open_tasks === 0 &&
+    d.overview.completed_7d === 0 &&
+    d.overview.overdue === 0 &&
+    d.by_scene.length === 0 &&
+    d.todo_funnel.length === 0 &&
+    !d.risk_board &&
+    d.trend_14d.length === 0
+  )
+}
 
 export default function ScreenDashboard() {
   const [data, setData] = useState<DashboardSummary | null>(null)
@@ -13,6 +29,17 @@ export default function ScreenDashboard() {
       .catch(() => {})
   }, [])
   useEffect(load, [load])
+
+  // 空态：下发的任务区未开放（设计稿）
+  if (isEmpty(data)) {
+    return (
+      <section className="screen screen-dash" id="screen-dash">
+        <div className="dash-body">
+          <EmptyState hint="下发的任务将会在这里展示" />
+        </div>
+      </section>
+    )
+  }
 
   const refresh = <button className="dash-refresh" onClick={load}>刷新</button>
   const maxScene = Math.max(1, ...(data?.by_scene.map((x) => x.total) ?? [1]))

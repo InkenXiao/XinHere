@@ -21,6 +21,34 @@ export interface SessionHeader {
 export interface SessionListItem extends SessionHeader {
   last_message: string | null
   pending_interaction: boolean
+  task_type?: string // 后端按调用工具归类的任务类型（skills.session_task_type）；历史分组用
+}
+
+// ===== AI 问数技能（GET /skills 目录 + 模版）=====
+export interface SkillItem {
+  skill_key: string
+  name: string
+  sort_no: number
+  core: boolean
+  desc: string
+  file_type?: string
+  enabled: boolean
+}
+
+export interface SkillTemplate {
+  template_id: string
+  skill_key: string
+  category: string
+  name: string
+  sort_no: number
+  enabled: boolean
+  content: {
+    tool?: string // 工具调用地址（点击后触发的话术/工具）
+    prompt?: string // 触发话术（点击模版 → 作为问数内容发送）
+    file_type?: string
+    status?: string // 'dev' = 开发中
+    [k: string]: unknown
+  }
 }
 
 export type TodoStatus =

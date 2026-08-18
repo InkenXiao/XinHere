@@ -301,3 +301,33 @@ class KbSource(BusinessBase):
     parent_id = Column(String(36))
     kb_type = Column(String(16), nullable=False, default="internal")  # internal/external
     mcp_ref = Column(String(128))
+
+
+class SkillTemplate(BusinessBase):
+    """技能模版（动态维护）：定位分类/id/名称/排序号 + 模版内容 JSON（工具调用地址等）。"""
+
+    __tablename__ = "skill_templates"
+
+    template_id = Column(String(36), primary_key=True, default=gen_id)
+    skill_key = Column(String(64), nullable=False)  # post_report / fin_risk_report / info_fill
+    category = Column(String(64), nullable=False, default="")
+    name = Column(String(128), nullable=False)
+    sort_no = Column(Integer, nullable=False, default=0)
+    content = Column(JSONB, nullable=False, default=dict)  # {"tool": ..., "prompt": ..., "status": "dev"?}
+    enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+
+    __table_args__ = (Index("idx_skill_tpl_skill", "skill_key", "sort_no"),)
+
+
+class UserSkill(BusinessBase):
+    """用户技能启用配置：按用户 ID 加载工具；无记录行 = 全量（API 兼容），
+    前端首次拉取目录时懒写入默认 3 核心技能启用行。"""
+
+    __tablename__ = "user_skills"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), nullable=False)
+    skill_key = Column(String(64), nullable=False)
+    enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+
+    __table_args__ = (Index("uq_user_skills_user_key", "user_id", "skill_key", unique=True),)

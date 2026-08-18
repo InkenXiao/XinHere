@@ -6,6 +6,7 @@ type RuntimeEnv = {
   OPS_URL?: string
   KB_URL?: string
   COWORK_URL?: string
+  MODEL_NAME?: string
   MOCK?: string
 }
 
@@ -29,5 +30,6 @@ export const runtimeEnv: RuntimeEnv = {
   OPS_URL: pick(rt.OPS_URL, import.meta.env.VITE_OPS_URL as string | undefined),
   KB_URL: pick(rt.KB_URL, import.meta.env.VITE_KB_URL as string | undefined),
   COWORK_URL: pick(rt.COWORK_URL, import.meta.env.VITE_COWORK_URL as string | undefined),
+  MODEL_NAME: pick(rt.MODEL_NAME, import.meta.env.VITE_MODEL_NAME as string | undefined),
   MOCK: pick(rt.MOCK, (import.meta.env.VITE_MOCK as string | undefined) || ''),
 }

@@ -63,9 +63,9 @@ async function mockLogin(body: unknown) {
 
 // === 会话 ===
 const sessions: SessionListItem[] = [
-  { session_id: sessionId, user_id: 'u-hq01', title: '发起风险填报', domain: 'general', status: 'active', created_at: '2026-08-15T09:30:00+08:00', updated_at: '2026-08-16T10:00:00+08:00', last_message: '已下发风险填报任务', pending_interaction: true },
-  { session_id: 'sess-02', user_id: 'u-hq01', title: '现金保障倍数试算', domain: 'general', status: 'active', created_at: '2026-08-14T14:10:00+08:00', updated_at: '2026-08-14T15:20:00+08:00', last_message: '信投数科 倍数 4.2，黄灯', pending_interaction: false },
-  { session_id: 'sess-03', user_id: 'u-hq01', title: '生成投后报告', domain: 'general', status: 'active', created_at: '2026-08-10T11:00:00+08:00', updated_at: '2026-08-10T11:45:00+08:00', last_message: '报告已生成', pending_interaction: false },
+  { session_id: sessionId, user_id: 'u-hq01', title: '发起风险填报', domain: 'general', status: 'active', created_at: '2026-08-15T09:30:00+08:00', updated_at: '2026-08-16T10:00:00+08:00', last_message: '已下发风险填报任务', pending_interaction: true, task_type: 'info_fill' },
+  { session_id: 'sess-02', user_id: 'u-hq01', title: '现金保障倍数试算', domain: 'general', status: 'active', created_at: '2026-08-14T14:10:00+08:00', updated_at: '2026-08-14T15:20:00+08:00', last_message: '信投数科 倍数 4.2，黄灯', pending_interaction: false, task_type: 'info_fill' },
+  { session_id: 'sess-03', user_id: 'u-hq01', title: '生成投后报告', domain: 'general', status: 'active', created_at: '2026-08-10T11:00:00+08:00', updated_at: '2026-08-10T11:45:00+08:00', last_message: '报告已生成', pending_interaction: false, task_type: 'post_report' },
 ]
 
 // === SSE 帧序列（seq 全局单调递增，支持同会话多轮） ===
@@ -183,6 +183,40 @@ const kbSources = [
   { kb_id: 'kb-personal', name: '个人知识库', parent_id: null, kb_type: 'internal' as const },
 ]
 
+// === AI 问数技能目录 / 模版（对齐后端 services/skills.py 静态清单）===
+const mockSkills = [
+  { skill_key: 'post_report', name: '投后管理报告', sort_no: 1, core: true, desc: '选择模版生成投后管理报告，产出 Word 文档（.docx）', file_type: 'docx', enabled: true },
+  { skill_key: 'fin_risk_report', name: '财务风险报告', sort_no: 2, core: true, desc: '选择模版生成财务风险报告，产出 PPT 演示文稿（.pptx）', file_type: 'pptx', enabled: true },
+  { skill_key: 'info_fill', name: '信息填报', sort_no: 3, core: true, desc: '创新调查 / 风险填报 / 现金保障试算等信息采集与计算', enabled: true },
+  { skill_key: 'kpi_fill', name: '经营者考核', sort_no: 4, core: false, desc: '经营者考核指标下发与填报', enabled: false },
+  { skill_key: 'ms_feedback', name: '里程碑反馈', sort_no: 5, core: false, desc: '里程碑拆分与进展反馈', enabled: false },
+  { skill_key: 'lamp_adjust', name: '亮灯调整', sort_no: 6, core: false, desc: '考核指标亮灯调整', enabled: false },
+  { skill_key: 'task_stats', name: '任务执行统计', sort_no: 7, core: false, desc: '任务进度与完成率统计', enabled: false },
+  { skill_key: 'generic_dispatch', name: '通用派发', sort_no: 8, core: false, desc: '向指定用户派发通用待办', enabled: false },
+]
+
+const mockTemplates: Record<string, {
+  template_id: string; skill_key: string; category: string; name: string; sort_no: number; enabled: boolean;
+  content: { tool?: string; prompt?: string; file_type?: string; status?: string }
+}[]> = {
+  post_report: [
+    { template_id: 'tpl-pr-1', skill_key: 'post_report', category: '投后报告', name: '标准投后管理报告', sort_no: 1, enabled: true,
+      content: { tool: 'generate_post_report', file_type: 'docx', prompt: '生成投后管理报告' } },
+  ],
+  fin_risk_report: [
+    { template_id: 'tpl-fr-1', skill_key: 'fin_risk_report', category: '财务风险', name: '标准财务风险报告', sort_no: 1, enabled: true,
+      content: { tool: 'generate_fin_risk_report', file_type: 'pptx', prompt: '生成财务风险报告' } },
+  ],
+  info_fill: [
+    { template_id: 'tpl-if-1', skill_key: 'info_fill', category: '信息填报', name: '风险填报', sort_no: 1, enabled: true,
+      content: { tool: 'dispatch_risk_fill', prompt: '发起风险填报' } },
+    { template_id: 'tpl-if-2', skill_key: 'info_fill', category: '信息填报', name: '现金保障试算', sort_no: 2, enabled: true,
+      content: { tool: 'start_cash_guarantee_fill', prompt: '发起现金保障试算' } },
+    { template_id: 'tpl-if-3', skill_key: 'info_fill', category: '信息填报', name: '创新调查', sort_no: 3, enabled: true,
+      content: { status: 'dev' } },
+  ],
+}
+
 // === 路由分发 ===
 export async function mockApi<T>(method: string, path: string, body?: unknown): Promise<T> {
   await delay(200)
@@ -257,6 +291,21 @@ export async function mockApi<T>(method: string, path: string, body?: unknown): 
   if (method === 'POST' && /^todos\/[^/]+\/complete$/.test(pn)) return res({ ok: true }) as T
 
   if (method === 'GET' && pn === 'dashboard/summary') return res(dashboard) as T
+
+  // AI 问数技能目录 / 模版
+  if (method === 'GET' && pn === 'skills') return res({ items: mockSkills }) as T
+  const skillPut = pn.match(/^skills\/(?<key>[^/]+)$/)
+  if (method === 'PUT' && skillPut) {
+    const key = skillPut.groups!.key
+    const { enabled } = (body ?? {}) as { enabled?: boolean }
+    const s = mockSkills.find((x) => x.skill_key === key)
+    if (s) s.enabled = !!enabled
+    return res({ skill_key: key, enabled: !!enabled }) as T
+  }
+  const skillTpl = pn.match(/^skills\/(?<key>[^/]+)\/templates$/)
+  if (method === 'GET' && skillTpl) {
+    return res({ items: mockTemplates[skillTpl.groups!.key] ?? [] }) as T
+  }
 
   // 风险填报
   if (method === 'GET' && pn.startsWith('risk-fills')) {

@@ -125,6 +125,15 @@ class FeedbackRecord(BaseModel):
     text: str
     version: Literal[1]
 
+class FileRecord(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    file_id: str
+    name: str
+    file_type: Literal['docx', 'pptx']
+    url: str
+    skill_key: str
+    version: Literal[1]
+
 class KpiIndicatorInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     indicator_id: str

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文件预览 · XinHere</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f1ea; color: #241b13; min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; align-items: center; gap: 12px; padding: 14px 24px;
+      background: rgba(255,252,247,.85); border-bottom: 1px solid rgba(36,27,19,.08);
+      backdrop-filter: blur(10px); position: sticky; top: 0;
+    }
+    .mark { width: 26px; height: 26px; border-radius: 8px;
+      background: conic-gradient(from 210deg, #FA8A39, #f97316, #f59e0b, #e11d48, #FA8A39); }
+    header b { font-size: 15px; }
+    header .fname { font-size: 13px; color: rgba(36,27,19,.55); }
+    .badge { margin-left: auto; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 8px; }
+    .badge.docx { background: rgba(59,130,246,.14); color: #2563eb; }
+    .badge.pptx { background: rgba(250,138,57,.16); color: #D94720; }
+    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+    .stage { text-align: center; max-width: 520px; }
+    .stage .ico { font-size: 54px; }
+    .stage h1 { font-size: 20px; margin-top: 16px; }
+    .stage p { font-size: 13.5px; color: rgba(36,27,19,.6); margin-top: 10px; line-height: 1.8; }
+    .frame { margin-top: 26px; border: 1px dashed rgba(36,27,19,.2); border-radius: 14px;
+      padding: 34px 28px; background: rgba(255,255,255,.6); font-size: 13px; color: rgba(36,27,19,.5); }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="mark"></span>
+    <b>XinHere 文件预览</b>
+    <span class="fname" id="fname"></span>
+    <span class="badge" id="badge"></span>
+  </header>
+  <main>
+    <div class="stage">
+      <div class="ico" id="ico">📄</div>
+      <h1 id="title">文件预览</h1>
+      <p id="desc"></p>
+      <div class="frame">
+        文件编辑区域（demo）<br />后续由技能服务动态生成真实编辑页面地址
+      </div>
+    </div>
+  </main>
+  <script>
+    ;(function () {
+      var q = new URLSearchParams(location.search)
+      var type = (q.get('type') || 'docx').toLowerCase()
+      var name = q.get('name') || '未命名文件'
+      var isPpt = type === 'pptx'
+      document.getElementById('fname').textContent = name
+      document.getElementById('title').textContent = name
+      document.getElementById('ico').textContent = isPpt ? '📊' : '📄'
+      var badge = document.getElementById('badge')
+      badge.textContent = '.' + type
+      badge.classList.add(isPpt ? 'pptx' : 'docx')
+      document.getElementById('desc').textContent = isPpt
+        ? 'PPT 演示文稿 · 由「财务风险报告」技能生成'
+        : 'Word 文档 · 由「投后管理报告」技能生成'
+      document.title = name + ' · XinHere'
+    })()
+  </script>
+</body>
+</html>

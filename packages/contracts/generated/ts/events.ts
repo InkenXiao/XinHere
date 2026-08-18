@@ -121,6 +121,15 @@ export interface FeedbackRecord {
   version: 1;
 }
 
+export interface FileRecord {
+  file_id: string;
+  name: string;
+  file_type: "docx" | "pptx";
+  url: string;
+  skill_key: string;
+  version: 1;
+}
+
 export interface KpiIndicatorInput {
   indicator_id: string;
   dim: string;

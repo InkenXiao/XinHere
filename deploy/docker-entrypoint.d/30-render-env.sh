@@ -13,5 +13,5 @@ if [ ! -f "$TPL" ]; then
   exit 0
 fi
 
-envsubst '$VITE_API_BASE $VITE_OPS_URL $VITE_KB_URL $VITE_COWORK_URL $VITE_MOCK' < "$TPL" > "$OUT"
+envsubst '$VITE_API_BASE $VITE_OPS_URL $VITE_KB_URL $VITE_COWORK_URL $VITE_MODEL_NAME $VITE_MOCK' < "$TPL" > "$OUT"
 echo "[render-env] wrote $OUT"

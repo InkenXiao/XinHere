@@ -26,6 +26,7 @@ REGISTRY: dict[str, tuple[type[BaseModel], bool]] = {
     "component/request": (ev.ComponentRequest, False),
     "component/submit": (ev.ComponentSubmit, False),
     "feedback/record": (ev.FeedbackRecord, False),
+    "file/record": (ev.FileRecord, False),
     # 业务事件族
     "risk/fill-start": (ev.RiskFillStart, False),
     "risk/report-update": (ev.RiskReportUpdate, False),

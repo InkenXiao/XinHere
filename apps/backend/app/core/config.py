@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     main_api_url: str = "http://localhost:8000/v1"
     main_api_key: str = ""
-    main_model: str = "glm-5.2-fp8"  # LLM 别名上游故障，勿用
+    main_model: str = "DeepSeek-V4-Flash"  # 全局默认模型（网关需配置对应渠道）
     llm_max_tokens: int = 8192  # 推理型模型必须 >=4096
 
     kb_mcp_url: str = "http://localhost:8093/mcp"

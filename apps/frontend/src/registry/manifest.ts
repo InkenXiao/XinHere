@@ -1,6 +1,7 @@
-// 组件静态清单：8 个插件构建期定死（Assembler 唯一来源；未来迁移插件仓只改本文件）
+// 组件静态清单：9 个插件构建期定死（Assembler 唯一来源；未来迁移插件仓只改本文件）
 import type { ComponentDefinition } from './types'
 import cashGuaranteeForm from '@/plugins/CashGuaranteeForm'
+import fileRecordCard from '@/plugins/FileRecordCard'
 import kanbanCard from '@/plugins/KanbanCard'
 import kpiFillForm from '@/plugins/KpiFillForm'
 import lampAdjustPanel from '@/plugins/LampAdjustPanel'
@@ -11,6 +12,7 @@ import riskFillForm from '@/plugins/RiskFillForm'
 
 export const componentDefs: ComponentDefinition[] = [
   cashGuaranteeForm,
+  fileRecordCard,
   kanbanCard,
   kpiFillForm,
   lampAdjustPanel,

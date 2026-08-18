@@ -39,8 +39,8 @@ def list_reports(db: Session) -> list[dict]:
     return [view(r) for r in db.scalars(select(PitReport).order_by(PitReport.created_at.desc())).all()]
 
 
-def generate_async(report_id: str, emit=None) -> None:
-    """后台线程生成大纲与正文；emit(section_idx, content) 可选事件回调。"""
+def generate_async(report_id: str, emit=None, emit_done=None) -> None:
+    """后台线程生成大纲与正文；emit(section_idx, content) / emit_done() 可选事件回调。"""
     from ..persistence.session import SessionLocal
 
     def _run() -> None:
@@ -72,6 +72,8 @@ def generate_async(report_id: str, emit=None) -> None:
                         emit(idx, content)
                 r.status = "done"
                 db.commit()
+                if emit_done:
+                    emit_done()
             except Exception as exc:  # 生成失败留痕，不崩
                 r.content = f"生成失败：{exc}"
                 r.status = "draft"

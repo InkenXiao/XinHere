@@ -26,9 +26,9 @@ from .stream_bridge import bridge
 from .tool_base import ToolCtx
 
 SYSTEM_PROMPT = """你是 XinHere（新在这里，心在这里）的财务智能助手，服务本部财务与被投企业财务。
-你可以：检索知识库、发起风险预警财务指标填报、现金保障倍数填报、经营者考核填报、
-里程碑反馈、亮灯调整、生成投后报告、派发通用任务、查询任务执行统计。
-规则：涉及数据填报/下发的动作必须先调用对应工具；不要臆造企业名称，先用 list_companies 确认；
+核心技能：投后管理报告（产出 Word/.docx）、财务风险报告（产出 PPT/.pptx）、信息填报
+（风险填报 / 现金保障试算等）；另有知识库检索与企业清单查询。
+规则：涉及数据填报/下发/报告生成的动作必须先调用对应工具；不要臆造企业名称，先用 list_companies 确认；
 归属期用 YYYY-MM 或用户给定的自然期间。回答用中文，简明专业。"""
 
 logger = logging.getLogger(__name__)
@@ -72,10 +72,18 @@ class AgentExecutor:
     def _build_graph(self, tool_ctx: ToolCtx):
         from deepagents import create_deep_agent
 
+        from ...services import skills as skills_svc
         from ..plugins.loader import plugin_tools
         from .tools import build_common_tools
 
         tools = build_common_tools(tool_ctx) + plugin_tools(tool_ctx)
+        # 按用户启用技能过滤工具（无 user_skills 记录行 = 全量，兼容 API 直连）
+        with SessionLocal() as db:
+            allow = skills_svc.tool_allowlist(db, tool_ctx.user_id)
+        if allow is not None:
+            tools = [t for t in tools if t.name in allow]
+            logger.info("技能过滤 user=%s sid=%s 可用工具=%s",
+                        tool_ctx.user_id, tool_ctx.session_id, sorted(t.name for t in tools))
         return create_deep_agent(
             model=build_model(),
             tools=tools,

@@ -169,7 +169,25 @@ interface CashReport { form_id: string; company: string; period: string;
 interface KbSource { kb_id: string; name: string; parent_id: string | null; kb_type: 'internal'|'external' }
 ```
 
-### 1.11 其他
+### 1.11 技能（AI 问数技能目录 / 用户启用 / 模版）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/skills` | `{items: SkillInfo[]}` 目录 + 当前用户启用态（首次访问懒播种默认 3 核心技能） |
+| PUT | `/skills/{skill_key}` | `{enabled}` 启用/停用（upsert user_skills） |
+| GET | `/skills/{skill_key}/templates` | `{items: SkillTemplate[]}` 模版列表（懒播种默认模版；`content.status='dev'` 为开发中） |
+
+```ts
+interface SkillInfo { skill_key: string; name: string; desc: string; sort_no: number; core: boolean; enabled: boolean; file_type?: 'docx'|'pptx' }
+interface SkillTemplate { template_id: string; skill_key: string; category: string; name: string; sort_no: number; content: Record<string, unknown>; enabled: boolean }
+```
+
+技能→工具映射（executor 按启用集过滤；用户无 user_skills 记录行不过滤）：
+`post_report→generate_post_report` / `fin_risk_report→generate_fin_risk_report` / `info_fill→dispatch_risk_fill,get_risk_fill_status,start_cash_guarantee_fill` / `kpi_fill→dispatch_kpi_fill` / `ms_feedback→dispatch_ms_feedback` / `lamp_adjust→adjust_lamp` / `task_stats→query_task_stats` / `generic_dispatch→dispatch_generic_task`；`search_knowledge,list_companies` 常驻。
+
+会话列表 `GET /sessions` 每项含 `task_type`（按会话内工具调用归类的 skill_key，未命中为 `chat`），供历史记录按任务类型分组。
+
+### 1.12 其他
 
 GET `/plugins` → 插件清单 `[{name, version, domain, tools[], events[]}]`；GET `/healthz` → `{ok:true}`（免认证）。
 
@@ -217,6 +235,7 @@ GET `/plugins` → 插件清单 `[{name, version, domain, tools[], events[]}]`�
 | `pit/report-update` | `{report_id, section_idx, content, version}` |
 | `pit/report-done` | `{report_id, summary, version}` |
 | `todo/changed` | `{box, todo_id, status, version}` ignorable=true |
+| `file/record` | `{file_id, name, file_type:'docx'|'pptx', url, skill_key, version}` 文件记录卡（点击打开 url） |
 
 ## 3. Agent 工具（模型只选不填）
 
@@ -232,7 +251,8 @@ schema 只含选择字段；数据后端查库填充；返回模型摘要文本�
 | `dispatch_kpi_fill` | `{period}` | "已下发经营者考核填报 N 家" |
 | `dispatch_ms_feedback` | `{period}` | "已发起里程碑反馈 N 项" |
 | `adjust_lamp` | `{company, indicator_name, new_lamp, reason}` | "已调整并留痕" |
-| `generate_post_report` | `{company_ids, period}` | "报告生成中（report_id）" |
+| `generate_post_report` | `{company_ids, period}` | "报告生成中（report_id）"，完成时发 `file/record`（.docx） |
+| `generate_fin_risk_report` | `{company_ids, period}` | "财务风险报告生成中"，发 `file/record`（.pptx） |
 | `dispatch_generic_task` | `{assignee_username, title, content, due?}` | "已派发" |
 | `query_task_stats` | `{}` | 任务执行统计摘要 |
 
