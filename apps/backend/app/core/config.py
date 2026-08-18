@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     main_api_url: str = "http://localhost:8000/v1"
     main_api_key: str = ""
-    main_model: str = "DeepSeek-V4-Flash"  # 全局默认模型（网关需配置对应渠道）
+    main_model: str = "LLM"  # 全局默认模型（传网关的参数名；前端展示名 DeepSeek-V4-Flash 由 VITE_MODEL_NAME 独立配置）
     llm_max_tokens: int = 8192  # 推理型模型必须 >=4096
 
     kb_mcp_url: str = "http://localhost:8093/mcp"
