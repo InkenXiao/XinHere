@@ -1,10 +1,30 @@
 // UI 状态：主题、执行态开关、当前激活场景组件（去填报）、Toast
 import { create } from 'zustand'
+import { runtimeEnv } from '@/config'
 import type { TodoScene } from '@/types'
 
 export type Theme = 'dark' | 'light'
 
 const THEME_KEY = 'xinhere.theme'
+
+// 3 核心技能（首页 hero 与对话页快捷入口共用；skill_key 对齐后端 skills 目录）
+export const SKILL_CARDS = [
+  { key: 'post_report', name: '投后管理报告', desc: '生成 Word 报告', icon: '📄' },
+  { key: 'fin_risk_report', name: '财务风险报告', desc: '生成 PPT 演示', icon: '📊' },
+  { key: 'info_fill', name: '信息填报', desc: '调查 / 填报 / 试算', icon: '📝' },
+] as const
+
+// 模型选项（值对关系：label 前端展示名，value 传后端/网关的模型参数）
+export const MODEL_OPTIONS = [{ label: runtimeEnv.MODEL_NAME || 'DeepSeek-V4-Flash', value: 'LLM' }]
+
+// 知识库选项（先支持投后管理系统；label 展示，value 随 kb_ids 传后端）
+export const KB_OPTIONS = [{ label: '投后管理系统', value: 'post_investment' }]
+
+// 报告类技能点击后的引导 prompt（AI 意图识别 → 需求说明 → 确认组件）；info_fill 走模版弹窗
+export const SKILL_PROMPTS: Record<string, string> = {
+  post_report: '生成投后管理报告',
+  fin_risk_report: '生成财务风险报告',
+}
 
 function initTheme(): Theme {
   try {

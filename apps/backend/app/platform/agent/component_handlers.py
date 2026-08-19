@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ...core import errors
 from ...services import cash as cash_svc
+from ...services import report as report_svc
 from ...services import risk as risk_svc
 from ..events.store import store
 
@@ -52,10 +53,54 @@ def handle_cash_guarantee_form(
     return summary, events
 
 
+def handle_report_confirm(
+    db: Session, *, session_id: str, user_id: str, props: dict, values: dict | None
+) -> tuple[str, list[tuple[str, dict]]]:
+    """报告确认组件（report-confirm）：用户选定期间/模板/企业后落库。
+    投后报告：create 报告行（幂等），异步生成由工具 resume 后启动（事件顺序 submit→report-start→update→file）；
+    财务风险报告：产出 file/record 文件卡事件（PPT 内容由独立 skill 服务产出）。"""
+    if not values:
+        raise errors.validation("缺少确认值")
+    period = str(values.get("period") or props.get("default_period") or "")
+    if not period:
+        raise errors.validation("请选择报告期间")
+    skill = props.get("skill_key")
+    template_name = next(
+        (t["name"] for t in props.get("templates") or [] if t["key"] == values.get("template_key")),
+        None,
+    )
+    if skill == "post_report":
+        company_ids = values.get("company_ids") or []
+        if not company_ids:
+            raise errors.validation("请选择被投企业")
+        r = report_svc.create(db, company_ids=company_ids, period=period,
+                              report_id=props.get("report_id"))
+        logger.info("投后报告确认落库 sid=%s report=%s period=%s 企业数=%d 模板=%s",
+                    session_id, r.report_id, period, len(company_ids), template_name)
+        summary = (f"投后管理报告生成中（归属期：{period}，{len(company_ids)} 家企业"
+                   f"{f'，模板：{template_name}' if template_name else ''}），完成后将产出 Word 文档")
+        return summary, []
+    # fin_risk_report：仅时间+模板（设计稿无企业选择）
+    name = f"财务风险报告-{period}.pptx"
+    from urllib.parse import quote
+    import uuid as _uuid
+
+    events = [("file/record", {
+        "file_id": _uuid.uuid4().hex, "name": name, "file_type": "pptx",
+        "url": f"/demo.html?type=pptx&name={quote(name)}",
+        "skill_key": "fin_risk_report", "version": 1,
+    })]
+    logger.info("财务风险报告确认落库 sid=%s period=%s 模板=%s", session_id, period, template_name)
+    summary = (f"财务风险报告已生成（归属期：{period}"
+               f"{f'，模板：{template_name}' if template_name else ''}），点击对话中的文件卡查看 PPT")
+    return summary, events
+
+
 # kind → submit 业务落库处理器（双写铁律：事件→业务→resume，由调用方编排）
 HANDLERS: dict[str, Callable] = {
     "risk-dispatch-confirm": handle_risk_dispatch_confirm,
     "cash-guarantee-form": handle_cash_guarantee_form,
+    "report-confirm": handle_report_confirm,
 }
 
 

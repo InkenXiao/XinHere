@@ -55,7 +55,7 @@ export default function TopBar() {
       <div className="brand">
         <span className="mark" />
         XinHere
-        <span className="slogan">新在这里，心在这里</span>
+        <span className="slogan"> </span>
       </div>
       <nav className="nav">
         {SUB_SYSTEMS.map((s) => (

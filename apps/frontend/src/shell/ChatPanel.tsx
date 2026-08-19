@@ -1,15 +1,10 @@
-// 对话面板（核心）：消息流/执行态双 pane 过渡 + composer + 快捷标签 + 知识库选择
-import { useEffect, useMemo, useRef, useState } from 'react'
+// 对话面板（核心）：消息流/执行态双 pane 过渡 + 技能快捷入口 + composer + 知识库/模型下拉（均与首页 hero 对齐设计稿）
+import { useEffect, useRef, useState } from 'react'
 import { useSessionStore } from '@/state/sessionStore'
-import { useUiStore } from '@/state/uiStore'
-import { api } from '@/transport/api'
-import type { KbSource } from '@/types'
+import { KB_OPTIONS, MODEL_OPTIONS, SKILL_CARDS, SKILL_PROMPTS, useUiStore } from '@/state/uiStore'
 import type { Node } from '@/registry/ConversationAssembler'
 import { toolZh } from '@/utils'
 import ExecutionView from './ExecutionView'
-
-const QUICK_TAGS = ['发起风险填报', '现金保障试算', '任务执行统计', '生成投后报告']
-const EXAMPLES = ['帮我发起 8 月风险填报', '查一下本周任务完成率', '生成 7 月投后报告']
 
 export default function ChatPanel() {
   const current = useSessionStore((s) => s.current)
@@ -19,13 +14,14 @@ export default function ChatPanel() {
   const cancel = useSessionStore((s) => s.cancel)
   const componentEmit = useSessionStore((s) => s.componentEmit)
   const executing = useUiStore((s) => s.executing)
+  const modelValue = useUiStore((s) => s.modelValue)
+  const heroKb = useUiStore((s) => s.heroKb)
 
   const [text, setText] = useState('')
-  const [kbOpen, setKbOpen] = useState(false)
-  const [kbSources, setKbSources] = useState<KbSource[] | null>(null)
-  const [kbSel, setKbSel] = useState<Set<string>>(new Set())
+  const [openDrop, setOpenDrop] = useState<'kb' | 'model' | null>(null)
   const streamRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const toolsRef = useRef<HTMLDivElement>(null)
 
   // 自动滚底
   useEffect(() => {
@@ -33,35 +29,49 @@ export default function ChatPanel() {
     if (el) el.scrollTop = el.scrollHeight
   }, [snap])
 
-  // 知识库：首次展开时加载
+  // 点击底部工具区外收起下拉
   useEffect(() => {
-    if (kbOpen && kbSources === null) {
-      api<{ items: KbSource[] }>('GET', '/kb/sources')
-        .then((r) => setKbSources(r.items ?? []))
-        .catch(() => setKbSources([]))
+    if (!openDrop) return
+    const onDown = (e: MouseEvent) => {
+      if (!toolsRef.current?.contains(e.target as globalThis.Node)) setOpenDrop(null)
     }
-  }, [kbOpen, kbSources])
-
-  const kbGroups = useMemo(() => {
-    const list = kbSources ?? []
-    const roots = list.filter((x) => x.parent_id === null)
-    return roots.map((r) => ({ root: r, leaves: list.filter((x) => x.parent_id === r.kb_id) }))
-  }, [kbSources])
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [openDrop])
 
   const doSend = (msg: string) => {
     const t = msg.trim()
     if (!t || sending || !current) return
     setText('')
     if (taRef.current) taRef.current.style.height = ''
-    void send(t, kbSel.size > 0 ? [...kbSel] : undefined)
+    void send(t, heroKb.length > 0 ? heroKb : undefined)
   }
 
-  const toggleKb = (id: string) => {
-    const n = new Set(kbSel)
-    if (n.has(id)) n.delete(id)
-    else n.add(id)
-    setKbSel(n)
+  // 技能快捷入口（与首页 hero 技能卡同行为）：报告类 → AI 意图识别；信息填报 → 模版选择
+  const onSkill = (key: string) => {
+    const prompt = SKILL_PROMPTS[key]
+    if (!prompt) {
+      useUiStore.getState().openTemplateModal(key)
+      return
+    }
+    if (current) doSend(prompt)
+    else {
+      void useSessionStore.getState().newSession().then(() => doSend(prompt))
+    }
   }
+
+  const toggleKb = (value: string) => {
+    const next = heroKb.includes(value) ? heroKb.filter((v) => v !== value) : [...heroKb, value]
+    useUiStore.getState().setHeroKb(next)
+  }
+
+  const modelLabel = MODEL_OPTIONS.find((m) => m.value === modelValue)?.label ?? MODEL_OPTIONS[0].label
+  const kbLabel =
+    heroKb.length === 0
+      ? '选择知识库'
+      : KB_OPTIONS.filter((k) => heroKb.includes(k.value))
+          .map((k) => k.label)
+          .join('、') || '选择知识库'
 
   const renderNode = (node: Node) => {
     switch (node.type) {
@@ -141,8 +151,8 @@ export default function ChatPanel() {
     <div className="dialog-card">
       <div className="chat-head">
         <div className="chat-title">
-          {current?.title ?? '新对话'}
-          {current?.title && <span className="chat-sub">{current.session_id}</span>}
+          <span className="chat-area-tag">✦ AI 问数区域</span>
+          <span className="chat-sub">你与门户助手的所有对话都在这里进行，输入或选择任务即可开始处理。</span>
         </div>
         <button className="chat-new" onClick={() => void useSessionStore.getState().newSession()}>
           + 新会话
@@ -155,15 +165,8 @@ export default function ChatPanel() {
               <div className="welcome">
                 <div className="welcome-ico">✦</div>
                 <div className="welcome-t">新在这里，心在这里</div>
-                <div className="welcome-h" style={{ marginBottom: 14 }}>
+                <div className="welcome-h">
                   用自然语言发起任务、追踪进度，组件在对话中直接操作
-                </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {EXAMPLES.map((q) => (
-                    <button className="tag-chip" key={q} onClick={() => doSend(q)}>
-                      {q}
-                    </button>
-                  ))}
                 </div>
               </div>
             )}
@@ -176,9 +179,10 @@ export default function ChatPanel() {
             )}
           </div>
           <div className="tags-row">
-            {QUICK_TAGS.map((t) => (
-              <button className="tag-chip" key={t} onClick={() => doSend(t)}>
-                {t}
+            {SKILL_CARDS.map((c) => (
+              <button className="skill-pill" key={c.key} onClick={() => onSkill(c.key)}>
+                <span className="s-ico">{c.icon}</span>
+                {c.name}
               </button>
             ))}
           </div>
@@ -187,7 +191,7 @@ export default function ChatPanel() {
               <textarea
                 ref={taRef}
                 rows={1}
-                placeholder={current ? '输入消息，Enter 发送 / Shift+Enter 换行' : '请先选择或新建会话'}
+                placeholder={current ? '问问门户：本季度投资收益如何？帮我生成一份投后报告。' : '请先选择或新建会话'}
                 value={text}
                 disabled={!current}
                 onChange={(e) => setText(e.target.value)}
@@ -208,54 +212,73 @@ export default function ChatPanel() {
                 disabled={!current || (!sending && !text.trim())}
                 onClick={() => (sending ? void cancel() : doSend(text))}
               >
-                {sending ? '停止' : '发送'}
+                {sending ? '停止' : 'AI 问数'}
               </button>
             </div>
           </div>
-          <div className="bottom-bar">
-            <span className={`bottom-item ${kbOpen ? 'on' : ''}`} onClick={() => setKbOpen((v) => !v)}>
-              📚 知识库
-              {kbSel.size > 0 && <span className="kb-sel-count">{kbSel.size}</span>}
-            </span>
-            <div className={`kb-popover ${kbOpen ? 'show' : ''}`}>
-              <div className="kb-pop-head">
-                <h4>选择知识库</h4>
-                <button className="icon-btn" onClick={() => setKbOpen(false)}>
-                  ×
-                </button>
-              </div>
-              <div className="kb-tree">
-                {kbSources === null && <div className="kb-group-t">加载中…</div>}
-                {kbGroups.map(({ root, leaves }) =>
-                  leaves.length === 0 ? (
-                    <KbLeaf key={root.kb_id} src={root} sel={kbSel.has(root.kb_id)} onToggle={toggleKb} />
-                  ) : (
-                    <div key={root.kb_id}>
-                      <div className="kb-group-t">{root.name}</div>
-                      {leaves.map((l) => (
-                        <KbLeaf key={l.kb_id} src={l} sel={kbSel.has(l.kb_id)} onToggle={toggleKb} />
-                      ))}
+          <div className="bottom-bar" ref={toolsRef}>
+            <span className="hero-select">
+              <button
+                className={`hero-tool-item ${heroKb.length > 0 ? 'on' : ''}`}
+                onClick={() => setOpenDrop((v) => (v === 'kb' ? null : 'kb'))}
+                title="选择知识库"
+              >
+                <svg className="t-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="14" height="14">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" />
+                </svg>
+                {kbLabel}
+                <span className="caret">▾</span>
+              </button>
+              {openDrop === 'kb' && (
+                <div className="hero-drop" role="listbox">
+                  {KB_OPTIONS.map((k) => (
+                    <div
+                      className={`hero-drop-item ${heroKb.includes(k.value) ? 'sel' : ''}`}
+                      key={k.value}
+                      onClick={() => toggleKb(k.value)}
+                    >
+                      <span className="tick">{heroKb.includes(k.value) ? '✓' : ''}</span>
+                      {k.label}
                     </div>
-                  ),
-                )}
-              </div>
-            </div>
+                  ))}
+                </div>
+              )}
+            </span>
+            <span className="divider" />
+            <span className="hero-select">
+              <button
+                className="model-chip"
+                onClick={() => setOpenDrop((v) => (v === 'model' ? null : 'model'))}
+                title="当前模型"
+              >
+                <svg className="m-ico" viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                  <path d="M12 2l2.5 8.5L23 12l-8.5 1.5L12 22l-2.5-8.5L1 12l8.5-1.5z" />
+                </svg>
+                {modelLabel}
+                <span className="caret">▾</span>
+              </button>
+              {openDrop === 'model' && (
+                <div className="hero-drop" role="listbox">
+                  {MODEL_OPTIONS.map((m) => (
+                    <div
+                      className={`hero-drop-item ${m.value === modelValue ? 'sel' : ''}`}
+                      key={m.value}
+                      onClick={() => {
+                        useUiStore.getState().setModelValue(m.value)
+                        setOpenDrop(null)
+                      }}
+                    >
+                      <span className="tick">{m.value === modelValue ? '✓' : ''}</span>
+                      {m.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </span>
           </div>
         </div>
         <ExecutionView />
       </div>
-    </div>
-  )
-}
-
-function KbLeaf({ src, sel, onToggle }: { src: KbSource; sel: boolean; onToggle: (id: string) => void }) {
-  return (
-    <div className={`kb-leaf ${sel ? 'sel' : ''}`} onClick={() => onToggle(src.kb_id)}>
-      <span className="cbx">{sel ? '✓' : ''}</span>
-      {src.name}
-      <span className={`kb-badge ${src.kb_type === 'internal' ? 'h' : 'n'}`}>
-        {src.kb_type === 'internal' ? '内部' : '外部'}
-      </span>
     </div>
   )
 }

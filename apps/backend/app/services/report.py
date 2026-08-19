@@ -21,8 +21,17 @@ def view(r: PitReport) -> dict:
     }
 
 
-def create(db: Session, *, company_ids: list[str], period: str) -> PitReport:
-    r = PitReport(company_ids=company_ids, period=period, status="outlining")
+def create(db: Session, *, company_ids: list[str], period: str,
+           report_id: str | None = None) -> PitReport:
+    """创建报告行；report_id 指定时幂等（已存在则复用，防组件重复 submit 重复建单）。"""
+    if report_id:
+        r = db.get(PitReport, report_id)
+        if r is not None:
+            return r
+    kw: dict = {"company_ids": company_ids, "period": period, "status": "outlining"}
+    if report_id:
+        kw["report_id"] = report_id
+    r = PitReport(**kw)
     db.add(r)
     db.flush()
     return r

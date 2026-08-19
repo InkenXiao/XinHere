@@ -157,6 +157,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           values,
           interrupt_id: interruptId,
         })
+        // submit 后 resume 产生的新事件走事件日志；chat SSE 已随 interrupt 挂起关闭，
+        // 这里续流监听（GET events SSE），把 submit/工具结果/报告进度/文件卡等事件刷进 UI。
+        // turn/end 后留 10s 宽限（异步报告生成的 file/record 晚于 turn 结束），到时断开。
+        const ctl = new AbortController()
+        let endTimer: ReturnType<typeof setTimeout> | null = null
+        const lastSeq = assembler.getMaxSeq()
+        resumeEvents(sid, lastSeq, `${sid}:${lastSeq}`, {
+          onEvent: (evt) => {
+            feedOne(evt, set)
+            if (evt.type === 'turn/end' && !endTimer) {
+              endTimer = setTimeout(() => ctl.abort(), 10_000)
+            }
+          },
+          onStatus: (s) => set({ connStatus: s }),
+        }, ctl.signal).catch((e) => {
+          if ((e as Error).name !== 'AbortError') {
+            useUiStore.getState().toast('事件同步中断，请刷新查看结果', 'err')
+          }
+        })
       },
     }
   },

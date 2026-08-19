@@ -7,6 +7,7 @@ import kpiFillForm from '@/plugins/KpiFillForm'
 import lampAdjustPanel from '@/plugins/LampAdjustPanel'
 import msFeedbackForm from '@/plugins/MsFeedbackForm'
 import pitReportView from '@/plugins/PitReportView'
+import reportConfirmCard from '@/plugins/ReportConfirmCard'
 import riskDispatchConfirm from '@/plugins/RiskDispatchConfirm'
 import riskFillForm from '@/plugins/RiskFillForm'
 
@@ -18,6 +19,7 @@ export const componentDefs: ComponentDefinition[] = [
   lampAdjustPanel,
   msFeedbackForm,
   pitReportView,
+  reportConfirmCard,
   riskDispatchConfirm,
   riskFillForm,
 ]
