@@ -26,13 +26,10 @@ from .stream_bridge import bridge
 from .tool_base import ToolCtx
 
 SYSTEM_PROMPT = """你是 XinHere（新在这里，心在这里）的财务智能助手，服务本部财务与被投企业财务。
-核心技能：投后管理报告（产出 Word/.docx）、财务风险报告（产出 PPT/.pptx）、信息填报
-（风险填报 / 现金保障试算等）；另有知识库检索与企业清单查询。
-规则：涉及数据填报/下发/报告生成的动作必须先调用对应工具；不要臆造企业名称，先用 list_companies 确认；
-归属期用 YYYY-MM 或用户给定的自然期间。回答用中文，简明专业。
-报告技能流程：用户表达生成投后管理报告/财务风险报告的意图后，先用一两句话复述你的需求理解
-（报告类型、期间、企业范围、模板），然后立即调用对应工具——工具会弹出确认组件由用户最终选择，
-确认后自动执行；可从用户话语中提取期间/企业作为工具预选参数，拿不准的留给用户在组件中选择，不要反问。"""
+你可以：检索知识库、发起风险预警财务指标填报、现金保障倍数填报、经营者考核填报、
+里程碑反馈、亮灯调整、生成投后报告、派发通用任务、查询任务执行统计。
+规则：涉及数据填报/下发的动作必须先调用对应工具；不要臆造企业名称，先用 list_companies 确认；
+归属期用 YYYY-MM 或用户给定的自然期间。回答用中文，简明专业。"""
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +41,6 @@ class RunHandle:
     user_id: str
     request_id: str
     status: str = "running"  # running / waiting_interrupt / done
-    model: str | None = None  # 前端模型选择参数（None=默认 MAIN_MODEL）
     cancel_event: threading.Event = field(default_factory=threading.Event)
     pending_interrupt_id: str | None = None
     pending_component_id: str | None = None
@@ -73,23 +69,15 @@ class AgentExecutor:
         self._saver.setup()
         self._ready.set()
 
-    def _build_graph(self, tool_ctx: ToolCtx, model: str | None = None):
+    def _build_graph(self, tool_ctx: ToolCtx):
         from deepagents import create_deep_agent
 
-        from ...services import skills as skills_svc
         from ..plugins.loader import plugin_tools
         from .tools import build_common_tools
 
         tools = build_common_tools(tool_ctx) + plugin_tools(tool_ctx)
-        # 按用户启用技能过滤工具（无 user_skills 记录行 = 全量，兼容 API 直连）
-        with SessionLocal() as db:
-            allow = skills_svc.tool_allowlist(db, tool_ctx.user_id)
-        if allow is not None:
-            tools = [t for t in tools if t.name in allow]
-            logger.info("技能过滤 user=%s sid=%s 可用工具=%s",
-                        tool_ctx.user_id, tool_ctx.session_id, sorted(t.name for t in tools))
         return create_deep_agent(
-            model=build_model(model=model),
+            model=build_model(),
             tools=tools,
             checkpointer=self._saver,
             system_prompt=SYSTEM_PROMPT,
@@ -104,8 +92,7 @@ class AgentExecutor:
                 return None
             return h
 
-    def start_turn(self, session_id: str, user: SysUser, content: str, request_id: str,
-                   model: str | None = None) -> int:
+    def start_turn(self, session_id: str, user: SysUser, content: str, request_id: str) -> int:
         """登记 run 并起后台线程；返回 turn 号。调用方需先落 user/message 与 turn/start。"""
         with SessionLocal() as db:
             turn = db.scalar(
@@ -114,12 +101,10 @@ class AgentExecutor:
                     PlatformSessionEvent.type == "turn/start",
                 )
             )
-        handle = RunHandle(session_id=session_id, turn=turn, user_id=user.user_id,
-                           request_id=request_id, model=model)
+        handle = RunHandle(session_id=session_id, turn=turn, user_id=user.user_id, request_id=request_id)
         with self._lock:
             self._runs[session_id] = handle
-        logger.info("run 启动 sid=%s turn=%d user=%s req=%s model=%s",
-                    session_id, turn, user.username, request_id, model or settings.main_model)
+        logger.info("run 启动 sid=%s turn=%d user=%s req=%s", session_id, turn, user.username, request_id)
         threading.Thread(
             target=self._run, args=(handle, content, None), name=f"run-{session_id[:8]}-t{turn}", daemon=True
         ).start()
@@ -181,7 +166,7 @@ class AgentExecutor:
         translator = EventTranslator(store, sid, handle.turn)
         try:
             self._ready.wait(timeout=30)
-            graph = self._build_graph(tool_ctx, model=handle.model)
+            graph = self._build_graph(tool_ctx)
             config = {"configurable": {"thread_id": sid}}
             input_ = (
                 Command(resume=resume_value)

@@ -19,7 +19,7 @@ interface SessionState {
   loadSessions: () => Promise<void>
   openSession: (id: string) => Promise<void>
   newSession: () => Promise<void>
-  send: (text: string, kbIds?: string[], model?: string) => Promise<void>
+  send: (text: string, kbIds?: string[]) => Promise<void>
   cancel: () => Promise<void>
   componentEmit: (componentId: string) => {
     update: (draft: Record<string, unknown>) => Promise<void>
@@ -71,15 +71,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     await get().loadSessions()
   },
 
-  async send(text, kbIds, model) {
+  async send(text, kbIds) {
     const cur = get().current
     if (!cur || get().sending) return
     set({ sending: true, asmError: null })
     useUiStore.getState().setExecDone(false)
     abortCtl = new AbortController()
     const sid = cur.session_id
-    // 模型参数：调用方显式指定优先，否则取全局当前选择（值对 value，如 LLM）
-    const modelParam = model ?? useUiStore.getState().modelValue
     let sawEvents = false
     const handlers = {
       onEvent: (evt: PlatformEvent) => {
@@ -95,7 +93,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       },
     }
     try {
-      await streamChat(sid, { message: text, kb_ids: kbIds, model: modelParam }, handlers, abortCtl.signal)
+      await streamChat(sid, { message: text, kb_ids: kbIds }, handlers, abortCtl.signal)
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
       // 断线：指数退避重连（GET events SSE 续流，after_seq），不清屏
@@ -156,25 +154,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           action,
           values,
           interrupt_id: interruptId,
-        })
-        // submit 后 resume 产生的新事件走事件日志；chat SSE 已随 interrupt 挂起关闭，
-        // 这里续流监听（GET events SSE），把 submit/工具结果/报告进度/文件卡等事件刷进 UI。
-        // turn/end 后留 10s 宽限（异步报告生成的 file/record 晚于 turn 结束），到时断开。
-        const ctl = new AbortController()
-        let endTimer: ReturnType<typeof setTimeout> | null = null
-        const lastSeq = assembler.getMaxSeq()
-        resumeEvents(sid, lastSeq, `${sid}:${lastSeq}`, {
-          onEvent: (evt) => {
-            feedOne(evt, set)
-            if (evt.type === 'turn/end' && !endTimer) {
-              endTimer = setTimeout(() => ctl.abort(), 10_000)
-            }
-          },
-          onStatus: (s) => set({ connStatus: s }),
-        }, ctl.signal).catch((e) => {
-          if ((e as Error).name !== 'AbortError') {
-            useUiStore.getState().toast('事件同步中断，请刷新查看结果', 'err')
-          }
         })
       },
     }

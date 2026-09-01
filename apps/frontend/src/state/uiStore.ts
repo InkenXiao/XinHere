@@ -1,38 +1,6 @@
 // UI 状态：主题、执行态开关、当前激活场景组件（去填报）、Toast
 import { create } from 'zustand'
-import { runtimeEnv } from '@/config'
 import type { TodoScene } from '@/types'
-
-export type Theme = 'dark' | 'light'
-
-const THEME_KEY = 'xinhere.theme'
-
-// 3 核心技能（首页 hero 与对话页快捷入口共用；skill_key 对齐后端 skills 目录）
-export const SKILL_CARDS = [
-  { key: 'post_report', name: '投后管理报告', desc: '生成 Word 报告', icon: '📄' },
-  { key: 'fin_risk_report', name: '财务风险报告', desc: '生成 PPT 演示', icon: '📊' },
-  { key: 'info_fill', name: '信息填报', desc: '调查 / 填报 / 试算', icon: '📝' },
-] as const
-
-// 模型选项（值对关系：label 前端展示名，value 传后端/网关的模型参数）
-export const MODEL_OPTIONS = [{ label: runtimeEnv.MODEL_NAME || 'DeepSeek-V4-Flash', value: 'LLM' }]
-
-// 知识库选项（先支持投后管理系统；label 展示，value 随 kb_ids 传后端）
-export const KB_OPTIONS = [{ label: '投后管理系统', value: 'post_investment' }]
-
-// 报告类技能点击后的引导 prompt（AI 意图识别 → 需求说明 → 确认组件）；info_fill 走模版弹窗
-export const SKILL_PROMPTS: Record<string, string> = {
-  post_report: '生成投后管理报告',
-  fin_risk_report: '生成财务风险报告',
-}
-
-function initTheme(): Theme {
-  try {
-    return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'
-  } catch {
-    return 'dark'
-  }
-}
 
 export interface SceneTarget {
   scene: TodoScene
@@ -48,28 +16,18 @@ interface ToastItem {
 }
 
 interface UiState {
-  theme: Theme
+  theme: 'dark'
   activeScreen: 'work' | 'dash' // 当前所在屏（TopBar 滚动跟踪写入；屏1 据此隐藏历史/待办栏）
   workView: 'hero' | 'chat' // 屏1 视图：hero 大问数框（默认）↔ 三栏工作台
   executing: boolean // 执行态开关：中央区 ChatPanel ↔ ExecutionView
   execDone: boolean
   sceneTarget: SceneTarget | null // 待办「去填报/去审批」打开的场景组件
-  templateSkill: string | null // 模版选择 Modal 当前技能 key（null=关闭）
-  skillSettingsOpen: boolean // 技能设置 Modal
-  modelValue: string // 当前模型参数（值对 value，如 LLM；展示名由 MODEL_OPTIONS 映射）
-  heroKb: string[] // Hero 区选中的知识库 value 列表
   toasts: ToastItem[]
-  toggleTheme: () => void
   setActiveScreen: (v: 'work' | 'dash') => void
   setWorkView: (v: 'hero' | 'chat') => void
   setExecuting: (v: boolean) => void
   setExecDone: (v: boolean) => void
   openScene: (t: SceneTarget | null) => void
-  openTemplateModal: (skillKey: string) => void
-  closeTemplateModal: () => void
-  setSkillSettingsOpen: (v: boolean) => void
-  setModelValue: (v: string) => void
-  setHeroKb: (v: string[]) => void
   toast: (text: string, kind?: 'info' | 'err') => void
   dismissToast: (id: number) => void
 }
@@ -77,37 +35,18 @@ interface UiState {
 let toastSeq = 0
 
 export const useUiStore = create<UiState>((set) => ({
-  theme: initTheme(),
+  theme: 'dark',
   activeScreen: 'work',
   workView: 'hero',
   executing: false,
   execDone: false,
   sceneTarget: null,
-  templateSkill: null,
-  skillSettingsOpen: false,
-  modelValue: 'LLM',
-  heroKb: [],
   toasts: [],
-  toggleTheme: () =>
-    set((s) => {
-      const next: Theme = s.theme === 'dark' ? 'light' : 'dark'
-      try {
-        localStorage.setItem(THEME_KEY, next)
-      } catch {
-        /* 忽略持久化失败 */
-      }
-      return { theme: next }
-    }),
   setActiveScreen: (v) => set({ activeScreen: v }),
   setWorkView: (v) => set({ workView: v }),
   setExecuting: (v) => set({ executing: v }),
   setExecDone: (v) => set({ execDone: v }),
   openScene: (t) => set({ sceneTarget: t }),
-  openTemplateModal: (skillKey) => set({ templateSkill: skillKey }),
-  closeTemplateModal: () => set({ templateSkill: null }),
-  setSkillSettingsOpen: (v) => set({ skillSettingsOpen: v }),
-  setModelValue: (v) => set({ modelValue: v }),
-  setHeroKb: (v) => set({ heroKb: v }),
   toast: (text, kind = 'info') => {
     const id = ++toastSeq
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))

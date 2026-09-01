@@ -1,4 +1,4 @@
-# XinHere 全栈编排（生产·本机）：挂外部 ai_network（pg_db / model-api / xin-ai 容器名直达）
+# XinHere 全栈编排（生产·本机）：挂外部 ai_network（pg_db / model-api / xuanpu 容器名直达）
 # ----------------------------------------------------------------------------
 # 发布设计（改码/改配置均不重建镜像）：
 #   - 后端镜像只含 Python 依赖；源码/插件/契约/alembic 卷挂载进容器 → 改代码重启即生效
@@ -34,7 +34,7 @@ services:
       timeout: 3s
       retries: 24
       start_period: 10s
-    restart: unless-stopped
+    restart: no
     networks:
       - ai_network
 
@@ -56,7 +56,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    restart: unless-stopped
+    restart: no
     networks:
       - ai_network
 

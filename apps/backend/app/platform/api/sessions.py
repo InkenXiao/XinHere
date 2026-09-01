@@ -21,7 +21,6 @@ from ...persistence.models import (
     SysUser,
 )
 from ...persistence.session import get_db
-from ...services import skills as skills_svc
 from ..agent.component_handlers import HANDLERS, apply_update_draft
 from ..agent.executor import executor
 from ..agent.stream_bridge import bridge
@@ -108,17 +107,6 @@ def list_sessions(
         .order_by(PlatformSession.updated_at.desc())
         .limit(limit).offset(offset)
     ).all()
-    # 任务类型归类：取会话内 tool/call 工具名映射技能（历史记录按任务类型分组）
-    tool_names: dict[str, list[str]] = {}
-    if rows:
-        tool_rows = db.execute(
-            select(PlatformSessionEvent.session_id, PlatformSessionEvent.data["name"].astext)
-            .where(PlatformSessionEvent.session_id.in_([s.session_id for s in rows]),
-                   PlatformSessionEvent.type == "tool/call")
-            .order_by(PlatformSessionEvent.session_id, PlatformSessionEvent.seq)
-        ).all()
-        for sid, name in tool_rows:
-            tool_names.setdefault(str(sid), []).append(name)
     items = []
     for s in rows:
         last_msg = db.scalars(
@@ -132,7 +120,6 @@ def list_sessions(
             **_header(s),
             "last_message": (last_msg.get("content", "")[:100] if last_msg else None),
             "pending_interaction": bool(_pending_components(db, str(s.session_id))),
-            "task_type": skills_svc.session_task_type(tool_names.get(str(s.session_id), [])),
         })
     return {"items": items, "total": int(total or 0)}
 
@@ -147,7 +134,6 @@ def get_session(session_id: str, user: SysUser = Depends(current_user), db: Sess
 class ChatIn(BaseModel):
     message: str
     kb_ids: list[str] | None = None
-    model: str | None = None  # 前端模型选择参数（值对 value，如 LLM）；None=默认 MAIN_MODEL
 
 
 @router.post("/{session_id}/chat")
@@ -177,9 +163,9 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         )
     ) + 1
     store.append(session_id, "turn/start", {"turn": turn, "version": 1}, turn=turn)
-    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s model=%s msg=%.80s",
-                session_id, turn, user.username, body.kb_ids, body.model, message)
-    executor.start_turn(session_id, user, message, request_id, model=body.model)
+    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s msg=%.80s",
+                session_id, turn, user.username, body.kb_ids, message)
+    executor.start_turn(session_id, user, message, request_id)
 
     async def gen():
         try:

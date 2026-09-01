@@ -19,10 +19,10 @@ class Settings(BaseSettings):
 
     main_api_url: str = "http://localhost:8000/v1"
     main_api_key: str = ""
-    main_model: str = "LLM"  # 全局默认模型（传网关的参数名；前端展示名 DeepSeek-V4-Flash 由 VITE_MODEL_NAME 独立配置）
+    main_model: str = "glm-5.2-fp8"  # LLM 别名上游故障，勿用
     llm_max_tokens: int = 8192  # 推理型模型必须 >=4096
 
-    kb_mcp_url: str = "http://localhost:8093/mcp"
+    kb_mcp_url: str = "https://localhost:8093/mcp"
     token_ttl_hours: int = 72
     allowed_hosts: str = "localhost,127.0.0.1"
     cors_origins: str = "http://localhost:8095,http://localhost:5173"
