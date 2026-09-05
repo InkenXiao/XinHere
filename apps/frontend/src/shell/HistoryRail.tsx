@@ -6,7 +6,7 @@ import { dayGroup, fmtTime } from '@/utils'
 
 const GROUP_ORDER = ['今天', '昨天', '近 7 天', '更早']
 
-export default function HistoryRail({ onCollapse }: { onCollapse?: () => void }) {
+export default function HistoryRail() {
   const sessions = useSessionStore((s) => s.sessions)
   const current = useSessionStore((s) => s.current)
   const openSession = useSessionStore((s) => s.openSession)
@@ -34,14 +34,6 @@ export default function HistoryRail({ onCollapse }: { onCollapse?: () => void })
 
   return (
     <>
-      <div className="col-head">
-        <div className="t">
-          <span className="h-ico">🕘</span>历史会话
-        </div>
-        <button className="icon-btn" onClick={onCollapse} title="收起">
-          ‹
-        </button>
-      </div>
       <button className="hist-new" onClick={() => void newSession()}>
         + 新会话
       </button>

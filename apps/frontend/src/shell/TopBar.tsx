@@ -1,36 +1,16 @@
-// 顶栏：brand+slogan / 子系统外链 / 连接态 / 用户菜单
+// 顶栏：品牌 logo（随模式切换）/ 连接态 / 用户菜单
 import { useEffect, useRef, useState } from 'react'
-import { runtimeEnv } from '@/config'
 import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
-import { useUiStore } from '@/state/uiStore'
 
 const ROLE_ZH: Record<string, string> = { hq_finance: '本部财务', investee_finance: '被投财务' }
-
-// 子系统跳转（运行时配置 window.__ENV__，空值不渲染）
-const SUB_SYSTEMS = [
-  { name: '运营管理系统', url: runtimeEnv.OPS_URL || undefined },
-  { name: '青山知识库', url: runtimeEnv.KB_URL || undefined },
-  { name: 'CoWork', url: runtimeEnv.COWORK_URL || undefined },
-].filter((s) => s.url)
 
 export default function TopBar() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const connStatus = useSessionStore((s) => s.connStatus)
-  const setActiveScreen = useUiStore((s) => s.setActiveScreen)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-
-  // 两屏 active 跟踪：按 .screens 滚动位置（写入 uiStore 供屏1隐藏历史/待办栏）
-  useEffect(() => {
-    const scroller = document.querySelector('.screens')
-    if (!scroller) return
-    const onScroll = () =>
-      setActiveScreen(scroller.scrollTop >= window.innerHeight * 0.5 ? 'dash' : 'work')
-    scroller.addEventListener('scroll', onScroll, { passive: true })
-    return () => scroller.removeEventListener('scroll', onScroll)
-  }, [setActiveScreen])
 
   // 点击外部关闭用户菜单
   useEffect(() => {
@@ -45,17 +25,11 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="mark" />
-        XinHere
+        <img className="brand-logo cockpit" src="/assets/logo-cockpit.png" alt="XinHere" />
+        <img className="brand-logo tower" src="/assets/logo-tower.png" alt="XinHere" />
         <span className="slogan">新在这里，心在这里</span>
       </div>
-      <nav className="nav">
-        {SUB_SYSTEMS.map((s) => (
-          <a key={s.name} href={s.url} target="_blank" rel="noreferrer">
-            {s.name}
-          </a>
-        ))}
-      </nav>
+      <span />
       <div className="topbar-right">
         <span className={`conn-dot ${connStatus === 'reconnecting' ? 'reconnecting' : ''}`}>
           <i />

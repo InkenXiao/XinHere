@@ -28,6 +28,7 @@ from .platform.api import (
     risk_fills,
     sessions,
     todos,
+    xuanpu,
 )
 from .platform.plugins.loader import discover
 
@@ -142,7 +143,7 @@ def healthz():
 API = "/api/v1"
 for r in (
     auth.router, sessions.router, todos.router, dashboard.router, risk_fills.router,
-    cash.router, kpi.router, reports.router, kb.router, plugins.router,
+    cash.router, kpi.router, reports.router, kb.router, plugins.router, xuanpu.router,
 ):
     app.include_router(r, prefix=API)
 

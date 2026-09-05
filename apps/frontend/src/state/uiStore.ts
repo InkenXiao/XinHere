@@ -17,12 +17,19 @@ interface ToastItem {
 
 interface UiState {
   theme: 'dark'
-  activeScreen: 'work' | 'dash' // 当前所在屏（TopBar 滚动跟踪写入；屏1 据此隐藏历史/待办栏）
-  workView: 'hero' | 'chat' // 屏1 视图：hero 大问数框（默认）↔ 三栏工作台
+  mode: 'tower' | 'cockpit' // 双模式：瞭望塔（夜·问答）⇄ 驾驶舱（日·业务）
+  historyOpen: boolean // 框架一：左侧历史对话抽屉
+  kanbanOpen: boolean // 框架三：底部看板抽屉
+  switching: boolean // 模式切换雾式转场窗口
+  activeScreen: 'work' | 'dash' // deprecated: 抽屉模型下不再使用（原 TopBar 滚动跟踪）
+  workView: 'hero' | 'chat' // 瞭望塔层内视图：hero 大问数框（默认）↔ 会话
   executing: boolean // 执行态开关：中央区 ChatPanel ↔ ExecutionView
   execDone: boolean
   sceneTarget: SceneTarget | null // 待办「去填报/去审批」打开的场景组件
   toasts: ToastItem[]
+  setMode: (v: 'tower' | 'cockpit') => void
+  toggleHistory: () => void
+  toggleKanban: () => void
   setActiveScreen: (v: 'work' | 'dash') => void
   setWorkView: (v: 'hero' | 'chat') => void
   setExecuting: (v: boolean) => void
@@ -36,12 +43,22 @@ let toastSeq = 0
 
 export const useUiStore = create<UiState>((set) => ({
   theme: 'dark',
+  mode: 'tower',
+  historyOpen: false,
+  kanbanOpen: false,
+  switching: false,
   activeScreen: 'work',
   workView: 'hero',
   executing: false,
   execDone: false,
   sceneTarget: null,
   toasts: [],
+  setMode: (v) => {
+    set({ mode: v, switching: true })
+    setTimeout(() => set({ switching: false }), 1150)
+  },
+  toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
+  toggleKanban: () => set((s) => ({ kanbanOpen: !s.kanbanOpen })),
   setActiveScreen: (v) => set({ activeScreen: v }),
   setWorkView: (v) => set({ workView: v }),
   setExecuting: (v) => set({ executing: v }),

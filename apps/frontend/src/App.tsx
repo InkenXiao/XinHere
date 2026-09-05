@@ -1,18 +1,24 @@
-// 根组件：登录态门控 + 两屏 + 弹窗/Toast 宿主
+// 根组件：登录态门控 + 双模式层（瞭望塔⇄驾驶舱）+ 框架（顶栏/历史/待办/看板）+ 弹窗/Toast 宿主
 import { useEffect } from 'react'
 import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { startTodoPolling, stopTodoPolling, useTodoStore } from '@/state/todoStore'
+import { useUiStore } from '@/state/uiStore'
 import LoginPage from '@/shell/LoginPage'
 import TopBar from '@/shell/TopBar'
 import ScreenWork from '@/shell/ScreenWork'
-import ScreenDashboard from '@/shell/ScreenDashboard'
+import CockpitHome from '@/shell/CockpitHome'
 import SceneModal from '@/shell/SceneModal'
 import ToastHost from '@/primitives/Toast'
+import { ModeToggle, HistoryDrawer, TodoRail, KanbanDrawer } from '@/shell/Frame'
 
 export default function App() {
   const token = useAuthStore((s) => s.token)
   const ready = useAuthStore((s) => s.ready)
+  const mode = useUiStore((s) => s.mode)
+  const historyOpen = useUiStore((s) => s.historyOpen)
+  const kanbanOpen = useUiStore((s) => s.kanbanOpen)
+  const switching = useUiStore((s) => s.switching)
 
   useEffect(() => {
     void useAuthStore.getState().fetchMe()
@@ -26,23 +32,45 @@ export default function App() {
     return () => stopTodoPolling()
   }, [token])
 
-  if (!ready) return <div className="app-bg" />
+  // 模式/抽屉状态同步到 body class，驱动全局配色与抽屉开合
+  useEffect(() => {
+    const b = document.body
+    b.classList.toggle('mode-tower', mode === 'tower')
+    b.classList.toggle('mode-cockpit', mode === 'cockpit')
+    b.classList.toggle('history-open', historyOpen)
+    b.classList.toggle('kanban-open', kanbanOpen)
+  }, [mode, historyOpen, kanbanOpen])
+
+  if (!ready) return <section className="layer layer-tower"><div className="bg" /></section>
   if (!token) {
     return (
       <>
-        <div className="app-bg" />
+        <section className="layer layer-tower">
+          <div className="bg" />
+        </section>
         <LoginPage />
       </>
     )
   }
   return (
     <>
-      <div className="app-bg" />
-      <TopBar />
-      <div className="screens">
+      {/* 驾驶舱 · 守（日） */}
+      <section className="layer layer-cockpit">
+        <div className="bg" />
+        <CockpitHome />
+      </section>
+      {/* 瞭望塔 · 攻（夜） */}
+      <section className="layer layer-tower">
+        <div className="bg" />
         <ScreenWork />
-        <ScreenDashboard />
-      </div>
+      </section>
+      {/* 框架（不随模式切换而改变布局） */}
+      <TopBar />
+      <ModeToggle />
+      <HistoryDrawer />
+      <TodoRail />
+      <KanbanDrawer />
+      <div className={`fog ${switching ? 'pulse' : ''}`} />
       <SceneModal />
       <ToastHost />
     </>

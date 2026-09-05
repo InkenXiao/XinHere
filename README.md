@@ -92,7 +92,7 @@ bash deploy/publish.sh  # 前端构建 → 依赖变化才重建镜像 → alemb
 ```
 
 - 前端：http://localhost:8096（nginx，`/api` 反代 backend:8000）
-- 后端：http://127.0.0.1:8097（仅宿主 loopback，健康检查 `/healthz`）
+- 后端：http://127.0.0.1:8197（仅宿主 loopback，健康检查 `/healthz`）
 - 改代码/改配置不重建镜像：后端源码、插件、契约、alembic 均卷挂载；前端重新 build dist
   后重启；前端运行时配置经 nginx 渲染 `window.__ENV__` 注入（`deploy/config.js.template`）
 - 外部依赖：`ai_network` 内 `pg_db`（PG）、`model-api`（LLM 网关）、知识库 MCP 服务

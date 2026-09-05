@@ -1,5 +1,5 @@
-// 屏1 默认 hero（类 index1）：大标题 + slogan + 大 AI 问数输入框
-// 发送/点「新对话」→ 进入三栏工作台视图
+// 瞭望塔默认 hero：居中大问数框（attach 徽标为视觉态，真实知识库选择在会话内）
+// 发送/点快捷 chip → 进入会话视图
 import { useState } from 'react'
 import { useSessionStore } from '@/state/sessionStore'
 import { useUiStore } from '@/state/uiStore'
@@ -10,6 +10,8 @@ export default function HeroHome() {
   const sending = useSessionStore((s) => s.sending)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [attachMode, setAttachMode] = useState<'kb' | 'skill' | null>(null)
 
   const enterChat = async (question?: string) => {
     if (busy || sending) return
@@ -24,43 +26,64 @@ export default function HeroHome() {
     }
   }
 
+  const pickAttach = (m: 'kb' | 'skill') => {
+    setAttachMode((cur) => (cur === m ? null : m))
+    setAttachOpen(false)
+  }
+
   return (
-    <div className="hero">
-      <div className="hero-inner">
+    <div className="tw-anchor">
+      <div className="tw-backdrop" />
+      <div className="tw-title">
         <h1>全场景 AI 工作台</h1>
-        <p className="hero-slogan">Fall in love with the problem, not the solution.</p>
-        <div className="ask">
-          <svg className="lead" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2l2.5 8.5L23 12l-8.5 1.5L12 22l-2.5-8.5L1 12l8.5-1.5z" />
-          </svg>
+        <p className="sub">新在这里 · 心在这里</p>
+      </div>
+      <div className="tw-chat">
+        <div className="inp">
+          <button
+            className={`attach ${attachMode ? 'active' : ''}`}
+            title="调用知识库 / 使用 Skill"
+            onClick={() => setAttachOpen((v) => !v)}
+          >
+            +
+          </button>
+          <span className={`badge ${attachMode ? 'show' : ''}`}>
+            <span>{attachMode === 'skill' ? '行研 Skill' : '知识库'}</span>
+            <span className="x" title="移除" onClick={() => setAttachMode(null)}>
+              ×
+            </span>
+          </span>
           <input
+            type="text"
             value={text}
-            placeholder="问问门户：本季度投资收益如何？帮我生成一份投后报告."
+            placeholder="向 XinHere 提问…"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void enterChat(text)
             }}
           />
-          <button className="go" disabled={busy || sending} onClick={() => void enterChat(text)}>
-            <span className="arr">→</span> AI 问答
-          </button>
-        </div>
-        <div className="hero-actions">
-          {HERO_CHIPS.map((c) => (
-            <button className="chip" key={c} onClick={() => void enterChat(c)}>
-              {c}
-            </button>
-          ))}
-          <button className="chip chip-new" onClick={() => void enterChat()}>
-            ＋ 新对话
+          <button className="send" disabled={busy || sending} onClick={() => void enterChat(text)}>
+            发送
           </button>
         </div>
       </div>
-      <div
-        className="hero-scroll-hint"
-        onClick={() => document.getElementById('screen-dash')?.scrollIntoView({ behavior: 'smooth' })}
-      >
-        ↓ 下滑查看业务看板
+      <div className={`tw-attach-pop ${attachOpen ? 'open' : ''}`}>
+        <div className={`opt ${attachMode === 'kb' ? 'active' : ''}`} onClick={() => pickAttach('kb')}>
+          <span className="ic">❡</span>调用知识库
+        </div>
+        <div className={`opt ${attachMode === 'skill' ? 'active' : ''}`} onClick={() => pickAttach('skill')}>
+          <span className="ic">⌘</span>使用行研报告 Skill
+        </div>
+      </div>
+      <div className="tw-chips">
+        {HERO_CHIPS.map((c) => (
+          <button className="chip" key={c} onClick={() => void enterChat(c)}>
+            {c}
+          </button>
+        ))}
+        <button className="chip chip-new" onClick={() => void enterChat()}>
+          ＋ 新对话
+        </button>
       </div>
     </div>
   )

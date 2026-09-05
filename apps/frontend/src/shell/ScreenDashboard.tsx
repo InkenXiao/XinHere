@@ -1,9 +1,11 @@
-// 屏2 看板：总览/场景分布/待办漏斗/风险专项/14 天趋势（手绘 SVG，不引图表库）
+// 看板（底部抽屉承载）：总览/场景分布/待办漏斗/风险专项/14 天趋势 + XuanPu 看板（手绘 SVG，不引图表库）
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/transport/api'
-import type { DashboardSummary } from '@/types'
+import type { DashboardSummary, XuanPuDashboard } from '@/types'
 import { SCENE_ZH, TODO_STATUS_ZH } from '@/utils'
 import { KanbanGrid, LampStats } from '@/plugins/KanbanCard'
+
+const XP_PRIO_ZH: Record<string, string> = { low: '低', medium: '中', high: '高', urgent: '紧急' }
 
 export default function ScreenDashboard() {
   const [data, setData] = useState<DashboardSummary | null>(null)
@@ -14,14 +16,22 @@ export default function ScreenDashboard() {
   }, [])
   useEffect(load, [load])
 
+  // XuanPu 看板（经 MCP 网关 REST 代理）
+  const [xp, setXp] = useState<XuanPuDashboard | null>(null)
+  const loadXp = useCallback(() => {
+    api<XuanPuDashboard>('GET', '/xuanpu/dashboard')
+      .then((r) => setXp(r.raw ? null : r))
+      .catch(() => {})
+  }, [])
+  useEffect(loadXp, [loadXp])
+
   const refresh = <button className="dash-refresh" onClick={load}>刷新</button>
   const maxScene = Math.max(1, ...(data?.by_scene.map((x) => x.total) ?? [1]))
   const maxFunnel = Math.max(1, ...(data?.todo_funnel.map((x) => x.count) ?? [1]))
 
   return (
-    <section className="screen screen-dash" id="screen-dash">
-      <div className="dash-body">
-        <div className="dash-grid">
+    <div className="dash-body">
+      <div className="dash-grid">
           <div className="dash-card span-12">
             <h3>
               总览
@@ -125,9 +135,54 @@ export default function ScreenDashboard() {
               </span>
             </div>
           </div>
+
+          <div className="dash-card span-12">
+            <h3>
+              XuanPu 看板
+              <span className="sub">
+                {xp?.active_project?.name ? `激活项目 · ${xp.active_project.name}` : '经 MCP 网关接入'}
+              </span>
+              <button className="dash-refresh" onClick={loadXp}>
+                刷新
+              </button>
+            </h3>
+            <div className="kanban-stats" style={{ marginBottom: 12 }}>
+              <span className="kb-stat">
+                <b>{xp?.projects.length ?? '—'}</b>项目
+              </span>
+              <span className="kb-stat">
+                <b>{xp?.progress_tasks_total ?? '—'}</b>进度任务
+              </span>
+              <span className="kb-stat">
+                <b className="y">{xp?.bug_stats_by_fix_status?.total ?? '—'}</b>BUG
+              </span>
+              <span className="kb-stat">
+                <b className="g">{xp?.req_stats_by_status?.total ?? '—'}</b>需求
+              </span>
+              {(xp?.bug_stats_by_priority?.groups ?? []).map((g) => (
+                <span className="kb-stat" key={g.key}>
+                  <b>{g.count}</b>
+                  {XP_PRIO_ZH[g.key] ?? g.key}
+                </span>
+              ))}
+            </div>
+            {(xp?.progress_tasks ?? []).slice(0, 6).map((t) => (
+              <div className="scene-row" key={t.id}>
+                <span className="s-name">{t.name}</span>
+                <span className="s-bar">
+                  <i style={{ width: `${Math.min(100, Math.max(0, t.progress ?? 0))}%` }} />
+                </span>
+                <span className="s-val">
+                  {t.progress ?? 0}% · {t.owner || '—'}
+                </span>
+              </div>
+            ))}
+            {xp && (xp.progress_tasks ?? []).length === 0 && (
+              <div className="todo-empty">XuanPu 暂无进度任务</div>
+            )}
+          </div>
         </div>
       </div>
-    </section>
   )
 }
 
@@ -145,7 +200,7 @@ function TrendChart({ trend }: { trend: { date: string; created: number; complet
       {/* y 轴 0/max 虚线网格 */}
       {[0, max].map((v) => (
         <g key={v}>
-          <line x1={P} x2={W - P} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,.1)" strokeDasharray="4 4" />
+          <line x1={P} x2={W - P} y1={y(v)} y2={y(v)} stroke="var(--rim-line)" strokeDasharray="4 4" />
           <text x={P - 4} y={y(v) + 3} fontSize="9" fill="var(--ink-30)" textAnchor="end">
             {v}
           </text>

@@ -21,11 +21,18 @@ def list_sources(db: Session) -> list[dict]:
 
 
 class McpClient:
-    """FastMCP streamable-HTTP 最小客户端；工具名运行时 tools/list 发现。"""
+    """FastMCP streamable-HTTP 最小客户端；工具名运行时 tools/list 发现。
 
-    def __init__(self, url: str, timeout: float = 15.0):
+    headers: 附加请求头（如 X-User-Name 身份透传）；verify: TLS 校验开关
+    （xuanpu 经 Nginx 自签证书，须 verify=False）。
+    """
+
+    def __init__(self, url: str, timeout: float = 15.0,
+                 headers: dict | None = None, verify: bool = True):
         self.url = url
         self.timeout = timeout
+        self._extra_headers = dict(headers or {})
+        self._verify = verify
         self._session_id: str | None = None
         self._tools: list[dict] | None = None
         self._lock = threading.Lock()
@@ -43,10 +50,11 @@ class McpClient:
         headers = {
             "Accept": "application/json, text/event-stream",
             "Content-Type": "application/json",
+            **self._extra_headers,
         }
         if self._session_id:
             headers["mcp-session-id"] = self._session_id
-        with httpx.Client(timeout=self.timeout) as client:
+        with httpx.Client(timeout=self.timeout, verify=self._verify) as client:
             resp = client.post(self.url, json=payload, headers=headers)
             resp.raise_for_status()
             sid = resp.headers.get("mcp-session-id")

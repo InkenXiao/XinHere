@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 8192  # 推理型模型必须 >=4096
 
     kb_mcp_url: str = "https://localhost:8093/mcp"
+    # XuanPu 平台 MCP 网关（mcp-cowork 8094 子挂载；经 ai_network 内 nginx TLS 入口）
+    xuanpu_mcp_url: str = "https://nginx:8094/xuanpu/mcp"
     token_ttl_hours: int = 72
     allowed_hosts: str = "localhost,127.0.0.1"
     cors_origins: str = "http://localhost:8095,http://localhost:5173"

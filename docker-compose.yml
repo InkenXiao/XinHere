@@ -26,9 +26,9 @@ services:
       - ./packages/contracts:/app/packages/contracts
     ports:
       # 认证就绪前不对公网：仅映射宿主 loopback
-      - "127.0.0.1:8097:8000"
+      - "127.0.0.1:8196:8000"
     healthcheck:
-      # 容器内应用监听 8000 (8097 仅为宿主 loopback 映射端口)
+      # 容器内应用监听 8000 (8197 仅为宿主 loopback 映射端口)
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 5s
       timeout: 3s

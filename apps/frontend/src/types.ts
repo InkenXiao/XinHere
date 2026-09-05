@@ -170,3 +170,60 @@ export interface PlatformEvent {
   data: Record<string, any>
   ignorable?: boolean
 }
+
+// ---- XuanPu 平台（经 MCP 网关 /xuanpu REST 代理） ----
+
+export interface XuanPuWorkTask {
+  id: number
+  name: string
+  owner: string
+  status: string
+  priority: string
+  week_start: string
+  week_end: string
+  is_temporary: boolean
+  remark: string
+}
+
+export interface XuanPuFillAssignment {
+  id: number
+  title: string
+  assignee: string
+  status: string
+  note: string
+  submitted_at: string
+}
+
+/** GET /xuanpu/todos；raw 存在表示 MCP 工具返回的错误文本 */
+export interface XuanPuTodos {
+  work_tasks: XuanPuWorkTask[]
+  fill_assignments: XuanPuFillAssignment[]
+  raw?: string
+}
+
+export interface XuanPuStatGroup {
+  groups: { key: string; count: number }[]
+  total: number
+}
+
+export interface XuanPuProgressTask {
+  id: number
+  name: string
+  owner: string
+  status: string
+  progress: number
+  start_date: string
+  end_date: string
+}
+
+/** GET /xuanpu/dashboard；raw 存在表示 MCP 工具返回的错误文本 */
+export interface XuanPuDashboard {
+  active_project: { id?: number; name: string; status?: string } | null
+  projects: { id: number; name: string; status: string }[]
+  progress_tasks: XuanPuProgressTask[]
+  progress_tasks_total: number
+  bug_stats_by_priority?: XuanPuStatGroup
+  bug_stats_by_fix_status?: XuanPuStatGroup
+  req_stats_by_status?: XuanPuStatGroup
+  raw?: string
+}
