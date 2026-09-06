@@ -11,6 +11,19 @@ export const TOOL_ZH: Record<string, string> = {
   generate_post_report: '生成投后报告',
   dispatch_generic_task: '派发通用任务',
   query_task_stats: '任务执行统计',
+  xuanpu_chat: '智能体对话',
+  xuanpu_todos: '查询平台待办',
+  xuanpu_create_todo: '创建平台待办',
+  xuanpu_dashboard: '平台数据看板',
+  xuanpu_skills: '查询平台技能',
+  xuanpu_skill_run: '执行平台技能',
+  xuanpu_tools: '查询平台工具',
+  xuanpu_tool_run: '调用平台工具',
+  xuanpu_mcp_servers: '查询 MCP 服务',
+  xuanpu_mcp_call: '调用 MCP 工具',
+  xuanpu_im_channels: '查询 IM 通道',
+  xuanpu_im_send: '发送 IM 消息',
+  xuanpu_im_messages: '拉取 IM 消息',
 }
 
 export const SCENE_ZH: Record<string, string> = {

@@ -67,3 +67,50 @@ def todo_create(name: str, user_name: str, owner: str = "",
 
 def dashboard(user_name: str) -> dict:
     return call_tool("xuanpu_dashboard", {}, user_name, timeout=120.0)
+
+
+# ---------- 技能 / 平台工具 / MCP 服务 / IM 通道 ----------
+
+def skills(user_name: str, category: str = "") -> list[dict]:
+    return call_tool("xuanpu_skills", {"category": category or ""}, user_name)
+
+
+def skill_run(skill: str, input_data: str, user_name: str) -> dict:
+    return call_tool("xuanpu_skill_run",
+                     {"skill": skill, "input_data": input_data or "{}"},
+                     user_name, timeout=320.0)
+
+
+def platform_tools(user_name: str) -> list[dict]:
+    return call_tool("xuanpu_tools", {}, user_name)
+
+
+def tool_run(tool: str, arguments: str, user_name: str) -> dict:
+    return call_tool("xuanpu_tool_run",
+                     {"tool": tool, "arguments": arguments or "{}"},
+                     user_name, timeout=320.0)
+
+
+def mcp_servers(user_name: str) -> list[dict]:
+    return call_tool("xuanpu_mcp_servers", {}, user_name)
+
+
+def mcp_call(server: str, tool: str, arguments: str, user_name: str) -> dict:
+    return call_tool("xuanpu_mcp_call",
+                     {"server": server, "tool": tool, "arguments": arguments or "{}"},
+                     user_name, timeout=320.0)
+
+
+def im_channels(user_name: str) -> list[dict]:
+    return call_tool("xuanpu_im_channels", {}, user_name)
+
+
+def im_send(message: str, user_name: str, channel: str = "") -> dict:
+    return call_tool("xuanpu_im_send",
+                     {"message": message, "channel": channel or ""},
+                     user_name, timeout=120.0)
+
+
+def im_messages(user_name: str, channel: str = "") -> dict:
+    return call_tool("xuanpu_im_messages", {"channel": channel or ""},
+                     user_name, timeout=120.0)

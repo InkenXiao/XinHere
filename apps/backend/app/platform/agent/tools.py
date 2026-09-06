@@ -24,6 +24,19 @@ def _fail_msg(exc: Exception) -> str:
     return str(exc)[:200]
 
 
+def _xj(data, limit: int = 4000) -> str:
+    """XuanPu 返回值紧凑 JSON（网关错误串经 call_tool 变 {"raw": ...}，原样返回）"""
+    import json as _json
+
+    if isinstance(data, dict) and data.get("raw"):
+        return str(data["raw"])[:limit]
+    try:
+        text = _json.dumps(data, ensure_ascii=False, default=str)
+    except Exception:  # noqa: BLE001
+        text = str(data)
+    return text if len(text) <= limit else text[:limit] + "…（截断）"
+
+
 def build_common_tools(ctx: ToolCtx) -> list:
     """平台通用工具：知识库检索/公司清单/通用派发/任务统计。"""
 
@@ -178,6 +191,172 @@ def build_common_tools(ctx: ToolCtx) -> list:
                 lines.append(f"{label}（共 {stats.get('total')}）：{groups or '暂无'}")
         return "\n".join(lines)
 
+    @tool("xuanpu_skills", description="列出 XuanPu 平台可用技能（工作流）。执行技能前先查询获取技能名称与说明。")
+    def xuanpu_skills_tool(
+        category: str = "",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        with tool_scope(ctx, "xuanpu_skills", tool_call_id, {"category": category}) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            items = xuanpu_svc.skills(identity, category=category)
+        except Exception as exc:
+            return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
+        if isinstance(items, dict) and items.get("raw"):
+            return items["raw"]
+        lines = [f"XuanPu 技能 {len(items)} 个："]
+        for s in items[:20]:
+            lines.append(f"- [{s.get('id')}] {s.get('name')}（{s.get('category') or '未分类'}）：{(s.get('description') or '')[:60]}")
+        return "\n".join(lines)
+
+    @tool("xuanpu_skill_run", description="执行 XuanPu 平台技能（工作流），返回各步骤结果。skill 传技能 ID 或名称（先用 xuanpu_skills 查询），input_data 为 JSON 对象字符串。")
+    def xuanpu_skill_run_tool(
+        skill: str,
+        input_data: str = "{}",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"skill": skill, "input_data": input_data}
+        with tool_scope(ctx, "xuanpu_skill_run", tool_call_id, args) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.skill_run(skill, input_data, identity)
+        except Exception as exc:
+            return f"XuanPu 技能执行失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_tools", description="列出 XuanPu 平台可调用的平台工具（原子能力，仅「使用中」状态），含参数 Schema。")
+    def xuanpu_tools_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        with tool_scope(ctx, "xuanpu_tools", tool_call_id, {}) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            items = xuanpu_svc.platform_tools(identity)
+        except Exception as exc:
+            return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
+        if isinstance(items, dict) and items.get("raw"):
+            return items["raw"]
+        lines = [f"XuanPu 平台工具 {len(items)} 个："]
+        for t in items[:20]:
+            lines.append(f"- [{t.get('id')}] {t.get('name')}（{(t.get('description') or '')[:60]}）")
+        return "\n".join(lines)
+
+    @tool("xuanpu_tool_run", description="调用 XuanPu 平台工具（原子能力）。tool 传工具 ID 或名称（先用 xuanpu_tools 查询），arguments 为按 parameters_schema 填写的 JSON 对象字符串。")
+    def xuanpu_tool_run_tool(
+        tool: str,
+        arguments: str = "{}",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"tool": tool, "arguments": arguments}
+        with tool_scope(ctx, "xuanpu_tool_run", tool_call_id, args) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.tool_run(tool, arguments, identity)
+        except Exception as exc:
+            return f"XuanPu 工具调用失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_mcp_servers", description="列出用户在 XuanPu 平台注册的 MCP 服务及各服务工具清单（含参数 Schema）。")
+    def xuanpu_mcp_servers_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        with tool_scope(ctx, "xuanpu_mcp_servers", tool_call_id, {}) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            items = xuanpu_svc.mcp_servers(identity)
+        except Exception as exc:
+            return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
+        if isinstance(items, dict) and items.get("raw"):
+            return items["raw"]
+        lines = [f"已注册 MCP 服务 {len(items)} 个："]
+        for s in items[:20]:
+            tools_ = s.get("tools") or []
+            names = "、".join(t.get("tool_name") or "" for t in tools_[:15])
+            lines.append(f"- [{s.get('server_id')}] {s.get('name')}（{len(tools_)} 个工具）：{names}")
+        return "\n".join(lines)
+
+    @tool("xuanpu_mcp_call", description="调用用户注册的 MCP 服务上的工具（结果记入 XuanPu 调用日志）。server 传服务 ID 或名称，tool 传工具名，arguments 为 JSON 对象字符串（先用 xuanpu_mcp_servers 查询 Schema）。")
+    def xuanpu_mcp_call_tool(
+        server: str,
+        tool: str,
+        arguments: str = "{}",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"server": server, "tool": tool, "arguments": arguments}
+        with tool_scope(ctx, "xuanpu_mcp_call", tool_call_id, args) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.mcp_call(server, tool, arguments, identity)
+        except Exception as exc:
+            return f"MCP 调用失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_im_channels", description="列出用户在 XuanPu 平台配置的 IM 通道（飞书/企微/钉钉/邮箱等），含是否双向。")
+    def xuanpu_im_channels_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        with tool_scope(ctx, "xuanpu_im_channels", tool_call_id, {}) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            items = xuanpu_svc.im_channels(identity)
+        except Exception as exc:
+            return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
+        if isinstance(items, dict) and items.get("raw"):
+            return items["raw"]
+        lines = [f"IM 通道 {len(items)} 个："]
+        for c in items[:20]:
+            state = "启用" if c.get("enabled") else "停用"
+            two = "，双向" if c.get("two_way") else "，单向推送"
+            lines.append(f"- [{c.get('channel_id')}] {c.get('name')}（{c.get('type_name') or c.get('channel_type')}，{state}{two}）")
+        return "\n".join(lines)
+
+    @tool("xuanpu_im_send", description="通过用户的 IM 通道发送消息（飞书/企微/钉钉/邮箱/OA 等）。channel 可选（通道 ID/名称/类型），默认向全部启用通道发送。")
+    def xuanpu_im_send_tool(
+        message: str,
+        channel: str = "",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"message": message, "channel": channel}
+        with tool_scope(ctx, "xuanpu_im_send", tool_call_id, args) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.im_send(message, identity, channel=channel)
+        except Exception as exc:
+            return f"IM 发送失败：{_fail_msg(exc)}"
+        if isinstance(data, dict) and data.get("raw"):
+            return data["raw"]
+        results = data.get("results") or []
+        ok_names = "、".join(r.get("name") or "" for r in results if r.get("ok"))
+        err_lines = [f"{r.get('name')}：{r.get('error')}" for r in results if not r.get("ok")]
+        if data.get("ok"):
+            out = f"已通过 {data.get('sent')}/{data.get('total')} 个通道发送成功（{ok_names}）。"
+        else:
+            out = "发送失败。"
+        if err_lines:
+            out += "失败明细：" + "；".join(err_lines)
+        return out
+
+    @tool("xuanpu_im_messages", description="拉取 IM 通道近 6 天对话记录（仅企微 AI 助手双向通道支持）。channel 可选（通道 ID/名称），默认第一个企微 AI 助手通道。")
+    def xuanpu_im_messages_tool(
+        channel: str = "",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        with tool_scope(ctx, "xuanpu_im_messages", tool_call_id, {"channel": channel}) as db:
+            identity = _xuanpu_identity(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.im_messages(identity, channel=channel)
+        except Exception as exc:
+            return f"拉取 IM 消息失败：{_fail_msg(exc)}"
+        if isinstance(data, dict) and data.get("raw"):
+            return data["raw"]
+        msgs = data.get("messages") or []
+        if not msgs:
+            return (data.get("note") or "近 6 天无消息")
+        lines = [f"「{data.get('chat_name') or '企微会话'}」近 6 天消息 {len(msgs)} 条："]
+        for m in msgs[-30:]:
+            who = "我" if m.get("kind") == "user" else (m.get("sender") or "AI 助手")
+            lines.append(f"[{m.get('send_time') or ''}] {who}：{(m.get('text') or '')[:100]}")
+        return "\n".join(lines)
+
     return [search_knowledge, list_companies_tool, dispatch_generic_task,
             query_task_stats, xuanpu_chat_tool, xuanpu_todos_tool,
-            xuanpu_create_todo_tool, xuanpu_dashboard_tool]
+            xuanpu_create_todo_tool, xuanpu_dashboard_tool,
+            xuanpu_skills_tool, xuanpu_skill_run_tool,
+            xuanpu_tools_tool, xuanpu_tool_run_tool,
+            xuanpu_mcp_servers_tool, xuanpu_mcp_call_tool,
+            xuanpu_im_channels_tool, xuanpu_im_send_tool,
+            xuanpu_im_messages_tool]
