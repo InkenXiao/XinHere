@@ -1,4 +1,4 @@
-// 瞭望塔默认 hero：居中大问数框（attach 徽标为视觉态，真实知识库选择在会话内）
+// Xin语默认 hero：居中大问数框（attach 徽标为视觉态，真实知识库选择在会话内）
 // 发送/点快捷 chip → 进入会话视图
 import { useState } from 'react'
 import { useSessionStore } from '@/state/sessionStore'

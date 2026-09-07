@@ -109,6 +109,21 @@ class PlatformProjection(Base):
     value = Column(JSONB, nullable=False, default=dict)
 
 
+class CockpitEntry(Base):
+    """Xin台入口配置（launch 目标；配置表非业务数据，删除为硬删）。"""
+
+    __tablename__ = "cockpit_entries"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(Text, nullable=False, unique=True)
+    name = Column(Text, nullable=False)
+    entry_path = Column(Text, nullable=False)  # XuanPu 站内路径, 如 /pro/
+    icon = Column(Text)
+    sort = Column(Integer, nullable=False, default=0, server_default="0")
+    enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 # ---------------- 业务表（BusinessBase 三条红线） ----------------
 
 
@@ -121,6 +136,10 @@ class SysUser(BusinessBase):
     display_name = Column(String(64), nullable=False)
     role = Column(String(32), nullable=False)  # hq_finance（含 admin）/ investee_finance
     company = Column(String(64))
+    # 账号来源: local=密码登录 / sso=统一身份登录 (JIT 建号, 无密码)
+    auth_source = Column(String(16), nullable=False, default="local", server_default="local")
+    # XuanPu 用户绑定 (sso 建号时写入, 用于 launch 免登)
+    xuanpu_user_id = Column(String(64), unique=True)
 
 
 class SysAuthToken(BusinessBase):
@@ -129,6 +148,9 @@ class SysAuthToken(BusinessBase):
     token = Column(String(128), primary_key=True)
     user_id = Column(String(36), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
+    # XuanPu 网关 token (双轨鉴权: 有未过期值走 Bearer, 否则回落 X-User-Name)
+    xuanpu_token = Column(Text)
+    xuanpu_token_exp = Column(DateTime(timezone=True))
 
 
 class BizTask(BusinessBase):

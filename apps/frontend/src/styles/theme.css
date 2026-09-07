@@ -1,5 +1,5 @@
-/* XinHere 主题：参照「瞭望塔 ⇄ 驾驶舱」双模式设计重构
-   瞭望塔=攻（夜·AI 问答）；驾驶舱=守（日·业务能力）。框架位置不变，仅配色随模式流动 */
+/* XinHere 主题：参照「Xin语 ⇄ Xin台」双模式设计重构
+   Xin语=攻（夜·AI 问答）；Xin台=守（日·业务能力）。框架位置不变，仅配色随模式流动 */
 
 :root {
   /* 字体 */
@@ -10,7 +10,7 @@
   --red: #dc2626; --orange: #f97316; --amber: #f59e0b; --rose: #e11d48;
   --amber-light: #FBBF24; --amber-dark: #D97706;
   --green: #10b981; --indigo: #6366f1;
-  /* 驾驶舱中部专用（仅日景使用） */
+  /* Xin台中部专用（仅日景使用） */
   --cockpit: #2A739C;
   --cockpit-grad: linear-gradient(90deg, #286592 0%, #1d628e 50%, #0b5882 100%);
   --ink-1: #16202a;
@@ -23,7 +23,7 @@
   --shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
 }
 
-/* ===== 瞭望塔（夜） ===== */
+/* ===== Xin语（夜） ===== */
 body.mode-tower {
   --accent: #1784BC;
   --accent-grad: linear-gradient(90deg, #9FD3A0 0%, #1784BC 100%);
@@ -55,7 +55,7 @@ body.mode-tower {
   --rim-line: rgba(255, 255, 255, .12);
 }
 
-/* ===== 驾驶舱（日） ===== */
+/* ===== Xin台（日） ===== */
 body.mode-cockpit {
   --accent: #2A739C;
   --accent-grad: linear-gradient(90deg, #286592 0%, #1d628e 50%, #0b5882 100%);
@@ -105,13 +105,13 @@ input, textarea, select { font: inherit; }
 
 /* ===== 双模式层（整页 crossfade + 景深推拉；昼夜背景随模式流动） ===== */
 .layer { position: fixed; inset: 0; display: flex; align-items: stretch; overflow: hidden;
-  transition: opacity .7s ease, transform .7s ease; }
+  transition: opacity .7s ease, transform .7s ease; will-change: transform, opacity; }
 .layer .bg { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; will-change: transform; }
 .layer::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .18; mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"); }
 .layer-cockpit { z-index: 2; color: var(--ink-1); }
 .layer-cockpit .bg { background-image: url('/assets/bg-day.jpg'); background-position: center center; }
-.layer-tower { z-index: 3; color: #f1eee6; }
+.layer-tower { z-index: 2; color: #f1eee6; }
 .layer-tower .bg { background-image: url('/assets/bg-night.jpg'); background-position: center bottom; }
 .layer-tower::after { mix-blend-mode: soft-light; }
 /* 底部毛玻璃带：虚化背景、提升底部可读性，向上渐隐 */
@@ -119,8 +119,8 @@ input, textarea, select { font: inherit; }
   background: linear-gradient(to top, rgba(10,16,26,.36) 0%, rgba(10,16,26,.12) 45%, rgba(10,16,26,0) 100%);
   -webkit-backdrop-filter: blur(14px) saturate(118%); backdrop-filter: blur(14px) saturate(118%);
   -webkit-mask-image: linear-gradient(to top, #000 0%, #000 45%, transparent 100%); mask-image: linear-gradient(to top, #000 0%, #000 45%, transparent 100%); }
-body.mode-cockpit .layer-tower { opacity: 0; transform: scale(1.04); pointer-events: none; }
-body.mode-tower .layer-cockpit { opacity: 0; transform: scale(.96); pointer-events: none; }
+body.mode-cockpit .layer-tower { opacity: 0; transform: scale(.88); pointer-events: none; z-index: 1; }
+body.mode-tower .layer-cockpit { opacity: 0; transform: scale(1.03); pointer-events: none; z-index: 1; }
 
 /* ===== 雾式转场层：切换中段起雾、两端消散 ===== */
 .fog { position: fixed; inset: -12%; z-index: 58; pointer-events: none; opacity: 0;
@@ -169,7 +169,7 @@ body.mode-tower .user-chip .role-tag { color: var(--watch); }
 .user-pop button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: 13px; color: var(--muted); }
 .user-pop button:hover { background: var(--glass); color: var(--text); }
 
-/* ===== 模式切换（页内标题：瞭望塔恒前、驾驶舱恒后，选中项由纵深推至前方） ===== */
+/* ===== 模式切换（页内标题：Xin语恒前、Xin台恒后，选中项由纵深推至前方） ===== */
 .mode-toggle { position: fixed; top: 96px; left: 50%; transform: translateX(-50%); z-index: 56;
   display: inline-flex; align-items: center; gap: 30px; perspective: 720px; }
 .mt-btn { position: relative; font-family: var(--font-han); font-size: 17px; font-weight: 400; letter-spacing: .14em; line-height: 1;
@@ -182,21 +182,25 @@ body.mode-cockpit .mt-btn { color: rgba(42, 53, 66, .5); }
 body.mode-cockpit .mt-btn.on { color: #b9824f; text-shadow: 0 1px 12px rgba(255, 255, 255, .6); }
 body.mode-cockpit .mt-btn:not(.on):hover { color: #2a3542; }
 
-/* ===== 框架一：左侧历史对话 ===== */
-.h-toggle { position: fixed; left: 0; top: 50%; transform: translateY(-50%); z-index: 52; display: flex; align-items: center;
-  gap: 6px; background: var(--fr-tab-bg); border: 1px solid var(--fr-tab-bd); border-left: none; color: var(--fr-tab-ink);
-  cursor: pointer; font-family: var(--font-han-light); font-size: 12px; padding: 14px 11px; border-radius: 0 8px 8px 0;
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  transition: background .4s, color .4s, border-color .4s, left .35s ease; }
-.h-toggle .vt { writing-mode: vertical-rl; letter-spacing: .24em; font-weight: 300; }
-.h-toggle .ic { font-family: var(--font-roman); font-size: 13px; line-height: 1; }
-body.history-open .h-toggle { left: 300px; }
+/* ===== 框架一：左侧历史对话（左缘热区唤起 + pin 固定常驻） ===== */
+.h-hotzone { position: fixed; left: 0; top: 0; bottom: 0; width: 14px; z-index: 52; cursor: pointer; }
+.h-hotzone::before { content: "›"; position: absolute; left: 3px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-roman); font-size: 14px; line-height: 1; color: var(--fr-tab-ink); opacity: .55; transition: opacity .2s; }
+.h-hotzone:hover { background: linear-gradient(90deg, rgba(255,255,255,.10), transparent); }
+.h-hotzone:hover::before { opacity: 1; }
+body.history-open .h-hotzone { display: none; }
 .h-drawer { position: fixed; left: 0; top: 0; bottom: 0; width: 0; overflow: hidden; z-index: 51; display: flex;
   flex-direction: column; gap: 4px; padding: 82px 0 28px 0; background: var(--fr-bg); border-right: 1px solid var(--fr-bd);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   transition: width .35s ease, padding .35s ease, background .4s ease, border-color .4s ease; }
 body.history-open .h-drawer { width: 300px; padding: 82px 18px 28px 32px; }
-.h-title { font-size: 11px; letter-spacing: .26em; color: var(--fr-ink-2); margin-bottom: 12px; white-space: nowrap; flex: none; }
+.h-title { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 11px; letter-spacing: .26em; color: var(--fr-ink-2); margin-bottom: 12px; white-space: nowrap; flex: none; }
+/* 图钉按钮（历史抽屉 / 待办竖条共用）：pinned=实心高亮 */
+.h-pin { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex: none;
+  border-radius: 7px; color: var(--fr-ink-2); cursor: pointer; transition: all .15s; letter-spacing: 0; }
+.h-pin:hover { background: var(--fr-item); color: var(--fr-ink); }
+.h-pin.on { color: var(--fr-accent); }
 
 /* 历史栏内容（沿用原分组/搜索结构，配色接入框架变量） */
 .hist-new { margin: 0 0 6px; display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px;
@@ -262,8 +266,9 @@ body.mode-tower .r-rail .label { color: #aeb8c0; text-shadow: 0 1px 7px rgba(0,0
   place-items: center; font-size: 10px; font-weight: 500; font-family: var(--font-roman); transition: background .4s; }
 .r-pop { position: absolute; inset: 0; width: 100%; padding: 76px 18px 20px; overflow: auto; opacity: 0; pointer-events: none;
   transition: opacity .25s ease; z-index: 3; display: flex; flex-direction: column; }
+.r-pop-head { display: flex; justify-content: flex-end; flex: none; margin-bottom: 4px; }
 .r-rail.open .r-pop, .r-rail:hover .r-pop { opacity: 1; pointer-events: auto; }
-/* 瞭望塔：静态深空展开页（无原图，以渐变星空代替） */
+/* Xin语：静态深空展开页（无原图，以渐变星空代替） */
 body.mode-tower .r-rail.open, body.mode-tower .r-rail:hover {
   background: linear-gradient(90deg, rgba(6,16,38,.88), rgba(5,14,34,.80)), #071229;
   border-color: rgba(116, 164, 202, .42);
@@ -300,6 +305,7 @@ body.mode-cockpit .td-actions .fb:hover { color: var(--rose); }
 .td-reply .rp-btns { display: flex; gap: 8px; justify-content: flex-end; }
 .td-reply .rp-btns button { padding: 5px 14px; border-radius: 14px; font-size: 12px; }
 .todo-empty { padding: 26px 12px; text-align: center; font-size: 12px; color: var(--fr-ink-2); }
+.td-sec { font-size: 11px; letter-spacing: .22em; color: var(--fr-ink-2); margin: 4px 2px 8px; white-space: nowrap; }
 
 /* ===== 框架三：底部「下滑查看看板」+ 看板抽屉 ===== */
 .k-toggle { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 55; display: flex; align-items: center;
@@ -329,7 +335,7 @@ body.mode-cockpit .k-head .close:hover { color: #2a3542; }
 .k-drawer .dash-grid { display: flex; gap: 14px; overflow-x: auto; max-width: none; height: 100%; padding-bottom: 8px; }
 .k-drawer .dash-card { flex: 0 0 320px; min-width: 320px; max-height: 100%; overflow-y: auto; }
 
-/* ===== 瞭望塔中部：居中大问数框 / 会话 ===== */
+/* ===== Xin语中部：居中大问数框 / 会话 ===== */
 .tw-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 80px 40px 120px; }
 .tw-anchor { position: relative; width: min(680px, 100%); isolation: isolate; }
 .tw-backdrop { position: absolute; inset: -4px; border-radius: 999px; z-index: 0; pointer-events: none;
@@ -404,7 +410,7 @@ body.mode-cockpit .k-head .close:hover { color: #2a3542; }
 .tw-chat-live::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; pointer-events: none; z-index: 2;
   background: linear-gradient(90deg, transparent, rgba(159,211,160,.55), rgba(23,132,188,.55), transparent); opacity: .85; }
 
-/* ===== 驾驶舱中部：业务能力卡 + 业务系统入口 ===== */
+/* ===== Xin台中部：业务能力卡 + 业务系统入口 ===== */
 .cp-wrap { flex: 1; display: flex; flex-direction: column; min-width: 0; padding: 80px 40px 120px; overflow: auto; }
 .cp-wrap::-webkit-scrollbar { width: 6px; }
 .cp-wrap::-webkit-scrollbar-thumb { background: rgba(20, 30, 40, .22); border-radius: 3px; }
@@ -707,6 +713,19 @@ body.mode-cockpit .warn { color: #92610a; }
 .form-row label { font-size: 12px; color: var(--ink-70); font-weight: 500; }
 .form-row label .req { color: #ef4444; margin-left: 2px; }
 
+/* XuanPu 填报表单（FillFormModal） */
+.ff-sec { font-size: 11.5px; letter-spacing: .18em; color: var(--accent); margin: 14px 0 10px; font-weight: 600; }
+.ff-sec:first-child { margin-top: 2px; }
+.ff-multi { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.ff-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-70); cursor: pointer; }
+.ff-opt input { accent-color: var(--accent); }
+.ff-help { font-size: 11.5px; color: var(--ink-30); line-height: 1.5; }
+
+/* Xin台技能区空态 + 技能直跑结果（SkillRunModal） */
+.cp-empty { grid-column: 1 / -1; font-size: 12.5px; color: rgba(20,30,40,.45); font-family: var(--font-han-light); padding: 18px 4px; }
+.sr-out { margin: 6px 0 2px; padding: 12px 14px; background: rgba(255,255,255,.04); border: 1px solid var(--glass-bd);
+  border-radius: 10px; font-size: 12px; line-height: 1.7; color: var(--ink-70); white-space: pre-wrap; word-break: break-word; max-height: 46vh; overflow: auto; }
+
 /* 看板网格 */
 .kanban-stats { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
 .kb-stat { font-size: 12px; color: var(--ink-50); }
@@ -728,7 +747,7 @@ body.mode-cockpit .warn { color: #92610a; }
 .outline .sec-body { display: block; margin-top: 6px; font-size: 12px; color: var(--ink-50); line-height: 1.7; white-space: pre-wrap; }
 .gen-hint { font-size: 11.5px; color: var(--ink-30); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
 
-/* ===== 看板（驾驶舱数据卡） ===== */
+/* ===== 看板（Xin台数据卡） ===== */
 .dash-body { flex: 1; overflow-y: auto; padding: 0; }
 .dash-grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); max-width: 1280px; margin: 0 auto; }
 .dash-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px;
@@ -783,6 +802,11 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 .login-err { font-size: 12.5px; color: #ffb4b4; background: rgba(220,38,38,.12); border: 1px solid rgba(220,38,38,.3);
   border-radius: 9px; padding: 8px 12px; margin-bottom: 14px; }
 .login-hint { margin-top: 14px; text-align: center; font-size: 11.5px; color: rgba(241,238,230,.35); }
+.login-split { display: flex; align-items: center; gap: 10px; width: 100%; margin: 16px 0 14px; padding: 0;
+  background: none; border: none; cursor: pointer; font-size: 12px; color: rgba(241,238,230,.42);
+  font-family: var(--font-han); letter-spacing: .06em; transition: color .15s; }
+.login-split:hover { color: rgba(241,238,230,.7); }
+.login-split .line { flex: 1; height: 1px; background: rgba(255,255,255,.12); }
 
 /* Toast */
 .toast-host { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 90; display: flex;

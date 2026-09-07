@@ -1,7 +1,7 @@
 // 待办：列表/忽略集合(sessionStorage)/todo-changed 触发刷新 + 30s 轮询兜底
 import { create } from 'zustand'
 import { api } from '@/transport/api'
-import type { TodoItem } from '@/types'
+import type { TodoItem, XuanPuFillAssignment, XuanPuTodos } from '@/types'
 
 const IGNORE_KEY = 'xinhere.todo.ignored'
 
@@ -24,6 +24,7 @@ function saveIgnored(s: Set<string>) {
 interface TodoState {
   box: 'assignee' | 'dispatcher'
   items: TodoItem[]
+  xpFills: XuanPuFillAssignment[]
   ignored: Set<string>
   loading: boolean
   setBox: (b: 'assignee' | 'dispatcher') => void
@@ -41,6 +42,7 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 export const useTodoStore = create<TodoState>((set, get) => ({
   box: 'assignee',
   items: [],
+  xpFills: [],
   ignored: loadIgnored(),
   loading: false,
 
@@ -57,6 +59,10 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     } finally {
       set({ loading: false })
     }
+    // XuanPu 填报待办一并拉取（平台不可达时静默，不影响本地待办）
+    api<XuanPuTodos>('GET', '/xuanpu/todos?owner=')
+      .then((r) => set({ xpFills: r.raw ? [] : r.fill_assignments ?? [] }))
+      .catch(() => {})
   },
 
   ignore(todoId) {

@@ -20,6 +20,12 @@ def _xuanpu_identity(db, user_id: str) -> str:
     return (user.display_name or user.username) if user else user_id
 
 
+def _xuanpu_auth(db, user_id: str) -> tuple[str, str | None]:
+    """身份 + 网关 token（双轨鉴权）：token 无/过期为 None，回落 X-User-Name。"""
+    identity = _xuanpu_identity(db, user_id)
+    return identity, xuanpu_svc.resolve_token(db, user_id)
+
+
 def _fail_msg(exc: Exception) -> str:
     return str(exc)[:200]
 
@@ -106,9 +112,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         with tool_scope(ctx, "xuanpu_chat", tool_call_id, {"agent": agent, "message": message}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
-                agents = xuanpu_svc.list_agents(identity)
+                agents = xuanpu_svc.list_agents(identity, xuanpu_token=xtoken)
                 target = None
                 if agent.isdigit():
                     target = next((a for a in agents if str(a.get("id")) == agent), None)
@@ -118,7 +124,7 @@ def build_common_tools(ctx: ToolCtx) -> list:
                     target = agents[0]  # 名称未命中时回退首个智能体
                 if target is None:
                     return "XuanPu 平台暂无可用智能体"
-                data = xuanpu_svc.agent_chat(int(target["id"]), message, identity)
+                data = xuanpu_svc.agent_chat(int(target["id"]), message, identity, xuanpu_token=xtoken)
                 return f"【{target.get('name')}】回复：{data.get('reply') or '（空回复）'}"
             except Exception as exc:  # MCP/上游不可达 → 优雅降级，不崩 run
                 return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
@@ -129,9 +135,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         with tool_scope(ctx, "xuanpu_todos", tool_call_id, {"owner": owner}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
-                data = xuanpu_svc.todos(owner, identity)
+                data = xuanpu_svc.todos(owner, identity, xuanpu_token=xtoken)
             except Exception as exc:
                 return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
         tasks = data.get("work_tasks") or []
@@ -156,11 +162,11 @@ def build_common_tools(ctx: ToolCtx) -> list:
         args = {"name": name, "owner": owner, "week_start": week_start,
                 "priority": priority, "remark": remark}
         with tool_scope(ctx, "xuanpu_create_todo", tool_call_id, args) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
                 data = xuanpu_svc.todo_create(
                     name, identity, owner=owner, week_start=week_start,
-                    priority=priority, remark=remark,
+                    priority=priority, remark=remark, xuanpu_token=xtoken,
                 )
                 return (f"已在 XuanPu 创建任务「{data.get('name')}」"
                         f"（责任人 {data.get('owner') or identity}，{data.get('week_start')} 当周）")
@@ -170,9 +176,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     @tool("xuanpu_dashboard", description="获取 XuanPu 平台数据看板概览：激活项目、进度任务、BUG 统计、需求统计。")
     def xuanpu_dashboard_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
         with tool_scope(ctx, "xuanpu_dashboard", tool_call_id, {}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
-                data = xuanpu_svc.dashboard(identity)
+                data = xuanpu_svc.dashboard(identity, xuanpu_token=xtoken)
             except Exception as exc:
                 return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
         proj = data.get("active_project") or {}
@@ -197,9 +203,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         with tool_scope(ctx, "xuanpu_skills", tool_call_id, {"category": category}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            items = xuanpu_svc.skills(identity, category=category)
+            items = xuanpu_svc.skills(identity, category=category, xuanpu_token=xtoken)
         except Exception as exc:
             return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
         if isinstance(items, dict) and items.get("raw"):
@@ -217,9 +223,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     ) -> str:
         args = {"skill": skill, "input_data": input_data}
         with tool_scope(ctx, "xuanpu_skill_run", tool_call_id, args) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            data = xuanpu_svc.skill_run(skill, input_data, identity)
+            data = xuanpu_svc.skill_run(skill, input_data, identity, xuanpu_token=xtoken)
         except Exception as exc:
             return f"XuanPu 技能执行失败：{_fail_msg(exc)}"
         return _xj(data)
@@ -227,9 +233,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     @tool("xuanpu_tools", description="列出 XuanPu 平台可调用的平台工具（原子能力，仅「使用中」状态），含参数 Schema。")
     def xuanpu_tools_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
         with tool_scope(ctx, "xuanpu_tools", tool_call_id, {}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            items = xuanpu_svc.platform_tools(identity)
+            items = xuanpu_svc.platform_tools(identity, xuanpu_token=xtoken)
         except Exception as exc:
             return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
         if isinstance(items, dict) and items.get("raw"):
@@ -247,9 +253,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     ) -> str:
         args = {"tool": tool, "arguments": arguments}
         with tool_scope(ctx, "xuanpu_tool_run", tool_call_id, args) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            data = xuanpu_svc.tool_run(tool, arguments, identity)
+            data = xuanpu_svc.tool_run(tool, arguments, identity, xuanpu_token=xtoken)
         except Exception as exc:
             return f"XuanPu 工具调用失败：{_fail_msg(exc)}"
         return _xj(data)
@@ -257,9 +263,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     @tool("xuanpu_mcp_servers", description="列出用户在 XuanPu 平台注册的 MCP 服务及各服务工具清单（含参数 Schema）。")
     def xuanpu_mcp_servers_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
         with tool_scope(ctx, "xuanpu_mcp_servers", tool_call_id, {}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            items = xuanpu_svc.mcp_servers(identity)
+            items = xuanpu_svc.mcp_servers(identity, xuanpu_token=xtoken)
         except Exception as exc:
             return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
         if isinstance(items, dict) and items.get("raw"):
@@ -280,9 +286,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     ) -> str:
         args = {"server": server, "tool": tool, "arguments": arguments}
         with tool_scope(ctx, "xuanpu_mcp_call", tool_call_id, args) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            data = xuanpu_svc.mcp_call(server, tool, arguments, identity)
+            data = xuanpu_svc.mcp_call(server, tool, arguments, identity, xuanpu_token=xtoken)
         except Exception as exc:
             return f"MCP 调用失败：{_fail_msg(exc)}"
         return _xj(data)
@@ -290,9 +296,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     @tool("xuanpu_im_channels", description="列出用户在 XuanPu 平台配置的 IM 通道（飞书/企微/钉钉/邮箱等），含是否双向。")
     def xuanpu_im_channels_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
         with tool_scope(ctx, "xuanpu_im_channels", tool_call_id, {}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            items = xuanpu_svc.im_channels(identity)
+            items = xuanpu_svc.im_channels(identity, xuanpu_token=xtoken)
         except Exception as exc:
             return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
         if isinstance(items, dict) and items.get("raw"):
@@ -312,9 +318,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
     ) -> str:
         args = {"message": message, "channel": channel}
         with tool_scope(ctx, "xuanpu_im_send", tool_call_id, args) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            data = xuanpu_svc.im_send(message, identity, channel=channel)
+            data = xuanpu_svc.im_send(message, identity, channel=channel, xuanpu_token=xtoken)
         except Exception as exc:
             return f"IM 发送失败：{_fail_msg(exc)}"
         if isinstance(data, dict) and data.get("raw"):
@@ -336,9 +342,9 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         with tool_scope(ctx, "xuanpu_im_messages", tool_call_id, {"channel": channel}) as db:
-            identity = _xuanpu_identity(db, ctx.user_id)
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
-            data = xuanpu_svc.im_messages(identity, channel=channel)
+            data = xuanpu_svc.im_messages(identity, channel=channel, xuanpu_token=xtoken)
         except Exception as exc:
             return f"拉取 IM 消息失败：{_fail_msg(exc)}"
         if isinstance(data, dict) and data.get("raw"):
@@ -352,6 +358,82 @@ def build_common_tools(ctx: ToolCtx) -> list:
             lines.append(f"[{m.get('send_time') or ''}] {who}：{(m.get('text') or '')[:100]}")
         return "\n".join(lines)
 
+    # ---------- 填报任务 / 知识检索（XuanPu 融合） ----------
+
+    @tool("xuanpu_fill_create", description="在 XuanPu 平台发起填报任务。fields 为字段 JSON 数组字符串（每项 {key,label,type,options?,required?}，type: text/textarea/number/select/multi/date），assignees 为责任人姓名（JSON 数组字符串或逗号分隔），deadline 如 2026-09-30。")
+    def xuanpu_fill_create_tool(
+        title: str,
+        fields: str,
+        assignees: str = "",
+        deadline: str = "",
+        description: str = "",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"title": title, "fields": fields, "assignees": assignees,
+                "deadline": deadline, "description": description}
+        with tool_scope(ctx, "xuanpu_fill_create", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.fill_create(
+                title, fields, identity, assignees=assignees,
+                deadline=deadline, description=description, xuanpu_token=xtoken,
+            )
+        except Exception as exc:
+            return f"XuanPu 发起填报失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_fill_my", description="查询当前用户在 XuanPu 平台的填报任务（含待填与已提交，待填含已存草稿）。")
+    def xuanpu_fill_my_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        with tool_scope(ctx, "xuanpu_fill_my", tool_call_id, {}) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            items = xuanpu_svc.fill_my_assignments(identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"XuanPu 平台暂不可用：{_fail_msg(exc)}"
+        if isinstance(items, dict) and items.get("raw"):
+            return items["raw"]
+        pending = [a for a in items if a.get("status") == "pending"]
+        lines = [f"填报任务共 {len(items)} 条（待填 {len(pending)}）："]
+        for a in items[:15]:
+            if a.get("status") == "pending":
+                state = "待填"
+                if a.get("draft"):
+                    state += "（有草稿）"
+            else:
+                state = f"已交 {a.get('submitted_at') or ''}"
+            lines.append(f"- [{a.get('assignment_id')}] {a.get('title')}（{state}）")
+        return "\n".join(lines)
+
+    @tool("xuanpu_fill_submit", description="填写并提交 XuanPu 平台填报任务。assignment_id 为任务 ID（先用 xuanpu_fill_my 查询），data 为按字段 key 填写的 JSON 对象字符串（如 {\"revenue\": \"123\"}）。")
+    def xuanpu_fill_submit_tool(
+        assignment_id: int,
+        data: str,
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"assignment_id": assignment_id, "data": data}
+        with tool_scope(ctx, "xuanpu_fill_submit", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            result = xuanpu_svc.fill_submit(assignment_id, data, identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"XuanPu 填报提交失败：{_fail_msg(exc)}"
+        return _xj(result)
+
+    @tool("xuanpu_kb_search", description="检索 XuanPu 平台接入的知识库（企业知识、制度文档等）。query 为检索词，sources 可选逗号分隔源名，默认全部源。")
+    def xuanpu_kb_search_tool(
+        query: str,
+        sources: str = "",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"query": query, "sources": sources}
+        with tool_scope(ctx, "xuanpu_kb_search", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.kb_search(query, identity, sources=sources, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"XuanPu 知识检索失败：{_fail_msg(exc)}"
+        return _xj(data)
+
     return [search_knowledge, list_companies_tool, dispatch_generic_task,
             query_task_stats, xuanpu_chat_tool, xuanpu_todos_tool,
             xuanpu_create_todo_tool, xuanpu_dashboard_tool,
@@ -359,4 +441,6 @@ def build_common_tools(ctx: ToolCtx) -> list:
             xuanpu_tools_tool, xuanpu_tool_run_tool,
             xuanpu_mcp_servers_tool, xuanpu_mcp_call_tool,
             xuanpu_im_channels_tool, xuanpu_im_send_tool,
-            xuanpu_im_messages_tool]
+            xuanpu_im_messages_tool,
+            xuanpu_fill_create_tool, xuanpu_fill_my_tool,
+            xuanpu_fill_submit_tool, xuanpu_kb_search_tool]

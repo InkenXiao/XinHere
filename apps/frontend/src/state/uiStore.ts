@@ -17,24 +17,33 @@ interface ToastItem {
 
 interface UiState {
   theme: 'dark'
-  mode: 'tower' | 'cockpit' // 双模式：瞭望塔（夜·问答）⇄ 驾驶舱（日·业务）
+  mode: 'tower' | 'cockpit' // 双模式：Xin语（夜·问答）⇄ Xin台（日·业务）
   historyOpen: boolean // 框架一：左侧历史对话抽屉
+  historyPinned: boolean // 历史抽屉固定：pinned 时常驻展开、失焦不收起
   kanbanOpen: boolean // 框架三：底部看板抽屉
+  todoPinned: boolean // 待办竖条固定：pinned 时常驻展开
   switching: boolean // 模式切换雾式转场窗口
   activeScreen: 'work' | 'dash' // deprecated: 抽屉模型下不再使用（原 TopBar 滚动跟踪）
-  workView: 'hero' | 'chat' // 瞭望塔层内视图：hero 大问数框（默认）↔ 会话
+  workView: 'hero' | 'chat' // Xin语层内视图：hero 大问数框（默认）↔ 会话
   executing: boolean // 执行态开关：中央区 ChatPanel ↔ ExecutionView
   execDone: boolean
   sceneTarget: SceneTarget | null // 待办「去填报/去审批」打开的场景组件
+  fillTarget: { assignmentId: number; templateId: number } | null // 待办「去填报」打开的 XuanPu 填报弹窗
+  runTarget: { skillId: number; name: string; desc: string } | null // Xin台技能卡打开的直跑弹窗
   toasts: ToastItem[]
   setMode: (v: 'tower' | 'cockpit') => void
   toggleHistory: () => void
+  setHistoryOpen: (v: boolean) => void
+  toggleHistoryPin: () => void
+  toggleTodoPin: () => void
   toggleKanban: () => void
   setActiveScreen: (v: 'work' | 'dash') => void
   setWorkView: (v: 'hero' | 'chat') => void
   setExecuting: (v: boolean) => void
   setExecDone: (v: boolean) => void
   openScene: (t: SceneTarget | null) => void
+  openFill: (t: { assignmentId: number; templateId: number } | null) => void
+  openRun: (t: { skillId: number; name: string; desc: string } | null) => void
   toast: (text: string, kind?: 'info' | 'err') => void
   dismissToast: (id: number) => void
 }
@@ -45,25 +54,44 @@ export const useUiStore = create<UiState>((set) => ({
   theme: 'dark',
   mode: 'tower',
   historyOpen: false,
+  historyPinned: localStorage.getItem('xinhere.ui.historyPinned') === '1',
   kanbanOpen: false,
+  todoPinned: localStorage.getItem('xinhere.ui.todoPinned') === '1',
   switching: false,
   activeScreen: 'work',
   workView: 'hero',
   executing: false,
   execDone: false,
   sceneTarget: null,
+  fillTarget: null,
+  runTarget: null,
   toasts: [],
   setMode: (v) => {
     set({ mode: v, switching: true })
     setTimeout(() => set({ switching: false }), 1150)
   },
   toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
+  setHistoryOpen: (v) => set({ historyOpen: v }),
+  toggleHistoryPin: () =>
+    set((s) => {
+      const historyPinned = !s.historyPinned
+      localStorage.setItem('xinhere.ui.historyPinned', historyPinned ? '1' : '0')
+      return { historyPinned }
+    }),
+  toggleTodoPin: () =>
+    set((s) => {
+      const todoPinned = !s.todoPinned
+      localStorage.setItem('xinhere.ui.todoPinned', todoPinned ? '1' : '0')
+      return { todoPinned }
+    }),
   toggleKanban: () => set((s) => ({ kanbanOpen: !s.kanbanOpen })),
   setActiveScreen: (v) => set({ activeScreen: v }),
   setWorkView: (v) => set({ workView: v }),
   setExecuting: (v) => set({ executing: v }),
   setExecDone: (v) => set({ execDone: v }),
   openScene: (t) => set({ sceneTarget: t }),
+  openFill: (t) => set({ fillTarget: t }),
+  openRun: (t) => set({ runTarget: t }),
   toast: (text, kind = 'info') => {
     const id = ++toastSeq
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))

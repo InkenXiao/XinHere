@@ -1,14 +1,17 @@
-// 根组件：登录态门控 + 双模式层（瞭望塔⇄驾驶舱）+ 框架（顶栏/历史/待办/看板）+ 弹窗/Toast 宿主
+// 根组件：登录态门控 + 双模式层（Xin语⇄Xin台）+ 框架（顶栏/历史/待办/看板）+ 弹窗/Toast 宿主
 import { useEffect } from 'react'
 import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { startTodoPolling, stopTodoPolling, useTodoStore } from '@/state/todoStore'
 import { useUiStore } from '@/state/uiStore'
+import { setToken } from '@/transport/api'
 import LoginPage from '@/shell/LoginPage'
 import TopBar from '@/shell/TopBar'
 import ScreenWork from '@/shell/ScreenWork'
 import CockpitHome from '@/shell/CockpitHome'
 import SceneModal from '@/shell/SceneModal'
+import FillFormModal from '@/shell/FillFormModal'
+import SkillRunModal from '@/shell/SkillRunModal'
 import ToastHost from '@/primitives/Toast'
 import { ModeToggle, HistoryDrawer, TodoRail, KanbanDrawer } from '@/shell/Frame'
 
@@ -17,10 +20,21 @@ export default function App() {
   const ready = useAuthStore((s) => s.ready)
   const mode = useUiStore((s) => s.mode)
   const historyOpen = useUiStore((s) => s.historyOpen)
+  const historyPinned = useUiStore((s) => s.historyPinned)
   const kanbanOpen = useUiStore((s) => s.kanbanOpen)
   const switching = useUiStore((s) => s.switching)
 
   useEffect(() => {
+    // SSO 回跳：?sso_token= 存登录态并清参（须先于 fetchMe 执行）
+    const q = new URLSearchParams(window.location.search)
+    const t = q.get('sso_token')
+    if (t) {
+      setToken(t)
+      useAuthStore.setState({ token: t, user: null })
+      q.delete('sso_token')
+      const rest = q.toString()
+      window.history.replaceState({}, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`)
+    }
     void useAuthStore.getState().fetchMe()
   }, [])
 
@@ -38,8 +52,9 @@ export default function App() {
     b.classList.toggle('mode-tower', mode === 'tower')
     b.classList.toggle('mode-cockpit', mode === 'cockpit')
     b.classList.toggle('history-open', historyOpen)
+    b.classList.toggle('history-pinned', historyPinned)
     b.classList.toggle('kanban-open', kanbanOpen)
-  }, [mode, historyOpen, kanbanOpen])
+  }, [mode, historyOpen, historyPinned, kanbanOpen])
 
   if (!ready) return <section className="layer layer-tower"><div className="bg" /></section>
   if (!token) {
@@ -54,12 +69,12 @@ export default function App() {
   }
   return (
     <>
-      {/* 驾驶舱 · 守（日） */}
+      {/* Xin台 · 守（日） */}
       <section className="layer layer-cockpit">
         <div className="bg" />
         <CockpitHome />
       </section>
-      {/* 瞭望塔 · 攻（夜） */}
+      {/* Xin语 · 攻（夜） */}
       <section className="layer layer-tower">
         <div className="bg" />
         <ScreenWork />
@@ -72,6 +87,8 @@ export default function App() {
       <KanbanDrawer />
       <div className={`fog ${switching ? 'pulse' : ''}`} />
       <SceneModal />
+      <FillFormModal />
+      <SkillRunModal />
       <ToastHost />
     </>
   )

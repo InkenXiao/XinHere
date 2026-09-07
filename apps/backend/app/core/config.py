@@ -25,6 +25,19 @@ class Settings(BaseSettings):
     kb_mcp_url: str = "https://localhost:8093/mcp"
     # XuanPu 平台 MCP 网关（mcp-cowork 8094 子挂载；经 ai_network 内 nginx TLS 入口）
     xuanpu_mcp_url: str = "https://nginx:8094/xuanpu/mcp"
+
+    # ---------- 统一身份登录 SSO (XuanPu sso-server :8095) ----------
+    # 授权入口走浏览器可达的 nginx https; token/ticket 接口走容器内网直达
+    sso_auth_url: str = "https://192.168.1.161:8090/sso/authorize"
+    sso_token_url: str = "http://xuanpu:8095/sso/token"
+    sso_ticket_url: str = "http://xuanpu:8095/sso/api/ticket"
+    sso_client_id: str = "xinhere"
+    sso_client_secret: str = ""
+    sso_callback_url: str = "http://192.168.1.161:8096/api/v1/auth/sso/callback"
+    frontend_url: str = "http://192.168.1.161:8096"
+    # Xin台 launch 的浏览器可达 XuanPu 根地址 (nginx https 入口)
+    xuanpu_public_url: str = "https://192.168.1.161:8090"
+
     token_ttl_hours: int = 72
     allowed_hosts: str = "localhost,127.0.0.1"
     cors_origins: str = "http://localhost:8095,http://localhost:5173"

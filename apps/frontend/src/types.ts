@@ -187,8 +187,9 @@ export interface XuanPuWorkTask {
 
 export interface XuanPuFillAssignment {
   id: number
+  template_id: number
   title: string
-  assignee: string
+  description?: string
   status: string
   note: string
   submitted_at: string
@@ -198,6 +199,41 @@ export interface XuanPuFillAssignment {
 export interface XuanPuTodos {
   work_tasks: XuanPuWorkTask[]
   fill_assignments: XuanPuFillAssignment[]
+  raw?: string
+}
+
+/** 填报模板字段定义（模板 schema.fields 项） */
+export interface XuanPuFillField {
+  key: string
+  label: string
+  type?: string // 缺省 text；number / multi（多选）
+  options?: string[]
+  required?: boolean
+  placeholder?: string
+  help?: string
+  section?: string
+}
+
+/** GET /xuanpu/fill/template；raw 存在表示 MCP 工具返回的错误文本 */
+export interface XuanPuFillTemplateDetail {
+  template_id?: number
+  title?: string
+  description?: string | null
+  status?: string
+  fields: XuanPuFillField[] | null
+  raw?: string
+}
+
+/** GET /xuanpu/fill/assignment（含已存草稿）；raw 存在表示 MCP 工具返回的错误文本 */
+export interface XuanPuFillAssignmentDetail {
+  assignment_id: number
+  template_id: number
+  title: string
+  description: string | null
+  status: string
+  note: string
+  submitted_at: string
+  draft: Record<string, unknown> | null
   raw?: string
 }
 
@@ -226,4 +262,36 @@ export interface XuanPuDashboard {
   bug_stats_by_fix_status?: XuanPuStatGroup
   req_stats_by_status?: XuanPuStatGroup
   raw?: string
+}
+
+/** GET /xuanpu/skills 项（xuanpu_skills 网关工具） */
+export interface XuanPuSkill {
+  id: number
+  name: string
+  category?: string | null
+  trigger_type?: string | null
+  description?: string | null
+  is_active?: boolean
+}
+
+/** POST /xuanpu/skills/{id}/run 结果（异步运行时轮询至终态）；raw 为网关错误文本 */
+export interface XuanPuSkillRunResult {
+  execution_id?: number | string
+  status?: string // success | failed | timeout
+  output_data?: unknown
+  error?: string
+  duration_ms?: number
+  note?: string
+  raw?: string
+}
+
+/** GET /cockpit/entries 项（Xin台系统入口，launch 跳转目标） */
+export interface CockpitEntry {
+  id: number
+  key: string
+  name: string
+  entry_path: string
+  icon?: string | null
+  sort: number
+  enabled: boolean
 }

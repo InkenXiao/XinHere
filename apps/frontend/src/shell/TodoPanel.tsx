@@ -17,12 +17,16 @@ const LAMP_COLOR: Record<string, string> = { r: '#ef4444', y: '#f59e0b', g: '#10
 
 const XP_PRIO_ZH: Record<string, string> = { low: '低', medium: '中', high: '高', urgent: '紧急' }
 
+const FILL_STATUS_ZH: Record<string, string> = { pending: '待填报', submitted: '已提交' }
+
 export default function TodoPanel() {
   const box = useTodoStore((s) => s.box)
   const items = useTodoStore((s) => s.items)
   const ignored = useTodoStore((s) => s.ignored)
   const setBox = useTodoStore((s) => s.setBox)
   const openScene = useUiStore((s) => s.openScene)
+  const openFill = useUiStore((s) => s.openFill)
+  const xpFills = useTodoStore((s) => s.xpFills)
   // 内联回复框：记录展开项与模式
   const [reply, setReply] = useState<{ id: string; mode: 'feedback' | 'na' } | null>(null)
   const [replyText, setReplyText] = useState('')
@@ -213,9 +217,16 @@ export default function TodoPanel() {
                 <span className="td-title">填报任务</span>
               </div>
               {xpData.fill_assignments.map((f) => (
-                <div className="td-sub" key={`f${f.id}`}>
-                  {f.title} · {f.status}
-                  {f.submitted_at ? ` · 提交于 ${f.submitted_at}` : ''}
+                <div className="td-sub" key={`f${f.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    {f.title} · {FILL_STATUS_ZH[f.status] ?? f.status}
+                    {f.submitted_at ? ` · 提交于 ${f.submitted_at}` : ''}
+                  </span>
+                  {f.status === 'pending' && (
+                    <button className="primary" onClick={() => openFill({ assignmentId: f.id, templateId: f.template_id })}>
+                      去填报
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -223,7 +234,33 @@ export default function TodoPanel() {
         </div>
       ) : (
         <div className="todo-list">
-        {list.length === 0 && <div className="todo-empty">暂无待办</div>}
+        {xpFills.length > 0 && (
+          <>
+            <div className="td-sec">XuanPu 填报</div>
+            {xpFills.map((f) => (
+              <div className={`td-item ${f.status !== 'pending' ? 'dim' : ''}`} key={`xf${f.id}`}>
+                <div className="td-top">
+                  <span className="td-dot" style={{ background: f.status === 'pending' ? '#f59e0b' : '#10b981' }} />
+                  <span className="td-title">{f.title}</span>
+                  <span className="td-kind">XuanPu</span>
+                </div>
+                <div className="td-sub">
+                  {FILL_STATUS_ZH[f.status] ?? f.status}
+                  {f.submitted_at ? ` · 提交于 ${f.submitted_at}` : ''}
+                </div>
+                {f.status === 'pending' && (
+                  <div className="td-actions">
+                    <button className="primary" onClick={() => openFill({ assignmentId: f.id, templateId: f.template_id })}>
+                      去填报
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+        {xpFills.length > 0 && list.length > 0 && <div className="td-sec">XinHere 待办</div>}
+        {list.length === 0 && xpFills.length === 0 && <div className="todo-empty">暂无待办</div>}
         {list.map((t) => (
           <div className={`td-item ${t.status !== 'pending' ? 'dim' : ''}`} key={t.todo_id}>
             <div className="td-top">

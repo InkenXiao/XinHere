@@ -20,6 +20,7 @@ from .platform.agent.executor import executor
 from .platform.api import (
     auth,
     cash,
+    cockpit,
     dashboard,
     kb,
     kpi,
@@ -143,7 +144,8 @@ def healthz():
 API = "/api/v1"
 for r in (
     auth.router, sessions.router, todos.router, dashboard.router, risk_fills.router,
-    cash.router, kpi.router, reports.router, kb.router, plugins.router, xuanpu.router,
+    cash.router, kpi.router, reports.router, kb.router, plugins.router,
+    xuanpu.router, cockpit.router,
 ):
     app.include_router(r, prefix=API)
 
@@ -152,6 +154,15 @@ for r in (
 def startup():
     discover()  # 插件装配 fail-loud
     logger.info("启动：插件装配完成")
+
+    try:
+        with SessionLocal() as db:
+            n = cockpit.seed_entries(db)  # Xin台入口幂等 seed（失败不阻断启动）
+            db.commit()
+        if n:
+            logger.info("启动：Xin台入口 seed 新增 %d 条", n)
+    except Exception:
+        logger.exception("启动：Xin台入口 seed 失败")
 
     def _init():
         executor.setup()  # checkpoint 表

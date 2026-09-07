@@ -5,48 +5,96 @@ import HistoryRail from './HistoryRail'
 import TodoPanel from './TodoPanel'
 import ScreenDashboard from './ScreenDashboard'
 
-/* 模式切换：瞭望塔恒前、驾驶舱恒后，选中项由纵深推至前方 */
+/* 模式切换：点击 Xin语 前推、点击 Xin台 后退，选中项由纵深推至前方 */
 export function ModeToggle() {
   const mode = useUiStore((s) => s.mode)
   const setMode = useUiStore((s) => s.setMode)
   return (
     <div className="mode-toggle">
       <button type="button" className={`mt-btn ${mode === 'tower' ? 'on' : ''}`} onClick={() => setMode('tower')}>
-        瞭望塔
+        Xin语
       </button>
       <button type="button" className={`mt-btn ${mode === 'cockpit' ? 'on' : ''}`} onClick={() => setMode('cockpit')}>
-        驾驶舱
+        Xin台
       </button>
     </div>
   )
 }
 
-/* 框架一 · 历史对话抽屉 */
+/* 图钉图标：pinned=实心 / 未固定=空心+斜杠 */
+function PinIcon({ pinned }: { pinned: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+      {pinned ? (
+        <path fill="currentColor" d="M16 9V4h1V2H7v2h1v5l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+      ) : (
+        <>
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+            d="M16 9V4h1V2H7v2h1v5l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"
+          />
+          <path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M4.5 4.5l15 15" />
+        </>
+      )}
+    </svg>
+  )
+}
+
+/* 框架一 · 历史对话抽屉：左缘热区唤起 + pin 固定常驻（未固定时移出抽屉自动收起） */
 export function HistoryDrawer() {
-  const toggleHistory = useUiStore((s) => s.toggleHistory)
+  const historyPinned = useUiStore((s) => s.historyPinned)
+  const setHistoryOpen = useUiStore((s) => s.setHistoryOpen)
+  const toggleHistoryPin = useUiStore((s) => s.toggleHistoryPin)
   return (
     <>
-      <button className="h-toggle" onClick={toggleHistory}>
-        <span className="ic">›</span>
-        <span className="vt">历史对话</span>
-      </button>
-      <aside className="h-drawer">
-        <div className="h-title">History · 历史对话</div>
+      <div className="h-hotzone" onClick={() => setHistoryOpen(true)} title="历史对话" aria-hidden="true" />
+      <aside
+        className="h-drawer"
+        onMouseLeave={() => {
+          if (!historyPinned) setHistoryOpen(false)
+        }}
+      >
+        <div className="h-title">
+          <span>History · 历史对话</span>
+          <button
+            type="button"
+            className={`h-pin ${historyPinned ? 'on' : ''}`}
+            onClick={toggleHistoryPin}
+            title={historyPinned ? '取消固定' : '固定'}
+          >
+            <PinIcon pinned={historyPinned} />
+          </button>
+        </div>
         <HistoryRail />
       </aside>
     </>
   )
 }
 
-/* 框架二 · 待办竖条（悬停/点击展开） */
+/* 框架二 · 待办竖条（悬停展开 / pin 固定常驻展开） */
 export function TodoRail() {
   const count = useTodoStore((s) => s.items.filter((t) => !s.ignored.has(t.todo_id)).length)
+  const todoPinned = useUiStore((s) => s.todoPinned)
+  const toggleTodoPin = useUiStore((s) => s.toggleTodoPin)
   return (
-    <aside className="r-rail" aria-label={`待我处理，${count} 项`}>
+    <aside className={`r-rail ${todoPinned ? 'open' : ''}`} aria-label={`待我处理，${count} 项`}>
       <span className="r-liquid-shine" aria-hidden="true" />
       <span className="badge">{count}</span>
       <span className="label">待&nbsp;我&nbsp;处&nbsp;理</span>
       <div className="r-pop" onClick={(e) => e.stopPropagation()}>
+        <div className="r-pop-head">
+          <button
+            type="button"
+            className={`h-pin ${todoPinned ? 'on' : ''}`}
+            onClick={toggleTodoPin}
+            title={todoPinned ? '取消固定' : '固定'}
+          >
+            <PinIcon pinned={todoPinned} />
+          </button>
+        </div>
         <TodoPanel />
       </div>
     </aside>
