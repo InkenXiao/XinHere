@@ -8,7 +8,7 @@
 # 一次性发布入口：bash deploy/publish.sh（含前端构建、依赖检测、alembic 迁移、启动）
 # ----------------------------------------------------------------------------
 services:
-  backend:
+  xinhere-backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
@@ -38,7 +38,7 @@ services:
     networks:
       - ai_network
 
-  frontend:
+  xinhere-frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
@@ -54,7 +54,7 @@ services:
     # 不发布宿主端口：宿主 8096 已由外部 nginx 容器 (tool/nginx) 持有并对外提供 https 入口
     # (listen 8096 ssl)；外部 nginx 经 ai_network 静态 IP 直连本容器（见 networks 段）
     depends_on:
-      backend:
+      xinhere-backend:
         condition: service_healthy
     restart: no
     networks:

@@ -1,5 +1,5 @@
 // 根组件：登录态门控 + 双模式层（Xin语⇄Xin台）+ 框架（顶栏/历史/待办/看板）+ 弹窗/Toast 宿主
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { startTodoPolling, stopTodoPolling, useTodoStore } from '@/state/todoStore'
@@ -16,11 +16,13 @@ import TaskDetailModal from '@/shell/TaskDetailModal'
 import MeetingPage from '@/shell/MeetingPage'
 import ToastHost from '@/primitives/Toast'
 import { ModeToggle, HistoryDrawer, TodoRail, KanbanDrawer } from '@/shell/Frame'
+import SplashGate from '@/shell/SplashGate'
 
 export default function App() {
   const token = useAuthStore((s) => s.token)
   const ready = useAuthStore((s) => s.ready)
   const mode = useUiStore((s) => s.mode)
+  const [splashDone, setSplashDone] = useState(false)
   const historyOpen = useUiStore((s) => s.historyOpen)
   const historyPinned = useUiStore((s) => s.historyPinned)
   const kanbanOpen = useUiStore((s) => s.kanbanOpen)
@@ -65,6 +67,7 @@ export default function App() {
           <div className="bg" />
         </section>
         <LoginPage />
+        {!splashDone && <SplashGate onDone={() => setSplashDone(true)} />}
       </>
     )
   }
@@ -83,7 +86,7 @@ export default function App() {
       </section>
       {/* 框架（不随模式切换而改变布局） */}
       <TopBar />
-      <ModeToggle />
+      <ModeToggle onHome={() => setSplashDone(false)} />
       <HistoryDrawer />
       <TodoRail />
       <KanbanDrawer />
@@ -92,6 +95,8 @@ export default function App() {
       <TaskDetailModal />
       <MeetingPage />
       <ToastHost />
+      {/* 开屏双门：点击进入 Xin语 / Xin台 */}
+      {!splashDone && <SplashGate onDone={() => setSplashDone(true)} />}
     </>
   )
 }

@@ -2,6 +2,7 @@
 import { useUiStore } from '@/state/uiStore'
 import ChatPanel from './ChatPanel'
 import HeroHome from './HeroHome'
+import RadarInstrument from './RadarInstrument'
 
 export default function ScreenWork() {
   const workView = useUiStore((s) => s.workView)
@@ -15,6 +16,7 @@ export default function ScreenWork() {
           <ChatPanel />
         </div>
       )}
+      {workView === 'hero' && <RadarInstrument />}
     </div>
   )
 }

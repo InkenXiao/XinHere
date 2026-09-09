@@ -1,22 +1,105 @@
 // 框架件（不随模式切换而改变布局）：模式切换钮 / 左历史抽屉 / 右待办竖条 / 看板第二屏（全屏翻页）
+import { useEffect, useRef, useState } from 'react'
 import { useTodoStore } from '@/state/todoStore'
 import { useUiStore } from '@/state/uiStore'
 import TaskList from './TaskList'
 import TodoPanel from './TodoPanel'
 import ScreenDashboard from './ScreenDashboard'
 
-/* 模式切换：点击 Xin语 前推、点击 Xin台 后退，选中项由纵深推至前方 */
-export function ModeToggle() {
+/* 模式切换：页面顶部中间 V 形图标（左杆=Xin语 / 右杆=Xin台，当前模式点亮），点击 V 返回开屏页；
+   鼠标移上去展开左右双卡，移入卡片放大并显现竖排文字，点击切换。
+   卡片收合以「指针彻底离开 V 与两张卡片的联合范围」为准（240ms 缓冲防抖） */
+export function ModeToggle({ onHome }: { onHome?: () => void }) {
   const mode = useUiStore((s) => s.mode)
   const setMode = useUiStore((s) => s.setMode)
+  const [cardsOpen, setCardsOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const closeTimer = useRef<number | null>(null)
+  const posRef = useRef({ x: -9999, y: -9999 })
+
+  const cancelClose = () => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+  useEffect(() => cancelClose, [])
+
+  // 指针是否仍在 V 图标与两张卡片的联合范围（含 12px 缓冲）
+  const withinRange = (x: number, y: number) => {
+    const root = rootRef.current
+    if (!root) return false
+    let l = Infinity
+    let t = Infinity
+    let r = -Infinity
+    let b = -Infinity
+    root.querySelectorAll<HTMLElement>('.mt-v, .mt-card').forEach((el) => {
+      const rc = el.getBoundingClientRect()
+      if (rc.left < l) l = rc.left
+      if (rc.top < t) t = rc.top
+      if (rc.right > r) r = rc.right
+      if (rc.bottom > b) b = rc.bottom
+    })
+    const pad = 12
+    return x >= l - pad && x <= r + pad && y >= t - pad && y <= b + pad
+  }
+
+  // 卡片展开期间跟踪指针：在联合范围内保持展开，彻底离开后延迟收合
+  useEffect(() => {
+    if (!cardsOpen) return
+    const onMove = (ev: MouseEvent) => {
+      posRef.current = { x: ev.clientX, y: ev.clientY }
+      if (withinRange(ev.clientX, ev.clientY)) {
+        cancelClose()
+      } else if (closeTimer.current === null) {
+        closeTimer.current = window.setTimeout(() => {
+          closeTimer.current = null
+          if (!withinRange(posRef.current.x, posRef.current.y)) setCardsOpen(false)
+        }, 240)
+      }
+    }
+    document.addEventListener('mousemove', onMove)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      cancelClose()
+    }
+  }, [cardsOpen])
+
   return (
-    <div className="mode-toggle">
-      <button type="button" className={`mt-btn ${mode === 'tower' ? 'on' : ''}`} onClick={() => setMode('tower')}>
-        Xin语
+    <div
+      ref={rootRef}
+      className={`mode-toggle ${cardsOpen ? 'cards-open' : ''}`}
+      role="group"
+      aria-label="模式切换"
+      onMouseEnter={() => {
+        cancelClose()
+        setCardsOpen(true)
+      }}
+    >
+      <button type="button" className="mt-v" aria-label="返回开屏页" title="返回开屏页" onClick={onHome}>
+        <i className={mode === 'tower' ? 'cur' : ''} />
+        <i className={mode === 'cockpit' ? 'cur' : ''} />
       </button>
-      <button type="button" className={`mt-btn ${mode === 'cockpit' ? 'on' : ''}`} onClick={() => setMode('cockpit')}>
-        Xin台
-      </button>
+      <div className="mt-card mt-card--tower" role="button" tabIndex={0} aria-label="切换到 Xin语（瞭望塔）" onClick={() => setMode('tower')}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMode('tower') } } }>
+        <span className="mt-art" />
+        <span className="mt-vt">
+          <i>攻 · 面向未来</i>
+          <b>瞭望塔</b>
+        </span>
+        <span className="mt-mini-tag">Xin语</span>
+        {mode === 'tower' && <span className="mt-cur" aria-hidden="true" />}
+      </div>
+      <div className="mt-card mt-card--cockpit" role="button" tabIndex={0} aria-label="切换到 Xin台（驾驶舱）" onClick={() => setMode('cockpit')}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMode('cockpit') } } }>
+        <span className="mt-art" />
+        <span className="mt-vt">
+          <i>守 · 立足当下</i>
+          <b>驾驶舱</b>
+        </span>
+        <span className="mt-mini-tag">Xin台</span>
+        {mode === 'cockpit' && <span className="mt-cur" aria-hidden="true" />}
+      </div>
     </div>
   )
 }
