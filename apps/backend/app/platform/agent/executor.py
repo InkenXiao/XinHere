@@ -76,7 +76,7 @@ class AgentExecutor:
         self._saver.setup()
         self._ready.set()
 
-    def _build_graph(self, tool_ctx: ToolCtx):
+    def _build_graph(self, tool_ctx: ToolCtx, model_key: str = ""):
         from deepagents import create_deep_agent
 
         from ..plugins.loader import plugin_tools
@@ -84,7 +84,7 @@ class AgentExecutor:
 
         tools = build_common_tools(tool_ctx) + plugin_tools(tool_ctx)
         return create_deep_agent(
-            model=build_model(),
+            model=build_model(channel=(model_key or "").strip().lower() or "main"),
             tools=tools,
             checkpointer=self._saver,
             system_prompt=SYSTEM_PROMPT,
@@ -99,7 +99,8 @@ class AgentExecutor:
                 return None
             return h
 
-    def start_turn(self, session_id: str, user: SysUser, content: str, request_id: str) -> int:
+    def start_turn(self, session_id: str, user: SysUser, content: str, request_id: str,
+                   model_key: str = "") -> int:
         """登记 run 并起后台线程；返回 turn 号。调用方需先落 user/message 与 turn/start。"""
         with SessionLocal() as db:
             turn = db.scalar(
@@ -113,7 +114,7 @@ class AgentExecutor:
             self._runs[session_id] = handle
         logger.info("run 启动 sid=%s turn=%d user=%s req=%s", session_id, turn, user.username, request_id)
         threading.Thread(
-            target=self._run, args=(handle, content, None), name=f"run-{session_id[:8]}-t{turn}", daemon=True
+            target=self._run, args=(handle, content, None, model_key), name=f"run-{session_id[:8]}-t{turn}", daemon=True
         ).start()
         return turn
 
@@ -160,7 +161,8 @@ class AgentExecutor:
 
     # ---------- 后台执行 ----------
 
-    def _run(self, handle: RunHandle, content: str | None, resume_value: dict | None) -> None:
+    def _run(self, handle: RunHandle, content: str | None, resume_value: dict | None,
+             model_key: str = "") -> None:
         sid = handle.session_id
 
         def emit(type_: str, payload: dict):
@@ -173,7 +175,7 @@ class AgentExecutor:
         translator = EventTranslator(store, sid, handle.turn)
         try:
             self._ready.wait(timeout=30)
-            graph = self._build_graph(tool_ctx)
+            graph = self._build_graph(tool_ctx, model_key)
             config = {"configurable": {"thread_id": sid}}
             input_ = (
                 Command(resume=resume_value)

@@ -20,6 +20,7 @@ from ...persistence.models import (
     PlatformSessionEvent,
     SysUser,
 )
+from ...services import files as files_svc
 from ...persistence.session import get_db
 from ..agent.component_handlers import HANDLERS, apply_update_draft
 from ..agent.executor import executor
@@ -134,6 +135,10 @@ def get_session(session_id: str, user: SysUser = Depends(current_user), db: Sess
 class ChatIn(BaseModel):
     message: str
     kb_ids: list[str] | None = None
+    # 对话页输入区扩展项 (WorkBuddy 工具条, 全部可省略)
+    web_search: bool = False   # 联网搜索开关
+    model: str = ""            # 模型通道 (main 标准 / small 快速, 空=标准)
+    file_names: list[str] | None = None  # 已上传附件的存储名
 
 
 @router.post("/{session_id}/chat")
@@ -148,9 +153,12 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         raise errors.run_busy()
     if not body.message.strip():
         raise errors.validation("消息不能为空")
+    file_names = [n for n in (body.file_names or []) if n]
     message = body.message
     if body.kb_ids:
         message = f"{message}\n（限定知识库：{('、'.join(body.kb_ids))}）"
+    if file_names:
+        message = f"{message}\n（附件：{('、'.join(file_names))}）"
     request_id = getattr(request.state, "request_id", "")
 
     q = bridge.subscribe(session_id)
@@ -163,9 +171,28 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         )
     ) + 1
     store.append(session_id, "turn/start", {"turn": turn, "version": 1}, turn=turn)
-    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s msg=%.80s",
-                session_id, turn, user.username, body.kb_ids, message)
-    executor.start_turn(session_id, user, message, request_id)
+    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s files=%s model=%s web=%s msg=%.80s",
+                session_id, turn, user.username, body.kb_ids, file_names,
+                body.model, body.web_search, message)
+
+    # 组装 LLM 实际输入: 附件深度解析 (图片→视觉模型 / PDF→文本层→mineru) + 联网开关提示
+    llm_content = message
+    if file_names:
+        store.append(session_id, "user/message",
+                     {"content": "正在解析附件…", "source": "inject", "version": 1})
+        try:
+            block = await files_svc.build_attachment_block(
+                user.user_id, file_names,
+                on_progress=lambda t: store.append(session_id, "user/message",
+                                                   {"content": t, "source": "inject", "version": 1}),
+            )
+            if block:
+                llm_content = f"{llm_content}\n\n以下是用户上传附件的解析结果，回答时请结合使用：\n{block}"
+        except Exception as exc:  # noqa: BLE001 - 解析整体失败不阻塞对话
+            logger.warning("附件解析失败 sid=%s: %s", session_id, exc)
+    if body.web_search:
+        llm_content = f"【联网搜索已开启】可使用 web_search 工具检索互联网公开信息后作答。\n{llm_content}"
+    executor.start_turn(session_id, user, llm_content, request_id, model_key=body.model)
 
     async def gen():
         try:

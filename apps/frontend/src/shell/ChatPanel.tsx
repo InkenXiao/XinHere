@@ -1,11 +1,10 @@
 // 对话面板（核心）：消息流/执行态双 pane 过渡 + composer + 快捷标签 + 知识库选择
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSessionStore } from '@/state/sessionStore'
 import { useUiStore } from '@/state/uiStore'
-import { api } from '@/transport/api'
-import type { KbSource } from '@/types'
 import type { Node } from '@/registry/ConversationAssembler'
 import { toolZh } from '@/utils'
+import ChatComposer from './ChatComposer'
 import ExecutionView from './ExecutionView'
 
 const QUICK_TAGS = ['发起风险填报', '现金保障试算', '任务执行统计', '生成投后报告']
@@ -20,12 +19,7 @@ export default function ChatPanel() {
   const componentEmit = useSessionStore((s) => s.componentEmit)
   const executing = useUiStore((s) => s.executing)
 
-  const [text, setText] = useState('')
-  const [kbOpen, setKbOpen] = useState(false)
-  const [kbSources, setKbSources] = useState<KbSource[] | null>(null)
-  const [kbSel, setKbSel] = useState<Set<string>>(new Set())
   const streamRef = useRef<HTMLDivElement>(null)
-  const taRef = useRef<HTMLTextAreaElement>(null)
 
   // 自动滚底
   useEffect(() => {
@@ -33,34 +27,10 @@ export default function ChatPanel() {
     if (el) el.scrollTop = el.scrollHeight
   }, [snap])
 
-  // 知识库：首次展开时加载
-  useEffect(() => {
-    if (kbOpen && kbSources === null) {
-      api<{ items: KbSource[] }>('GET', '/kb/sources')
-        .then((r) => setKbSources(r.items ?? []))
-        .catch(() => setKbSources([]))
-    }
-  }, [kbOpen, kbSources])
-
-  const kbGroups = useMemo(() => {
-    const list = kbSources ?? []
-    const roots = list.filter((x) => x.parent_id === null)
-    return roots.map((r) => ({ root: r, leaves: list.filter((x) => x.parent_id === r.kb_id) }))
-  }, [kbSources])
-
   const doSend = (msg: string) => {
     const t = msg.trim()
     if (!t || sending || !current) return
-    setText('')
-    if (taRef.current) taRef.current.style.height = ''
-    void send(t, kbSel.size > 0 ? [...kbSel] : undefined)
-  }
-
-  const toggleKb = (id: string) => {
-    const n = new Set(kbSel)
-    if (n.has(id)) n.delete(id)
-    else n.add(id)
-    setKbSel(n)
+    void send(t)
   }
 
   const renderNode = (node: Node) => {
@@ -154,7 +124,7 @@ export default function ChatPanel() {
             {empty && (
               <div className="welcome">
                 <div className="welcome-ico">✦</div>
-                <div className="welcome-t">新在这里，心在这里</div>
+                <div className="welcome-t">信在此 · 新在此</div>
                 <div className="welcome-h" style={{ marginBottom: 14 }}>
                   用自然语言发起任务、追踪进度，组件在对话中直接操作
                 </div>
@@ -183,79 +153,17 @@ export default function ChatPanel() {
             ))}
           </div>
           <div className="composer">
-            <div className="input-pill">
-              <textarea
-                ref={taRef}
-                rows={1}
-                placeholder={current ? '输入消息，Enter 发送 / Shift+Enter 换行' : '请先选择或新建会话'}
-                value={text}
-                disabled={!current}
-                onChange={(e) => setText(e.target.value)}
-                onInput={(e) => {
-                  const el = e.currentTarget
-                  el.style.height = 'auto'
-                  el.style.height = `${Math.min(el.scrollHeight, 140)}px`
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    doSend(text)
-                  }
-                }}
-              />
-              <button
-                className="send-pill"
-                disabled={!current || (!sending && !text.trim())}
-                onClick={() => (sending ? void cancel() : doSend(text))}
-              >
-                {sending ? '停止' : '发送'}
-              </button>
-            </div>
-          </div>
-          <div className="bottom-bar">
-            <span className={`bottom-item ${kbOpen ? 'on' : ''}`} onClick={() => setKbOpen((v) => !v)}>
-              📚 知识库
-              {kbSel.size > 0 && <span className="kb-sel-count">{kbSel.size}</span>}
-            </span>
-            <div className={`kb-popover ${kbOpen ? 'show' : ''}`}>
-              <div className="kb-pop-head">
-                <h4>选择知识库</h4>
-                <button className="icon-btn" onClick={() => setKbOpen(false)}>
-                  ×
-                </button>
-              </div>
-              <div className="kb-tree">
-                {kbSources === null && <div className="kb-group-t">加载中…</div>}
-                {kbGroups.map(({ root, leaves }) =>
-                  leaves.length === 0 ? (
-                    <KbLeaf key={root.kb_id} src={root} sel={kbSel.has(root.kb_id)} onToggle={toggleKb} />
-                  ) : (
-                    <div key={root.kb_id}>
-                      <div className="kb-group-t">{root.name}</div>
-                      {leaves.map((l) => (
-                        <KbLeaf key={l.kb_id} src={l} sel={kbSel.has(l.kb_id)} onToggle={toggleKb} />
-                      ))}
-                    </div>
-                  ),
-                )}
-              </div>
-            </div>
+            <ChatComposer
+              variant="chat"
+              disabled={!current}
+              sending={sending}
+              onCancel={() => void cancel()}
+              onSend={(t, opts) => void send(t, opts)}
+            />
           </div>
         </div>
         <ExecutionView />
       </div>
-    </div>
-  )
-}
-
-function KbLeaf({ src, sel, onToggle }: { src: KbSource; sel: boolean; onToggle: (id: string) => void }) {
-  return (
-    <div className={`kb-leaf ${sel ? 'sel' : ''}`} onClick={() => onToggle(src.kb_id)}>
-      <span className="cbx">{sel ? '✓' : ''}</span>
-      {src.name}
-      <span className={`kb-badge ${src.kb_type === 'internal' ? 'h' : 'n'}`}>
-        {src.kb_type === 'internal' ? '内部' : '外部'}
-      </span>
     </div>
   )
 }

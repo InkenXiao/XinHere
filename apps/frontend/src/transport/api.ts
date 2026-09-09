@@ -106,3 +106,31 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
 export const get = <T = unknown>(path: string) => api<T>('GET', path)
 export const post = <T = unknown>(path: string, body?: unknown) => api<T>('POST', path, body)
 export const put = <T = unknown>(path: string, body?: unknown) => api<T>('PUT', path, body)
+
+/** 文件上传 (multipart): 对话附件 / 录音转写片段 */
+export async function apiUpload<T = unknown>(path: string, blob: Blob, filename: string): Promise<T> {
+  if (mockEnabled()) throw new ApiError('MOCK_UNSUPPORTED', '演示模式不支持该功能', 400)
+  const fd = new FormData()
+  fd.append('file', blob, filename)
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: authHeaders(), body: fd })
+  } catch {
+    throw new ApiError('UPSTREAM_ERROR', '网络异常，请稍后重试', 0)
+  }
+  if (res.status === 401) {
+    unauthorizedHandler?.()
+    throw new ApiError('UNAUTHORIZED', '登录已失效，请重新登录', 401)
+  }
+  if (!res.ok) {
+    let message = `请求失败（${res.status}）`
+    try {
+      const j = (await res.json()) as { message?: string; detail?: string }
+      message = j.message || j.detail || message
+    } catch {
+      /* 非 JSON 错误体 */
+    }
+    throw new ApiError('INTERNAL', message, res.status)
+  }
+  return (await res.json()) as T
+}

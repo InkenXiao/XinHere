@@ -238,7 +238,12 @@ export default function TodoPanel() {
           <>
             <div className="td-sec">XuanPu 填报</div>
             {xpFills.map((f) => (
-              <div className={`td-item ${f.status !== 'pending' ? 'dim' : ''}`} key={`xf${f.id}`}>
+              <div
+                className={`td-item ${f.status !== 'pending' ? 'dim' : ''}`}
+                key={`xf${f.id}`}
+                onClick={() => openFill({ assignmentId: f.id, templateId: f.template_id })}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="td-top">
                   <span className="td-dot" style={{ background: f.status === 'pending' ? '#f59e0b' : '#10b981' }} />
                   <span className="td-title">{f.title}</span>

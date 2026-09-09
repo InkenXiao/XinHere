@@ -90,7 +90,7 @@ async function readStream(res: Response, handlers: SseHandlers): Promise<void> {
 /** POST chat → SSE 流（一次 run） */
 export async function streamChat(
   sessionId: string,
-  body: { message: string; kb_ids?: string[] },
+  body: { message: string; kb_ids?: string[]; web_search?: boolean; model?: string; file_names?: string[] },
   handlers: SseHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -127,4 +127,34 @@ export async function resumeEvents(
     signal,
   })
   await readStream(res, handlers)
+}
+
+/** 会议纪要流式生成（阶段/最终/润色）：data 帧为 {"delta": "..."} / {"done": true} */
+export async function streamMinutes(
+  body: { transcript: string; mode: 'stage' | 'final' | 'polish'; instruction?: string },
+  handlers: { onDelta: (d: string) => void; onDone: () => void },
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/minutes/summarize`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'text/event-stream' }),
+    body: JSON.stringify(body),
+    signal,
+  })
+  if (!res.ok || !res.body) {
+    handlers.onDelta('\n[纪要生成失败] 服务暂不可用')
+    handlers.onDone()
+    return
+  }
+  for await (const frame of parseSse(res.body)) {
+    let payload: { delta?: string; done?: boolean } = {}
+    try {
+      payload = JSON.parse(frame.data || '{}')
+    } catch {
+      continue
+    }
+    if (payload.delta) handlers.onDelta(payload.delta)
+    if (payload.done) break
+  }
+  handlers.onDone()
 }

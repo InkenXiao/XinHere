@@ -295,3 +295,79 @@ export interface CockpitEntry {
   sort: number
   enabled: boolean
 }
+
+/** GET /cockpit/cards 卡片项：link=页面跳转 / task=技能任务卡（开始按钮）/ meeting=实时会议卡 */
+export interface CockpitCardItem {
+  id: number
+  key: string
+  group_key: string
+  name: string
+  kind: 'link' | 'task' | 'meeting'
+  link_url?: string | null
+  skill_id?: number | null
+  skill_name?: string | null
+  icon?: string | null
+  sort: number
+  enabled: boolean
+}
+
+/** GET /cockpit/cards 分组项（每组一行三列，卡片按 sort 排序） */
+export interface CockpitCardGroup {
+  key: string
+  name: string
+  sort: number
+  cards: CockpitCardItem[]
+}
+
+/** POST /xuanpu/cards/open 结果：站内路径免登跳转（first_login=首次需登录）或外链 */
+export interface CardOpenResult {
+  url: string
+  first_login: boolean
+}
+
+/** GET /tasks 项：历史任务统一树（chat=Xin语对话 / exec=Xin台执行 / folder=用户文件夹） */
+export interface TaskRecordItem {
+  id: string
+  kind: 'chat' | 'exec' | 'folder'
+  scope: 'chat' | 'exec'
+  title: string
+  status: string // exec: running / success / failed / stopped
+  ref_id?: string | null // chat: 会话 id；exec: 来源卡片 key
+  detail: Record<string, unknown>
+  parent_id?: string | null
+  sort: number
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+/** GET /hero/cards 项：Xin语页用户自定义卡片（link=链接 / skill=技能） */
+export interface HeroCardItem {
+  id: string
+  name: string
+  kind: 'link' | 'skill'
+  link_url?: string | null
+  skill_id?: number | null
+  skill_name?: string | null
+  sort: number
+}
+
+/** 对话页模型通道选项 */
+export interface ModelOption {
+  key: string
+  label: string
+  model: string
+}
+
+/** 实时会议转写行（sec 为该段起始秒） */
+export interface MeetingLine {
+  sec: number
+  text: string
+}
+
+/** 对话发送附加选项（WorkBuddy 工具条） */
+export interface SendOptions {
+  kbIds?: string[]
+  webSearch?: boolean
+  model?: string
+  fileNames?: string[]
+}

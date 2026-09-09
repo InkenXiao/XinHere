@@ -17,5 +17,8 @@ dist/
 .trae/
 .DS_Store
 
+# 运行时数据（上传文件/录音等, 容器卷挂载目录）
+apps/backend/data/
+
 # 发布状态（依赖哈希，用于判断是否需重建镜像）
 .deploy-hash

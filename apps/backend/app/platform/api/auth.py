@@ -62,6 +62,33 @@ def _cleanup_states(now: float) -> None:
             _sso_states.pop(s, None)
 
 
+def _bind_xuanpu_user(
+    db: Session, xuanpu_user_id: str, user_code: str, user_name: str, is_admin: bool
+) -> SysUser:
+    """JIT 建号 / 幂等绑定：优先按 XuanPu 绑定查，其次按登录账号名对齐已有本地账号。"""
+    user = db.scalars(select(SysUser).where(SysUser.xuanpu_user_id == xuanpu_user_id)).first()
+    if user is None and user_code:
+        user = db.scalars(select(SysUser).where(SysUser.username == user_code)).first()
+    if user is None:
+        user = SysUser(
+            username=user_code or xuanpu_user_id,
+            password_hash="",  # SSO 账号无本地密码
+            display_name=user_name,
+            role="hq_finance" if is_admin else "investee_finance",
+            company="",
+            auth_source="sso",
+            xuanpu_user_id=xuanpu_user_id,
+        )
+        db.add(user)
+        db.flush()
+    else:
+        # 已有账号：同步最新姓名与绑定，不动本地角色（避免覆盖管理员配置）
+        user.display_name = user_name
+        user.xuanpu_user_id = xuanpu_user_id
+        user.auth_source = "sso"
+    return user
+
+
 @router.post("/login")
 def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
     set_ctx(
@@ -172,27 +199,58 @@ def sso_callback(
     user_name = str(xuanpu_user.get("user_name") or user_code)
     is_admin = bool(xuanpu_user.get("is_admin"))
 
-    # JIT 建号 / 幂等绑定：优先按 XuanPu 绑定查，其次按登录账号名对齐已有本地账号
-    user = db.scalars(select(SysUser).where(SysUser.xuanpu_user_id == xuanpu_user_id)).first()
-    if user is None and user_code:
-        user = db.scalars(select(SysUser).where(SysUser.username == user_code)).first()
-    if user is None:
-        user = SysUser(
-            username=user_code or xuanpu_user_id,
-            password_hash="",  # SSO 账号无本地密码
-            display_name=user_name,
-            role="hq_finance" if is_admin else "investee_finance",
-            company="",
-            auth_source="sso",
-            xuanpu_user_id=xuanpu_user_id,
+    # JIT 建号 / 幂等绑定
+    user = _bind_xuanpu_user(db, xuanpu_user_id, user_code, user_name, is_admin)
+
+    xuanpu_token = payload.get("access_token")
+    xuanpu_token_exp = None
+    expires_in = payload.get("expires_in")
+    if xuanpu_token and isinstance(expires_in, (int, float)):
+        xuanpu_token_exp = datetime.now(timezone.utc) + timedelta(seconds=float(expires_in))
+    token = _issue_token(db, user, xuanpu_token=xuanpu_token, xuanpu_token_exp=xuanpu_token_exp)
+    return RedirectResponse(
+        f"{settings.frontend_url}/?sso_token={quote(token, safe='')}", status_code=302
+    )
+
+
+@router.get("/sso/ticket")
+def sso_ticket(
+    request: Request,
+    ticket: str = "",
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    """XuanPu 门户免登入口：消费 sso-server 一次性 ticket → 绑定/建号 → 签发本地 token
+    → 302 前端 ?sso_token= 自动登录。无 ticket 时 302 前端走常规登录。"""
+    set_ctx(
+        AuditCtx(
+            user_id="anonymous",
+            channel="page",
+            actor="page:sso_ticket",
+            request_id=getattr(request.state, "request_id", ""),
+            client_ip=request.client.host if request.client else None,
+            entry_point="GET /api/v1/auth/sso/ticket",
         )
-        db.add(user)
-        db.flush()
-    else:
-        # 已有账号：同步最新姓名与绑定，不动本地角色（避免覆盖管理员配置）
-        user.display_name = user_name
-        user.xuanpu_user_id = xuanpu_user_id
-        user.auth_source = "sso"
+    )
+    if not ticket:
+        return RedirectResponse(settings.frontend_url, status_code=302)
+    try:
+        resp = httpx.post(settings.sso_verify_url, json={"ticket": ticket}, timeout=15)
+    except httpx.HTTPError as exc:
+        raise errors.upstream(f"统一身份服务不可达：{exc}") from exc
+    if resp.status_code != 200:
+        raise errors.upstream("统一身份登录凭证校验失败")
+    payload = resp.json()
+    if not payload.get("ok"):
+        return RedirectResponse(settings.frontend_url, status_code=302)
+    xuanpu_user = payload.get("user") or {}
+    xuanpu_user_id = str(xuanpu_user.get("user_id") or "")
+    if not xuanpu_user_id:
+        raise errors.upstream("统一身份服务返回用户信息不完整")
+    user_code = str(xuanpu_user.get("user_code") or "")
+    user_name = str(xuanpu_user.get("user_name") or user_code)
+    is_admin = bool(xuanpu_user.get("is_admin"))
+
+    user = _bind_xuanpu_user(db, xuanpu_user_id, user_code, user_name, is_admin)
 
     xuanpu_token = payload.get("access_token")
     xuanpu_token_exp = None

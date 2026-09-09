@@ -22,14 +22,19 @@ from .platform.api import (
     cash,
     cockpit,
     dashboard,
+    hero,
     kb,
     kpi,
     plugins,
     reports,
     risk_fills,
     sessions,
+    tasks,
     todos,
     xuanpu,
+    models as models_router,
+    media as media,
+    minutes as minutes,
 )
 from .platform.plugins.loader import discover
 
@@ -145,7 +150,8 @@ API = "/api/v1"
 for r in (
     auth.router, sessions.router, todos.router, dashboard.router, risk_fills.router,
     cash.router, kpi.router, reports.router, kb.router, plugins.router,
-    xuanpu.router, cockpit.router,
+    xuanpu.router, cockpit.router, tasks.router, hero.router,
+    models_router.router, media.router, minutes.router,
 ):
     app.include_router(r, prefix=API)
 
@@ -158,11 +164,12 @@ def startup():
     try:
         with SessionLocal() as db:
             n = cockpit.seed_entries(db)  # Xin台入口幂等 seed（失败不阻断启动）
+            n += cockpit.seed_cards(db)  # Xin台分组卡片幂等 seed
             db.commit()
         if n:
-            logger.info("启动：Xin台入口 seed 新增 %d 条", n)
+            logger.info("启动：Xin台配置 seed 新增 %d 条", n)
     except Exception:
-        logger.exception("启动：Xin台入口 seed 失败")
+        logger.exception("启动：Xin台配置 seed 失败")
 
     def _init():
         executor.setup()  # checkpoint 表

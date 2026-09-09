@@ -17,8 +17,13 @@ class BusinessBase(Base):
 
     __abstract__ = True
 
-    is_delete = Column(Boolean, nullable=False, default=False, server_default="false")
-    created_by = Column(String(64), nullable=False, default="system", server_default="system")
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_by = Column(String(64), nullable=False, default="system", server_default="system")
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    is_delete = Column(Boolean, nullable=False, default=False, server_default="false",
+                       comment="逻辑删除标记（true=已删除）")
+    created_by = Column(String(64), nullable=False, default="system", server_default="system",
+                        comment="创建人")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(),
+                        comment="创建时间")
+    updated_by = Column(String(64), nullable=False, default="system", server_default="system",
+                        comment="最后更新人")
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(),
+                        comment="最后更新时间（数据库触发器维护）")

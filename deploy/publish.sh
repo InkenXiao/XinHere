@@ -49,4 +49,4 @@ log "  数据库迁移完成"
 # ---------- 4. 启动 / 更新服务 ----------
 log "步骤 4/4：启动服务 ..."
 $COMPOSE up -d
-log "发布完成。前端 http://localhost:8096 （API 经 nginx 反代 backend:8000）"
+log "发布完成。前端 https://localhost:8096 （经外部 nginx https 反代 frontend 容器，API 经其反代 backend:8196）"

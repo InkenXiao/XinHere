@@ -1,6 +1,6 @@
 // UI 状态：主题、执行态开关、当前激活场景组件（去填报）、Toast
 import { create } from 'zustand'
-import type { TodoScene } from '@/types'
+import type { TaskRecordItem, TodoScene } from '@/types'
 
 export interface SceneTarget {
   scene: TodoScene
@@ -29,7 +29,8 @@ interface UiState {
   execDone: boolean
   sceneTarget: SceneTarget | null // 待办「去填报/去审批」打开的场景组件
   fillTarget: { assignmentId: number; templateId: number } | null // 待办「去填报」打开的 XuanPu 填报弹窗
-  runTarget: { skillId: number; name: string; desc: string } | null // Xin台技能卡打开的直跑弹窗
+  meetingOpen: boolean // 实时会议页开关（录音由 meetingStore 持有，关闭页面不影响后台运行）
+  execDetail: TaskRecordItem | null // 历史任务「执行记录」详情弹窗目标
   toasts: ToastItem[]
   setMode: (v: 'tower' | 'cockpit') => void
   toggleHistory: () => void
@@ -43,7 +44,8 @@ interface UiState {
   setExecDone: (v: boolean) => void
   openScene: (t: SceneTarget | null) => void
   openFill: (t: { assignmentId: number; templateId: number } | null) => void
-  openRun: (t: { skillId: number; name: string; desc: string } | null) => void
+  setMeetingOpen: (v: boolean) => void
+  openExecDetail: (t: TaskRecordItem | null) => void
   toast: (text: string, kind?: 'info' | 'err') => void
   dismissToast: (id: number) => void
 }
@@ -64,7 +66,8 @@ export const useUiStore = create<UiState>((set) => ({
   execDone: false,
   sceneTarget: null,
   fillTarget: null,
-  runTarget: null,
+  meetingOpen: false,
+  execDetail: null,
   toasts: [],
   setMode: (v) => {
     set({ mode: v, switching: true })
@@ -91,7 +94,8 @@ export const useUiStore = create<UiState>((set) => ({
   setExecDone: (v) => set({ execDone: v }),
   openScene: (t) => set({ sceneTarget: t }),
   openFill: (t) => set({ fillTarget: t }),
-  openRun: (t) => set({ runTarget: t }),
+  setMeetingOpen: (v) => set({ meetingOpen: v }),
+  openExecDetail: (t) => set({ execDetail: t }),
   toast: (text, kind = 'info') => {
     const id = ++toastSeq
     set((s) => ({ toasts: [...s.toasts, { id, text, kind }] }))

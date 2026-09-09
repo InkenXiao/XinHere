@@ -24,12 +24,12 @@ services:
       - ./apps/backend/alembic.ini:/app/apps/backend/alembic.ini
       - ./plugins:/app/plugins
       - ./packages/contracts:/app/packages/contracts
-    ports:
-      # 认证就绪前不对公网：仅映射宿主 loopback
-      - "127.0.0.1:8196:8000"
+      - ./apps/backend/data:/app/apps/backend/data
+    # 不发布宿主端口（参照 xuanpu 模式 ports: []）：backend 仅在 ai_network 内互通，
+    # 由 frontend nginx 的 /api/ 反代 (backend:8196)；调试走 https://宿主:8096/api/...
     healthcheck:
-      # 容器内应用监听 8000 (8197 仅为宿主 loopback 映射端口)
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      # 容器内应用监听 8196
+      test: ["CMD", "curl", "-f", "http://localhost:8196/healthz"]
       interval: 5s
       timeout: 3s
       retries: 24
@@ -51,14 +51,16 @@ services:
       # 宿主构建产物 + nginx 配置（改前端代码/反代配置无需重建镜像）
       - ./apps/frontend/dist:/usr/share/nginx/html
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf
-    ports:
-      - "8096:80"
+    # 不发布宿主端口：宿主 8096 已由外部 nginx 容器 (tool/nginx) 持有并对外提供 https 入口
+    # (listen 8096 ssl)；外部 nginx 经 ai_network 静态 IP 直连本容器（见 networks 段）
     depends_on:
       backend:
         condition: service_healthy
     restart: no
     networks:
-      - ai_network
+      ai_network:
+        # 静态 IP：外部 nginx (xuanpu.conf xinhere :8096/:8099) 反代目标，重启不变
+        ipv4_address: 172.28.200.20
 
 networks:
   ai_network:

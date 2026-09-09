@@ -1,7 +1,7 @@
-// 框架件（不随模式切换而改变布局）：模式切换钮 / 左历史抽屉 / 右待办竖条 / 底部看板抽屉
+// 框架件（不随模式切换而改变布局）：模式切换钮 / 左历史抽屉 / 右待办竖条 / 看板第二屏（全屏翻页）
 import { useTodoStore } from '@/state/todoStore'
 import { useUiStore } from '@/state/uiStore'
-import HistoryRail from './HistoryRail'
+import TaskList from './TaskList'
 import TodoPanel from './TodoPanel'
 import ScreenDashboard from './ScreenDashboard'
 
@@ -43,14 +43,15 @@ function PinIcon({ pinned }: { pinned: boolean }) {
   )
 }
 
-/* 框架一 · 历史对话抽屉：左缘热区唤起 + pin 固定常驻（未固定时移出抽屉自动收起） */
+/* 框架一 · 历史任务抽屉：左缘热区唤起 + pin 固定常驻（未固定时移出抽屉自动收起）
+   内容按模式加载：Xin语=AI 对话记录 / Xin台=AI 能力执行记录 */
 export function HistoryDrawer() {
   const historyPinned = useUiStore((s) => s.historyPinned)
   const setHistoryOpen = useUiStore((s) => s.setHistoryOpen)
   const toggleHistoryPin = useUiStore((s) => s.toggleHistoryPin)
   return (
     <>
-      <div className="h-hotzone" onClick={() => setHistoryOpen(true)} title="历史对话" aria-hidden="true" />
+      <div className="h-hotzone" onClick={() => setHistoryOpen(true)} title="历史任务" aria-hidden="true" />
       <aside
         className="h-drawer"
         onMouseLeave={() => {
@@ -58,7 +59,7 @@ export function HistoryDrawer() {
         }}
       >
         <div className="h-title">
-          <span>History · 历史对话</span>
+          <span>History · 历史任务</span>
           <button
             type="button"
             className={`h-pin ${historyPinned ? 'on' : ''}`}
@@ -68,7 +69,7 @@ export function HistoryDrawer() {
             <PinIcon pinned={historyPinned} />
           </button>
         </div>
-        <HistoryRail />
+        <TaskList />
       </aside>
     </>
   )
@@ -101,9 +102,10 @@ export function TodoRail() {
   )
 }
 
-/* 框架三 · 底部看板抽屉（承载 Dashboard 数据） */
+/* 框架三 · 看板第二屏：全屏翻页（首屏不卸载、保留现场；「返回」翻回第一屏） */
 export function KanbanDrawer() {
   const mode = useUiStore((s) => s.mode)
+  const kanbanOpen = useUiStore((s) => s.kanbanOpen)
   const toggleKanban = useUiStore((s) => s.toggleKanban)
   return (
     <>
@@ -111,17 +113,18 @@ export function KanbanDrawer() {
         <span className="arrow">↓</span>
         <span>下滑查看看板</span>
       </button>
-      <div className="k-drawer">
+      <section className="k-screen" aria-hidden={!kanbanOpen}>
         <div className="k-inner">
           <div className="k-head">
-            <h3>{mode === 'cockpit' ? '经营看板' : '研究看板'}</h3>
-            <button className="close" onClick={toggleKanban} title="关闭">
-              ×
+            <button className="back" onClick={toggleKanban}>
+              <span className="arrow">↑</span>
+              <span>返回</span>
             </button>
+            <h3>{mode === 'cockpit' ? '经营看板' : '研究看板'}</h3>
           </div>
           <ScreenDashboard />
         </div>
-      </div>
+      </section>
     </>
   )
 }

@@ -9,9 +9,11 @@ import LoginPage from '@/shell/LoginPage'
 import TopBar from '@/shell/TopBar'
 import ScreenWork from '@/shell/ScreenWork'
 import CockpitHome from '@/shell/CockpitHome'
+import Starfield from '@/shell/Starfield'
 import SceneModal from '@/shell/SceneModal'
 import FillFormModal from '@/shell/FillFormModal'
-import SkillRunModal from '@/shell/SkillRunModal'
+import TaskDetailModal from '@/shell/TaskDetailModal'
+import MeetingPage from '@/shell/MeetingPage'
 import ToastHost from '@/primitives/Toast'
 import { ModeToggle, HistoryDrawer, TodoRail, KanbanDrawer } from '@/shell/Frame'
 
@@ -22,7 +24,6 @@ export default function App() {
   const historyOpen = useUiStore((s) => s.historyOpen)
   const historyPinned = useUiStore((s) => s.historyPinned)
   const kanbanOpen = useUiStore((s) => s.kanbanOpen)
-  const switching = useUiStore((s) => s.switching)
 
   useEffect(() => {
     // SSO 回跳：?sso_token= 存登录态并清参（须先于 fetchMe 执行）
@@ -77,6 +78,7 @@ export default function App() {
       {/* Xin语 · 攻（夜） */}
       <section className="layer layer-tower">
         <div className="bg" />
+        <Starfield visible={mode === 'tower' && !kanbanOpen} />
         <ScreenWork />
       </section>
       {/* 框架（不随模式切换而改变布局） */}
@@ -85,10 +87,10 @@ export default function App() {
       <HistoryDrawer />
       <TodoRail />
       <KanbanDrawer />
-      <div className={`fog ${switching ? 'pulse' : ''}`} />
       <SceneModal />
       <FillFormModal />
-      <SkillRunModal />
+      <TaskDetailModal />
+      <MeetingPage />
       <ToastHost />
     </>
   )

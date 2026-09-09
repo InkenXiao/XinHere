@@ -27,7 +27,7 @@ export default function TopBar() {
       <div className="brand">
         <img className="brand-logo cockpit" src="/assets/logo-cockpit.png" alt="XinHere" />
         <img className="brand-logo tower" src="/assets/logo-tower.png" alt="XinHere" />
-        <span className="slogan">新在这里，心在这里</span>
+        <span className="slogan">信在此 · 新在此</span>
       </div>
       <span />
       <div className="topbar-right">

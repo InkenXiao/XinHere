@@ -43,6 +43,78 @@ def _xj(data, limit: int = 4000) -> str:
     return text if len(text) <= limit else text[:limit] + "…（截断）"
 
 
+# ---------- 联网搜索 (DuckDuckGo 公开端点, 免密钥) ----------
+_WS_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
+
+
+def _ws_clean(text: str) -> str:
+    import re as _re
+    from html import unescape as _unescape
+
+    text = _re.sub(r"<[^>]+>", "", text or "")
+    return _re.sub(r"\s+", " ", _unescape(text)).strip()
+
+
+def _ws_real_url(url: str) -> str:
+    from urllib.parse import parse_qs, urlparse
+
+    if "uddg=" in (url or ""):
+        try:
+            qs = parse_qs(urlparse(url).query)
+            if qs.get("uddg"):
+                return qs["uddg"][0]
+        except Exception:  # noqa: BLE001
+            pass
+    return url or ""
+
+
+def _web_search_impl(query: str, max_results: int = 8) -> str:
+    """联网搜索; 严格超时, 任何异常优雅降级, 绝不卡死 Agent 回合"""
+    import re as _re
+
+    import httpx
+
+    q = (query or "").strip()
+    if not q:
+        return "搜索关键词为空"
+    try:
+        resp = httpx.get(
+            "https://html.duckduckgo.com/html/",
+            params={"q": q},
+            headers={"User-Agent": _WS_UA},
+            timeout=httpx.Timeout(8.0, connect=3.0),
+            follow_redirects=True,
+        )
+        resp.raise_for_status()
+        html = resp.text
+    except Exception:  # noqa: BLE001 - 网络受限/反爬均降级
+        return "联网搜索暂不可用，请基于已有知识回答"
+    items: list[dict] = []
+    for m in _re.finditer(
+        r'<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, _re.S
+    ):
+        title = _ws_clean(m.group(2))
+        if not title:
+            continue
+        items.append({"title": title, "url": _ws_real_url(m.group(1)), "snippet": ""})
+        if len(items) >= max_results:
+            break
+    if not items:
+        return "未搜索到相关结果，请基于已有知识回答"
+    snippets = [
+        _ws_clean(x)
+        for x in _re.findall(r'<a[^>]+class="result__snippet"[^>]*>(.*?)</a>', html, _re.S)
+    ]
+    for i, sn in enumerate(snippets[: len(items)]):
+        items[i]["snippet"] = sn[:160]
+    lines = [f"{i}. 《{x['title']}》 {x['url']}" + (f"\n   {x['snippet']}" if x['snippet'] else "")
+             for i, x in enumerate(items, start=1)]
+    return "联网搜索结果（共 %d 条）：\n%s" % (len(items), "\n".join(lines))
+
+
 def build_common_tools(ctx: ToolCtx) -> list:
     """平台通用工具：知识库检索/公司清单/通用派发/任务统计。"""
 
@@ -434,6 +506,14 @@ def build_common_tools(ctx: ToolCtx) -> list:
             return f"XuanPu 知识检索失败：{_fail_msg(exc)}"
         return _xj(data)
 
+    @tool("web_search", description="联网搜索互联网公开信息（新闻/公开资料），query 为搜索词。用户开启联网搜索且需要最新外部信息时使用。")
+    def web_search_tool(
+        query: str,
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        with tool_scope(ctx, "web_search", tool_call_id, {"query": query}):
+            return _web_search_impl(query)
+
     return [search_knowledge, list_companies_tool, dispatch_generic_task,
             query_task_stats, xuanpu_chat_tool, xuanpu_todos_tool,
             xuanpu_create_todo_tool, xuanpu_dashboard_tool,
@@ -443,4 +523,5 @@ def build_common_tools(ctx: ToolCtx) -> list:
             xuanpu_im_channels_tool, xuanpu_im_send_tool,
             xuanpu_im_messages_tool,
             xuanpu_fill_create_tool, xuanpu_fill_my_tool,
-            xuanpu_fill_submit_tool, xuanpu_kb_search_tool]
+            xuanpu_fill_submit_tool, xuanpu_kb_search_tool,
+            web_search_tool]

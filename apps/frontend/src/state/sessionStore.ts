@@ -5,6 +5,7 @@ import { streamChat, resumeEvents } from '@/transport/sse'
 import { ConversationAssembler, type AssemblerSnapshot } from '@/registry/ConversationAssembler'
 import { componentDefs } from '@/registry/manifest'
 import type { PlatformEvent, SessionHeader, SessionListItem } from '@/types'
+import type { SendOptions } from '@/types'
 import { sleep } from '@/utils'
 import { useUiStore } from './uiStore'
 import { useTodoStore } from './todoStore'
@@ -19,7 +20,8 @@ interface SessionState {
   loadSessions: () => Promise<void>
   openSession: (id: string) => Promise<void>
   newSession: () => Promise<void>
-  send: (text: string, kbIds?: string[]) => Promise<void>
+  resetSession: () => void // 「新任务」：回 Xin语初始态（hero 大问数框），不创建会话
+  send: (text: string, opts?: SendOptions | string[]) => Promise<void>
   cancel: () => Promise<void>
   componentEmit: (componentId: string) => {
     update: (draft: Record<string, unknown>) => Promise<void>
@@ -71,7 +73,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     await get().loadSessions()
   },
 
-  async send(text, kbIds) {
+  resetSession() {
+    reconnectStop()
+    abortCtl?.abort()
+    assembler = new ConversationAssembler(componentDefs)
+    set({ current: null, asmError: null, sending: false, connStatus: 'open' })
+    syncSnap(set)
+    const ui = useUiStore.getState()
+    ui.setWorkView('hero')
+    ui.setExecuting(false)
+    ui.setExecDone(false)
+  },
+
+  async send(text, opts) {
+    // 兼容旧调用: 第二参为数组时视为知识库 id 列表
+    const o = Array.isArray(opts) ? { kbIds: opts } : (opts ?? {})
     const cur = get().current
     if (!cur || get().sending) return
     set({ sending: true, asmError: null })
@@ -93,7 +109,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       },
     }
     try {
-      await streamChat(sid, { message: text, kb_ids: kbIds }, handlers, abortCtl.signal)
+      await streamChat(
+        sid,
+        {
+          message: text,
+          kb_ids: o.kbIds && o.kbIds.length > 0 ? o.kbIds : undefined,
+          web_search: o.webSearch || undefined,
+          model: o.model || undefined,
+          file_names: o.fileNames && o.fileNames.length > 0 ? o.fileNames : undefined,
+        },
+        handlers,
+        abortCtl.signal,
+      )
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
       // 断线：指数退避重连（GET events SSE 续流，after_seq），不清屏

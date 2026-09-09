@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from ...core import errors
 from ...core.config import settings
-from ...persistence.models import CockpitEntry, SysUser
+from ...persistence.models import CockpitCard, CockpitEntry, SysUser
 from ...persistence.session import get_db
 from ...services import xuanpu as xuanpu_svc
 from .deps import current_user
@@ -191,16 +191,9 @@ class LaunchIn(BaseModel):
     key: str  # cockpit_entries.key
 
 
-@router.post("/launch")
-def launch(body: LaunchIn, user: SysUser = Depends(current_user),
-           db: Session = Depends(get_db)):
-    """系统卡跳转：有统一身份绑定 → 换一次性 ticket 免登；无 → 外网直连（首登提示）。"""
-    entry = db.scalars(
-        select(CockpitEntry).where(CockpitEntry.key == body.key, CockpitEntry.enabled.is_(True))
-    ).first()
-    if entry is None:
-        raise errors.not_found("入口不存在或已停用")
-    target = f"{settings.xuanpu_public_url}{entry.entry_path}"
+def _sso_launch(user: SysUser, path: str) -> dict:
+    """XuanPu 站内路径免登跳转：有统一身份绑定 → 换一次性 ticket；无 → 直连（首登提示）。"""
+    target = f"{settings.xuanpu_public_url}{path}"
     if not user.xuanpu_user_id:
         # 本地兜底账号未绑定统一身份：返回直连地址，首次需在 XuanPu 登录一次
         return {"url": target, "first_login": True}
@@ -223,6 +216,40 @@ def launch(body: LaunchIn, user: SysUser = Depends(current_user),
         raise errors.upstream("免登票据签发失败")
     url = (
         f"{settings.xuanpu_public_url}/sso/launch"
-        f"?ticket={quote(ticket, safe='')}&to={quote(entry.entry_path, safe='/')}"
+        f"?ticket={quote(ticket, safe='')}&to={quote(path, safe='/')}"
     )
+    return {"url": url, "first_login": False}
+
+
+@router.post("/launch")
+def launch(body: LaunchIn, user: SysUser = Depends(current_user),
+           db: Session = Depends(get_db)):
+    """系统卡跳转：有统一身份绑定 → 换一次性 ticket 免登；无 → 外网直连（首登提示）。"""
+    entry = db.scalars(
+        select(CockpitEntry).where(CockpitEntry.key == body.key, CockpitEntry.enabled.is_(True))
+    ).first()
+    if entry is None:
+        raise errors.not_found("入口不存在或已停用")
+    return _sso_launch(user, entry.entry_path)
+
+
+class CardOpenIn(BaseModel):
+    key: str  # cockpit_cards.key
+
+
+@router.post("/cards/open")
+def open_card(body: CardOpenIn, user: SysUser = Depends(current_user),
+              db: Session = Depends(get_db)):
+    """Xin台卡片跳转：站内路径（/ 开头）走免登；绝对 URL 外链直接打开。"""
+    card = db.scalars(
+        select(CockpitCard)
+        .where(CockpitCard.key == body.key, CockpitCard.enabled.is_(True))
+    ).first()
+    if card is None:
+        raise errors.not_found("卡片不存在或已停用")
+    url = (card.link_url or "").strip()
+    if not url:
+        raise errors.validation("卡片未配置跳转地址")
+    if url.startswith("/"):
+        return _sso_launch(user, url)
     return {"url": url, "first_login": False}

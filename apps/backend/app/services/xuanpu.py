@@ -195,3 +195,51 @@ def kb_search(query: str, user_name: str, sources: str = "", top_k: int = 5,
     return call_tool("xuanpu_kb_search",
                      {"query": query, "sources": sources or "", "top_k": top_k},
                      user_name, xuanpu_token=xuanpu_token)
+
+def meeting_create(user_name: str, xuanpu_token: str | None = None,
+                   title: str = "", meet_date: str = "", meet_time: str = "",
+                   place: str = "", host: str = "", attendees: str = "",
+                   description: str = "") -> dict:
+    """创建 XuanPu 会议记录 (会议纪要落库, description 存纪要全文)
+
+    优先走网关直连工具; 未注册时回退 xuanpu_tool_run (平台工具注册中心)。
+    """
+    args = {k: v for k, v in {
+        "title": title, "meet_date": meet_date, "meet_time": meet_time,
+        "place": place, "host": host, "attendees": attendees,
+        "description": description,
+    }.items() if v}
+    if not args.get("title"):
+        raise ValueError("会议主题不能为空")
+    # 优先网关直连工具; 未注册 (返回 Unknown tool 文本) 时回退 xuanpu_tool_run (平台工具注册中心)
+    try:
+        direct = call_tool("create_meeting", args, user_name, timeout=60.0, xuanpu_token=xuanpu_token)
+        if not (isinstance(direct, dict) and "Unknown tool" in str(direct.get("raw", ""))):
+            return direct
+    except Exception:  # noqa: BLE001
+        pass
+    res = tool_run("create_meeting", json.dumps(args, ensure_ascii=False),
+                   user_name, xuanpu_token=xuanpu_token)
+    if isinstance(res, dict) and res.get("ok") and isinstance(res.get("body"), dict):
+        return res["body"]
+    if isinstance(res, dict) and (res.get("error") or res.get("raw")):
+        raise RuntimeError(str(res.get("error") or res.get("raw"))[:200])
+    return res
+
+
+async def audio_transcribe(user_name: str, xuanpu_token: str,
+                           filename: str, content_type: str, raw: bytes) -> dict:
+    """语音转写代理: 转发 xuanpu pro-cowork 实时转写接口 (POST 需 Bearer, 双轨仅 GET 放行)"""
+    import httpx
+
+    from ..core.config import settings
+
+    url = settings.xuanpu_api_url.rstrip("/") + "/api/realtime-minutes/transcribe"
+    files = {"file": (filename or "clip.webm", raw, content_type or "audio/webm")}
+    data = {"mode": ""}
+    async with httpx.AsyncClient(timeout=120, verify=False) as cli:
+        resp = await cli.post(url, headers={"Authorization": f"Bearer {xuanpu_token}"},
+                              files=files, data=data)
+    if resp.status_code != 200:
+        raise RuntimeError(f"转写服务返回 {resp.status_code}")
+    return resp.json()

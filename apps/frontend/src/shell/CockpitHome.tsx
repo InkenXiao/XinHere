@@ -1,32 +1,103 @@
-// Xin台层中部（日·守）：业务能力（XuanPu 技能直跑）+ 业务系统（免登入口）
-// 技能与入口均来自服务端：/xuanpu/skills（MCP 网关代理）与 /cockpit/entries
+// Xin台主界面（日·守）：分组卡片（AI工作台 / AI技能 / 业务系统），全部来自服务端配置
+// link 卡=页面跳转（免登）；task 卡=后台执行技能；meeting 卡=实时会议（录音后台运行）
 import { useEffect, useState } from 'react'
 import { api } from '@/transport/api'
 import { useUiStore } from '@/state/uiStore'
-import type { CockpitEntry, XuanPuSkill } from '@/types'
+import { useMeetingStore } from '@/state/meetingStore'
+import { useTaskRunStore } from '@/state/taskRunStore'
+import type { CockpitCardGroup, CockpitCardItem } from '@/types'
+
+function fmtDur(sec: number) {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function CardView({ card, onOpenLink }: { card: CockpitCardItem; onOpenLink: (c: CockpitCardItem) => void }) {
+  const setMeetingOpen = useUiStore((s) => s.setMeetingOpen)
+  const startRun = useTaskRunStore((s) => s.startRun)
+  const run = useTaskRunStore((s) => s.runs.find((r) => r.cardKey === card.key) ?? null)
+  const busy = useTaskRunStore((s) => s.busy[card.key] === true)
+  const recording = useMeetingStore((s) => s.recording)
+  const elapsed = useMeetingStore((s) => s.elapsed)
+
+  if (card.kind === 'link') {
+    return (
+      <article className="cp-card kind-link" onClick={() => void onOpenLink(card)}>
+        <h3>{card.name}</h3>
+        <div className="meta">
+          <span className="go">打开 →</span>
+        </div>
+      </article>
+    )
+  }
+
+  if (card.kind === 'meeting') {
+    return (
+      <article className="cp-card kind-meeting">
+        <h3>{card.name}</h3>
+        <div className={`mt-live ${recording ? 'on' : ''}`}>
+          {recording ? (
+            <>
+              <span className="dot" /> 录音中 {fmtDur(elapsed)}
+            </>
+          ) : (
+            '未在录音'
+          )}
+        </div>
+        <div className="meta">
+          {recording ? (
+            <button className="btn-mini stop" onClick={() => useMeetingStore.getState().stop()}>
+              停止
+            </button>
+          ) : (
+            <button className="btn-mini" onClick={() => void useMeetingStore.getState().start()}>
+              开始
+            </button>
+          )}
+          <button className="btn-mini ghost" onClick={() => setMeetingOpen(true)}>
+            进入
+          </button>
+        </div>
+      </article>
+    )
+  }
+
+  // task 卡：开始后台执行，运行态/终态实时显示（页面切换不影响）
+  return (
+    <article className="cp-card kind-task">
+      <h3>{card.name}</h3>
+      <div className={`tk-state ${run?.status ?? ''}`}>
+        {busy
+          ? '运行中…'
+          : run?.status === 'success'
+            ? '已完成'
+            : run?.status === 'failed'
+              ? '未完成'
+              : '待执行'}
+      </div>
+      <div className="meta">
+        <button className="btn-mini" disabled={busy} onClick={() => void startRun(card)}>
+          {busy ? '运行中…' : run ? '再次开始' : '开始'}
+        </button>
+      </div>
+    </article>
+  )
+}
 
 export default function CockpitHome() {
-  const openRun = useUiStore((s) => s.openRun)
   const toast = useUiStore((s) => s.toast)
-  const [skills, setSkills] = useState<XuanPuSkill[]>([])
-  const [entries, setEntries] = useState<CockpitEntry[]>([])
+  const [groups, setGroups] = useState<CockpitCardGroup[]>([])
 
   useEffect(() => {
-    // 技能列表经后端代理 MCP 网关；平台不可达时静默（本区显示空态）
-    api<{ items: XuanPuSkill[] | { raw?: string } }>('GET', '/xuanpu/skills')
-      .then((r) =>
-        setSkills(Array.isArray(r.items) ? r.items.filter((s) => s.is_active !== false) : []),
-      )
-      .catch(() => {})
-    api<{ items: CockpitEntry[] }>('GET', '/cockpit/entries')
-      .then((r) => setEntries(r.items ?? []))
+    api<{ items: CockpitCardGroup[] }>('GET', '/cockpit/cards')
+      .then((r) => setGroups(r.items ?? []))
       .catch(() => {})
   }, [])
 
-  // 系统卡：换一次性免登地址后新开（未绑统一身份时返回直连地址，首次需在 XuanPu 登录）
-  const launch = async (key: string) => {
+  const openLink = async (card: CockpitCardItem) => {
     try {
-      const r = await api<{ url: string; first_login: boolean }>('POST', '/xuanpu/launch', { key })
+      const r = await api<{ url: string; first_login: boolean }>('POST', '/xuanpu/cards/open', { key: card.key })
       if (r.first_login) toast('首次访问需在 XuanPu 登录一次')
       window.open(r.url, '_blank')
     } catch (e: unknown) {
@@ -37,39 +108,17 @@ export default function CockpitHome() {
   return (
     <div className="cp-wrap">
       <section>
-        <div>
-          <h4 className="cp-sec-title">业务能力</h4>
-          <div className="skills">
-            {skills.map((sk, i) => (
-              <article
-                className={`skill ${i === 0 ? 'primary' : ''}`}
-                key={sk.id}
-                onClick={() => openRun({ skillId: sk.id, name: sk.name, desc: sk.description || '' })}
-              >
-                <div className="src">{sk.category || 'XuanPu 技能'}</div>
-                <h3>{sk.name}</h3>
-                <div className="desc">{sk.description}</div>
-                <div className="meta">
-                  <span className="go">运行 →</span>
-                </div>
-              </article>
-            ))}
-            {skills.length === 0 && <div className="cp-empty">暂无可用技能</div>}
-          </div>
-        </div>
-        {entries.length > 0 && (
-          <div className="sys-entry">
-            <h5>业务系统</h5>
-            <div className="sys-cards">
-              {entries.map((s) => (
-                <a className="sys-card" key={s.key} onClick={() => void launch(s.key)}>
-                  <h3>{s.name}</h3>
-                  <span className="go">→</span>
-                </a>
+        {groups.map((g) => (
+          <div className="cp-group" key={g.key}>
+            <h4 className="cp-sec-title">{g.name}</h4>
+            <div className="cp-cards">
+              {g.cards.map((card) => (
+                <CardView key={card.key} card={card} onOpenLink={(c) => void openLink(c)} />
               ))}
             </div>
           </div>
-        )}
+        ))}
+        {groups.length === 0 && <div className="cp-empty">暂无可用能力</div>}
       </section>
     </div>
   )

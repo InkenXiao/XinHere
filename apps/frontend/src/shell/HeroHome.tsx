@@ -1,34 +1,63 @@
-// Xin语默认 hero：居中大问数框（attach 徽标为视觉态，真实知识库选择在会话内）
-// 发送/点快捷 chip → 进入会话视图
-import { useState } from 'react'
+// Xin语默认 hero：居中大问数框（ChatComposer 提供 文件/知识库/联网/模型/录音/发送 全真实功能）
+// 发送/点快捷 chip → 进入会话视图；chips 下方为用户自定义卡片（链接 / 技能，存于数据库）
+import { useEffect, useState } from 'react'
+import { api } from '@/transport/api'
 import { useSessionStore } from '@/state/sessionStore'
 import { useUiStore } from '@/state/uiStore'
+import { useTaskRunStore } from '@/state/taskRunStore'
+import type { HeroCardItem, SendOptions } from '@/types'
+import ChatComposer from './ChatComposer'
+import HeroCardModal from './HeroCardModal'
 
 const HERO_CHIPS = ['发起风险填报', '现金保障试算', '生成投后报告', '任务执行统计']
 
 export default function HeroHome() {
   const sending = useSessionStore((s) => s.sending)
-  const [text, setText] = useState('')
+  const toast = useUiStore((s) => s.toast)
   const [busy, setBusy] = useState(false)
-  const [attachOpen, setAttachOpen] = useState(false)
-  const [attachMode, setAttachMode] = useState<'kb' | 'skill' | null>(null)
+  const [heroCards, setHeroCards] = useState<HeroCardItem[]>([])
+  const [cardModalOpen, setCardModalOpen] = useState(false)
 
-  const enterChat = async (question?: string) => {
+  const loadCards = () => {
+    api<{ items: HeroCardItem[] }>('GET', '/hero/cards')
+      .then((r) => setHeroCards(r.items ?? []))
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    loadCards()
+  }, [])
+
+  const enterChat = async (question: string, opts?: SendOptions) => {
     if (busy || sending) return
     setBusy(true)
     try {
       await useSessionStore.getState().newSession()
       useUiStore.getState().setWorkView('chat')
       const q = question?.trim()
-      if (q) void useSessionStore.getState().send(q)
+      if (q) void useSessionStore.getState().send(q, opts)
     } finally {
       setBusy(false)
     }
   }
 
-  const pickAttach = (m: 'kb' | 'skill') => {
-    setAttachMode((cur) => (cur === m ? null : m))
-    setAttachOpen(false)
+  // 自定义卡片：链接直接打开；技能后台执行（运行状态见 toast 提示）
+  const openCard = (c: HeroCardItem) => {
+    if (c.kind === 'link' && c.link_url) {
+      window.open(c.link_url, '_blank')
+      return
+    }
+    void useTaskRunStore.getState().startRun(c)
+  }
+
+  const removeCard = async (c: HeroCardItem) => {
+    if (!window.confirm(`移除卡片「${c.name}」？`)) return
+    try {
+      await api('DELETE', `/hero/cards/${c.id}`)
+      loadCards()
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : String(e), 'err')
+    }
   }
 
   return (
@@ -36,44 +65,10 @@ export default function HeroHome() {
       <div className="tw-backdrop" />
       <div className="tw-title">
         <h1>全场景 AI 工作台</h1>
-        <p className="sub">新在这里 · 心在这里</p>
+        <p className="sub">信在此 · 新在此</p>
       </div>
       <div className="tw-chat">
-        <div className="inp">
-          <button
-            className={`attach ${attachMode ? 'active' : ''}`}
-            title="调用知识库 / 使用 Skill"
-            onClick={() => setAttachOpen((v) => !v)}
-          >
-            +
-          </button>
-          <span className={`badge ${attachMode ? 'show' : ''}`}>
-            <span>{attachMode === 'skill' ? '行研 Skill' : '知识库'}</span>
-            <span className="x" title="移除" onClick={() => setAttachMode(null)}>
-              ×
-            </span>
-          </span>
-          <input
-            type="text"
-            value={text}
-            placeholder="向 XinHere 提问…"
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void enterChat(text)
-            }}
-          />
-          <button className="send" disabled={busy || sending} onClick={() => void enterChat(text)}>
-            发送
-          </button>
-        </div>
-      </div>
-      <div className={`tw-attach-pop ${attachOpen ? 'open' : ''}`}>
-        <div className={`opt ${attachMode === 'kb' ? 'active' : ''}`} onClick={() => pickAttach('kb')}>
-          <span className="ic">❡</span>调用知识库
-        </div>
-        <div className={`opt ${attachMode === 'skill' ? 'active' : ''}`} onClick={() => pickAttach('skill')}>
-          <span className="ic">⌘</span>使用行研报告 Skill
-        </div>
+        <ChatComposer variant="hero" onSend={(t, opts) => void enterChat(t, opts)} />
       </div>
       <div className="tw-chips">
         {HERO_CHIPS.map((c) => (
@@ -81,10 +76,33 @@ export default function HeroHome() {
             {c}
           </button>
         ))}
-        <button className="chip chip-new" onClick={() => void enterChat()}>
+        <button className="chip chip-new" onClick={() => void enterChat('')}>
           ＋ 新对话
         </button>
       </div>
+      {heroCards.length > 0 && (
+        <div className="hero-cards">
+          {heroCards.map((c) => (
+            <div className="hero-card" key={c.id} onClick={() => openCard(c)}>
+              <span className="hc-kind">{c.kind === 'link' ? '❡' : '⌘'}</span>
+              <span className="hc-name" title={c.name}>
+                {c.name}
+              </span>
+              <span
+                className="hc-del"
+                title="移除"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void removeCard(c)
+                }}
+              >
+                ×
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {cardModalOpen && <HeroCardModal onClose={() => setCardModalOpen(false)} onSaved={loadCards} />}
     </div>
   )
 }

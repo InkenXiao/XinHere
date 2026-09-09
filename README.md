@@ -91,10 +91,13 @@ cp .docker.env .env     # 首次配置：POSTGRES_* / MAIN_* / KB_MCP_URL 等
 bash deploy/publish.sh  # 前端构建 → 依赖变化才重建镜像 → alembic 迁移 → up -d
 ```
 
-- 前端：http://localhost:8096（nginx，`/api` 反代 backend:8000）
-- 后端：http://127.0.0.1:8197（仅宿主 loopback，健康检查 `/healthz`）
+- 前端容器（xinhere-frontend）：内部 nginx 8096（`/api/` 反代 backend:8196），在
+  `ai_network` 中静态 IP 172.28.200.20，不发布宿主端口；对外 HTTPS 由宿主外部 nginx
+  容器（listen 8096 ssl，及 www.xinhere.cn:8099）反代该 IP 提供
+- 后端容器（xinhere-backend）：内部 8196，仅 `ai_network` 内互通（无宿主端口），
+  健康检查 `/healthz`；容器入口由 Dockerfile ENTRYPOINT 指定
 - 改代码/改配置不重建镜像：后端源码、插件、契约、alembic 均卷挂载；前端重新 build dist
-  后重启；前端运行时配置经 nginx 渲染 `window.__ENV__` 注入（`deploy/config.js.template`）
+  后重启；前端运行时配置经 nginx entrypoint 渲染 `window.__ENV__` 注入（`deploy/config.js.template`）
 - 外部依赖：`ai_network` 内 `pg_db`（PG）、`model-api`（LLM 网关）、知识库 MCP 服务
 
 ## 前端结构（apps/frontend/src）
