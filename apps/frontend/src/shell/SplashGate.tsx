@@ -12,7 +12,6 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
   const [split, setSplit] = useState(false)
   const [entering, setEntering] = useState<Door | null>(null)
   const timerRef = useRef<number | null>(null)
-  const modeTimerRef = useRef<number | null>(null)
   const towerSlotRef = useRef<HTMLDivElement>(null)
   const cockpitSlotRef = useRef<HTMLDivElement>(null)
 
@@ -24,7 +23,6 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
   useEffect(
     () => () => {
       if (timerRef.current) window.clearTimeout(timerRef.current)
-      if (modeTimerRef.current) window.clearTimeout(modeTimerRef.current)
     },
     [],
   )
@@ -63,16 +61,11 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
       card.style.setProperty('--door-k', `${k}`)
     }
     setEntering(door)
-    if (door === 'cockpit') {
-      // 右门：先在当前页面上播完卡片缩小消失（画面 ≈.85s 淡出、1.05s 收缩到位），再切入 Xin台
-      // —— 模式延后切换，Xin台层间 crossfade 直接发生在当前页面之上（图消在先、页现在后）
-      modeTimerRef.current = window.setTimeout(() => setMode('cockpit'), 950)
-      timerRef.current = window.setTimeout(onDone, 1500)
-    } else {
-      // 左门：目标本就是当前 Xin语层，立即切模式；卡片铺满后淡出（1.05–1.45s），界面浮现完成后卸载
-      setMode('tower')
-      timerRef.current = window.setTimeout(onDone, 1500)
-    }
+    // 点击即切模式：目标层（Xin语/Xin台）立即在不透明开屏遮罩后方开始 crossfade 预热（用户不可见），
+    // 卡片动画播放期间页面已加载就绪；动画结束整层淡出时，直接呈现完整的目标页面
+    setMode(door)
+    // 卸载时机对齐动效：卡片缩放 1.05s + 整层淡出 0.45s（0.95s 起）
+    timerRef.current = window.setTimeout(onDone, 1500)
   }
 
   return (
