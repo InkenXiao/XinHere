@@ -996,18 +996,30 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 @media (max-width: 820px) { .mt-body { grid-template-columns: 1fr; } .mt-panel--wide .mt-time { font-size: 28px; } }
 
 /* =====================================================================
-   开屏双门（参照 XinHere-offline 设计稿 door-entry）
-   默认交叉合拢 → 鼠标进入展开(split) → 离开收合；点击进入对应模式：
-   左门（Xin语·瞭望塔）向前放大、右门（Xin台·驾驶舱）缩小
+   开屏双门「背景窗口」（参照 XinHere-offline 设计稿 door-entry）
+   两张全屏背景图固定加载于开屏页，平时只透过左右卡片内部可见；
+   卡内 .door-art 是 100vw×100vh 图层，通过逐项逆变换与视口锁死——
+   卡片开合移动时卡内露出对应位置的真实背景（真窗口视差），并带光影质感；
+   点击左门（Xin语·瞭望塔）向前放大铺满全屏、右门（Xin台·驾驶舱）向后缩小消失，
+   铺满/消失瞬间与真实页面背景逐像素连续，丝滑无缝
    ===================================================================== */
+/* 运动变量注册：card 与 art 的互逆 transform 引用同一变量源，过渡写在变量本身，
+   任意中间帧互为精确倒数（窗口锁定）；全程只动 transform/opacity，纯合成器动画无重排 */
+@property --door-x       { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --door-rot     { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --door-hover-k { syntax: '<number>'; inherits: true; initial-value: 1; }
+@property --door-dx      { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --door-dy      { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --door-k       { syntax: '<number>'; inherits: true; initial-value: 1; }
+
 #door-entry { --door-width: min(222px, 38vw, 39.4vh); --door-spread: min(140px, 23vw); --door-stack: min(52px, 9vw);
   position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; overflow: hidden;
   transition: opacity .24s ease-out, visibility .24s; }
-/* 面纱：承载浅色渐晕底色，进入动效时淡出露出真实首页；随前/后纵深反向缩放 */
+/* 面纱：静止与进入全程保持浅色底（demo 同款），中途不淡出 —— 无背景切换、无闪烁；
+   场景从门内扩展铺满后，由整层统一淡出进入当前页面（见 door-overlay-out） */
 #door-entry .door-veil { position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(120% 90% at 50% 8%, #ffffff 0%, #fbfaf8 55%, #f3f1ec 100%);
-  transition: opacity .62s ease-out, transform .95s cubic-bezier(.32, 0, .18, 1); }
-#door-entry.is-entering .door-veil { opacity: 0; }
+  transition: transform .95s cubic-bezier(.32, 0, .18, 1); }
 #door-entry.is-entering.is-forward .door-veil { transform: scale(.94); }
 #door-entry.is-entering.is-back .door-veil { transform: scale(1.07); }
 #door-entry #door-copy { position: absolute; top: clamp(14px, 5vh, 56px); left: 0; right: 0; text-align: center; z-index: 5; pointer-events: none;
@@ -1020,18 +1032,65 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry #door-copy p { margin-top: 6px; font-size: clamp(10px, 1.5vh, 12px); letter-spacing: .3em; color: #a39c92; }
 #door-entry.is-entering #door-copy { opacity: 0; transform: translateY(-8px); }
 #door-entry.is-entering.is-back #door-copy { transform: translateY(-8px) scale(1.1); }
-#door-entry .door-slot { position: absolute; top: 50%; left: 50%; width: var(--door-width); height: auto; aspect-ratio: 222/352;
-  cursor: pointer; z-index: 2; transition: transform .66s cubic-bezier(.34, 1.35, .4, 1), opacity .5s ease; }
+/* 门位（slot）：默认合拢（--door-x=stack、±11°交叉），展开（split）滑到 ±spread、转正微放大；
+   运动全部走注册变量的过渡，transform 本身不再做 transition（避免双重平滑打断窗口锁定） */
+#door-entry .door-slot { --door-x: var(--door-stack); --door-hover-k: 1;
+  position: absolute; top: 50%; left: 50%; width: var(--door-width); height: auto; aspect-ratio: 222/352;
+  cursor: pointer; z-index: 2;
+  transition: --door-x .66s cubic-bezier(.34, 1.35, .4, 1), --door-rot .66s cubic-bezier(.34, 1.35, .4, 1), --door-hover-k .3s ease;
+  transform: translate(-50%, -50%) translateX(calc(var(--door-sign) * var(--door-x))) rotate(var(--door-rot)) scale(var(--door-hover-k)); }
 #door-entry .door-slot:focus-visible { outline: 2px solid #2f6ca8; outline-offset: 7px; border-radius: 8px; }
-#door-entry .door-card { position: absolute; inset: 0; border-radius: 6px; overflow: hidden; background: #fff;
+/* 左门（Xin语）：sign=-1 向左展开、合拢 -11°；右门（Xin台）：sign=1 向右展开、合拢 +11° */
+#door-entry .door-slot--tower { --door-sign: -1; --door-rot: -11deg; }
+#door-entry .door-slot--cockpit { --door-sign: 1; --door-rot: 11deg; z-index: 1; }
+/* 展开（split）：滑开转正；悬停的卡片微放大（走变量，与 art 逆变换保持锁定） */
+#door-entry.split .door-slot { --door-x: var(--door-spread); --door-rot: 0deg; }
+#door-entry.split .door-slot:hover { --door-hover-k: 1.045; }
+/* 门卡（card）：进入动效时 JS 写入 --door-dx/--door-dy/--door-k，卡片平移+缩放；
+   过渡写在变量上（1.05s），卡内 art 逆变换共享同一变量源 → 每帧互为精确倒数 */
+#door-entry .door-card { --door-dx: 0px; --door-dy: 0px; --door-k: 1;
+  position: absolute; inset: 0; border-radius: 6px; overflow: hidden; background: #fff;
   box-shadow: 0 22px 50px rgba(20, 18, 14, .18), 0 3px 10px rgba(20, 18, 14, .08);
-  transition: transform .55s cubic-bezier(.55, .05, .32, 1), opacity .5s ease; }
-#door-entry .door-art { position: absolute; inset: 0; }
-/* 门内 = 背景切口图：background-attachment:fixed 与页面全屏 cover 对齐，门板显示门后背景在该位置的一块 */
-#door-entry .door-art--tower { background: url('/assets/bg-watchtower.png') center/cover no-repeat; background-attachment: fixed; }
-#door-entry .door-art--cockpit { background: url('/assets/bg-cockpit.png') center/cover no-repeat; background-attachment: fixed; }
-#door-entry .door-tag { position: absolute; left: 0; right: 0; top: 16px; text-align: center; font-size: 11px; letter-spacing: .24em; }
-#door-entry .door-name { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; }
+  will-change: transform;
+  transition: --door-dx 1.05s cubic-bezier(.32, 0, .18, 1), --door-dy 1.05s cubic-bezier(.32, 0, .18, 1),
+    --door-k 1.05s cubic-bezier(.32, 0, .18, 1), opacity .5s ease, border-radius .7s ease, box-shadow .6s ease;
+  transform: translate(var(--door-dx), var(--door-dy)) scale(var(--door-k)); }
+/* 窗口画面层（art）：100vw×100vh 大图，逆变换抵消 slot+card 全部祖先变换 → 恒与视口锁死。
+   逆变换公式（与计划一致，外→内 = 左→右）：
+   scale(1/k) · translate(-dx,-dy) · scale(1/hoverK) · rotate(-rot) · translateX(-sign·x) */
+#door-entry .door-art { position: absolute; left: 50%; top: 50%; width: 100vw; height: 100vh; margin: -50vh 0 0 -50vw;
+  background-size: cover; background-repeat: no-repeat; transform-origin: 50% 50%; will-change: transform;
+  transform: scale(calc(1 / var(--door-k))) translate(calc(-1 * var(--door-dx)), calc(-1 * var(--door-dy)))
+    scale(calc(1 / var(--door-hover-k))) rotate(calc(-1 * var(--door-rot)))
+    translateX(calc(-1 * var(--door-sign) * var(--door-x))); }
+/* 画面参数与真实页面背景逐项一致（对应 .layer-tower/.layer-cockpit 的 position+filter），衔接零色差 */
+#door-entry .door-art--tower { background-image: url('/assets/bg-watchtower.png'); background-position: 50% 54%;
+  filter: brightness(.7) saturate(.8) contrast(1.08); }
+#door-entry .door-art--cockpit { background-image: url('/assets/bg-cockpit.png'); background-position: center center;
+  filter: brightness(.98) saturate(.78) contrast(1.02); }
+/* 色调连续叠层（art::after 复刻 .layer::after）：tower 噪点 soft-light；cockpit 浅色渐晕 normal */
+#door-entry .door-art::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+#door-entry .door-slot--tower .door-art::after { opacity: .18; mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"); }
+#door-entry .door-slot--cockpit .door-art::after { opacity: 1; mix-blend-mode: normal;
+  background:
+    linear-gradient(90deg, rgba(246, 242, 233, .92) 0%, rgba(246, 242, 233, .62) 38%, rgba(246, 242, 233, .05) 72%),
+    linear-gradient(180deg, rgba(244, 240, 232, .5), transparent 27%, transparent 66%, rgba(226, 222, 213, .42)); }
+/* 光影层（card::before）：顶部柔和高光 + 斜向流光，hover 时流光平移、亮度微升；is-entering 时淡出 */
+#door-entry .door-card::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  mix-blend-mode: soft-light; opacity: .9;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(255, 255, 255, .34), transparent 55%),
+    linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .18) 46%, transparent 60%);
+  background-size: 100% 100%, 220% 100%;
+  background-position: 0 0, 0 0;
+  transition: opacity .5s ease, background-position .55s ease, filter .55s ease; }
+#door-entry .door-slot--cockpit .door-card::before { mix-blend-mode: overlay; opacity: .55; }
+#door-entry.split .door-slot--tower:hover .door-card::before,
+#door-entry.split .door-slot--cockpit:hover .door-card::before { background-position: 0 0, 38% 0; filter: brightness(1.2); }
+#door-entry.is-entering .door-slot .door-card::before { opacity: 0; }
+#door-entry .door-tag { position: absolute; left: 0; right: 0; top: 16px; text-align: center; font-size: 11px; letter-spacing: .24em; z-index: 2; }
+#door-entry .door-name { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; z-index: 2; }
 #door-entry .door-name b { display: block; font-size: 22px; font-weight: 600; letter-spacing: .16em; }
 #door-entry .door-name span { display: block; margin-top: 5px; font-size: 11px; letter-spacing: .3em; }
 /* 瞭望塔门（深星空）：白字 + 阴影 */
@@ -1042,30 +1101,40 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry .door-slot--cockpit .door-tag { color: rgba(40, 40, 40, .72); text-shadow: 0 1px 3px rgba(255, 255, 255, .4); }
 #door-entry .door-slot--cockpit .door-name b { color: #2b2b2b; text-shadow: 0 1px 3px rgba(255, 255, 255, .5); }
 #door-entry .door-slot--cockpit .door-name span { color: rgba(50, 50, 50, .62); text-shadow: 0 1px 3px rgba(255, 255, 255, .4); }
-/* 交叉（默认合拢） */
-#door-entry:not(.split) .door-slot--tower { transform: translate(-50%, -50%) translateX(calc(0px - var(--door-stack))) rotate(-11deg); z-index: 2; }
-#door-entry:not(.split) .door-slot--cockpit { transform: translate(-50%, -50%) translateX(var(--door-stack)) rotate(11deg); z-index: 1; }
-/* 并列（hover 展开） */
-#door-entry.split .door-slot--tower { transform: translate(-50%, -50%) translateX(calc(0px - var(--door-spread))) rotate(0deg); }
-#door-entry.split .door-slot--cockpit { transform: translate(-50%, -50%) translateX(var(--door-spread)) rotate(0deg); }
-#door-entry.split .door-slot--tower:hover { transform: translate(-50%, -50%) translateX(calc(0px - var(--door-spread))) rotate(0deg) scale(1.045); }
-#door-entry.split .door-slot--cockpit:hover { transform: translate(-50%, -50%) translateX(var(--door-spread)) rotate(0deg) scale(1.045); }
 /* 进入动效 */
-#door-entry.is-entering { cursor: progress; }
+#door-entry.is-entering { cursor: progress; pointer-events: none; }
 #door-entry.is-entering .door-slot { pointer-events: none; }
-/* 左门（Xin语）：门卡向屏幕中心延伸并放大铺满全屏 —— 向前穿越进入星空 */
+/* 场景铺满后整层统一淡出（demo finish()：overlay 隐藏 + 底下同源背景与界面浮现）——全程仅此一次淡出，无闪烁 */
+#door-entry.is-entering.is-forward { animation: door-overlay-out .45s ease 1.05s forwards; }
+#door-entry.is-entering.is-back { animation: door-overlay-out .45s ease .95s forwards; }
+@keyframes door-overlay-out { to { opacity: 0; } }
+/* 左门（Xin语）：参照 ui/XinHere.html demo —— 门框随放大淡出模糊（opacity 1-q、blur 6q，文字/阴影隐去），
+   门内场景（与页面同源的窗口锁定背景）同步扩展铺满全屏 */
 #door-entry .door-slot.enter-forward { z-index: 6; }
-#door-entry .door-slot.enter-forward .door-card { transform: var(--door-fx, scale(2.9)); opacity: 0;
-  border-radius: 0; box-shadow: none;
-  transition: transform 1.05s cubic-bezier(.32, 0, .18, 1), opacity .55s ease .5s,
-    border-radius .7s ease, box-shadow .6s ease; }
-/* 右门（Xin台）：门卡向屏幕中心退缩、向纵深远去 —— 返回驾驶舱 */
+#door-entry .door-slot.enter-forward .door-card { border-radius: 0; box-shadow: none;
+  transition: --door-dx 1.05s cubic-bezier(.32, 0, .18, 1), --door-dy 1.05s cubic-bezier(.32, 0, .18, 1),
+    --door-k 1.05s cubic-bezier(.32, 0, .18, 1), border-radius .7s ease, box-shadow 1.05s cubic-bezier(.32, 0, .18, 1); }
+#door-entry .door-slot.enter-forward .door-tag,
+#door-entry .door-slot.enter-forward .door-name { opacity: 0; filter: blur(6px);
+  transition: opacity 1.05s cubic-bezier(.32, 0, .18, 1), filter 1.05s cubic-bezier(.32, 0, .18, 1); }
+/* 左门进入时，另一扇门参照 demo：向远离方向平移 0.4 倍门宽并淡出（500ms，保持转正姿态） */
+#door-entry.is-entering.is-forward .door-slot.exit { --door-x: calc(var(--door-spread) + var(--door-width) * .4); --door-rot: 0deg; --door-hover-k: 1;
+  transition: --door-x .5s cubic-bezier(.32, 0, .18, 1), --door-rot .5s cubic-bezier(.32, 0, .18, 1), --door-hover-k .5s ease, opacity .5s ease; }
+/* 右门（Xin台）：变量驱动向屏幕中心退缩（--door-k=0.26），透明度延迟淡出 —— 画面收敛消失后切入 Xin台 */
 #door-entry .door-slot.enter-back { z-index: 6; }
-#door-entry .door-slot.enter-back .door-card { transform: var(--door-fx, scale(.42)); opacity: 0;
-  transition: transform .95s cubic-bezier(.32, 0, .18, 1), opacity .5s ease .35s; }
-/* 未选中的门退场 */
-#door-entry .door-slot.exit { opacity: 0; transform: translate(-50%, -50%) scale(.88); pointer-events: none;
-  transition: transform .42s ease-in, opacity .28s ease-in; }
+#door-entry .door-slot.enter-back .door-card { opacity: 0;
+  transition: --door-dx 1.05s cubic-bezier(.32, 0, .18, 1), --door-dy 1.05s cubic-bezier(.32, 0, .18, 1),
+    --door-k 1.05s cubic-bezier(.32, 0, .18, 1), opacity .5s ease .35s; }
+/* 未选中的门退场：变量归中（x=0、转正、缩 .9）+ 淡出 */
+#door-entry .door-slot.exit { --door-x: 0px; --door-rot: 0deg; --door-hover-k: .9; opacity: 0; pointer-events: none;
+  transition: --door-x .42s ease-in, --door-rot .42s ease-in, --door-hover-k .42s ease-in, opacity .28s ease-in; }
+/* 无障碍：偏好减弱动效时压缩运动（变量瞬时到位，仅保留淡入淡出） */
+@media (prefers-reduced-motion: reduce) {
+  #door-entry .door-veil { transition: none; }
+  #door-entry.is-entering.is-forward, #door-entry.is-entering.is-back { animation-duration: .15s; animation-delay: .1s; }
+  #door-entry .door-slot { transition: --door-x .01s, --door-rot .01s, --door-hover-k .01s, opacity .25s ease; }
+  #door-entry .door-card { transition: --door-dx .01s, --door-dy .01s, --door-k .01s, opacity .25s ease; }
+}
 
 /* =====================================================================
    模式切换悬停双卡：hover 出现左右两张门卡（左=Xin语·瞭望塔 / 右=Xin台·驾驶舱），

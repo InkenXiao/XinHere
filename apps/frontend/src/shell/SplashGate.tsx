@@ -1,5 +1,7 @@
-// 开屏双门：参照 XinHere-offline 设计稿 door-entry —— 瞭望塔(Xin语)/驾驶舱(Xin台) 双门卡片
-// 默认交叉合拢，鼠标进入展开、离开收合；点击左门「向前放大」进入 Xin语，右门「缩小」进入 Xin台
+// 开屏双门「背景窗口」：两张全屏背景图固定加载于开屏页，仅透过左右卡片内部可见（窗口机制见 theme.css 开屏区块）
+// 默认交叉合拢，鼠标进入展开、离开收合；点击左门「向前放大铺满全屏」进入 Xin语，右门「向后缩小消失」进入 Xin台
+// JS 只写入 --door-dx/--door-dy/--door-k 三个变量，card 与卡内 .door-art 的逆变换引用同一变量源
+// （@property 注册过渡），动画中途任意时刻卡内画面都与真实全屏背景逐像素对齐，衔接无缝
 import { useEffect, useRef, useState } from 'react'
 import { useUiStore } from '@/state/uiStore'
 
@@ -10,36 +12,67 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
   const [split, setSplit] = useState(false)
   const [entering, setEntering] = useState<Door | null>(null)
   const timerRef = useRef<number | null>(null)
+  const modeTimerRef = useRef<number | null>(null)
   const towerSlotRef = useRef<HTMLDivElement>(null)
   const cockpitSlotRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // 触屏适配：无 hover 能力的设备没有「鼠标进入展开」交互，常驻展开态让卡片直接可点
+    if (window.matchMedia('(hover: none)').matches) setSplit(true)
+  }, [])
 
   useEffect(
     () => () => {
       if (timerRef.current) window.clearTimeout(timerRef.current)
+      if (modeTimerRef.current) window.clearTimeout(modeTimerRef.current)
     },
     [],
   )
 
   const enter = (door: Door) => {
     if (entering) return
-    // 计算门卡到达屏幕中心的目标变换：左门放大铺满全屏（向前穿越），右门缩小退缩（向纵深远去）
+    // 写入三个动画变量（不再拼 --door-fx 变换字符串）：
+    //   --door-dx/--door-dy：门卡中心移到屏幕中心的位移；--door-k：缩放倍率
+    //   左门放大到溢出全屏（1.06 过扫描，保证圆角归零前已盖满），右门缩小到 0.26 后随透明度淡出
     const slot = door === 'tower' ? towerSlotRef.current : cockpitSlotRef.current
     const card = slot?.querySelector<HTMLElement>('.door-card')
-    if (card) {
+    if (slot && card) {
+      // 缩放倍率按「当前姿态的门框覆盖视口」计算（demo cover 公式）：
+      // getBoundingClientRect 是旋转后的外接框，交叉未展开（触屏/快速点击）时直接量 rect
+      // 会把旋转虚算进尺寸 → 缩放偏小 → 卡片盖不满视口两侧，露出白色面纱竖条
+      const cs = getComputedStyle(slot)
+      const rot = ((parseFloat(cs.getPropertyValue('--door-rot')) || 0) * Math.PI) / 180
+      const cos = Math.abs(Math.cos(rot))
+      const sin = Math.abs(Math.sin(rot))
+      const halfW = card.offsetWidth / 2
+      const halfH = card.offsetHeight / 2
+      const cover =
+        1.002 * Math.max(
+          (Math.abs(innerWidth / 2) * cos + Math.abs(innerHeight / 2) * sin) / halfW,
+          (Math.abs(innerWidth / 2) * sin + Math.abs(innerHeight / 2) * cos) / halfH,
+        )
       const rect = card.getBoundingClientRect()
-      const vw = window.innerWidth
-      const vh = window.innerHeight
-      const dx = vw / 2 - (rect.left + rect.width / 2)
-      const dy = vh / 2 - (rect.top + rect.height / 2)
-      const fx =
+      const dx = innerWidth / 2 - (rect.left + rect.width / 2)
+      const dy = innerHeight / 2 - (rect.top + rect.height / 2)
+      const k =
         door === 'tower'
-          ? `translate(${dx}px, ${dy}px) scale(${Math.max(vw / rect.width, vh / rect.height) * 1.05})`
-          : `translate(${dx}px, ${dy}px) scale(0.3)`
-      card.style.setProperty('--door-fx', fx)
+          ? Math.max(3.6, cover * 1.08) // demo: frameScale = max(3.6, cover*1.08) 过扫描
+          : 0.26
+      card.style.setProperty('--door-dx', `${dx}px`)
+      card.style.setProperty('--door-dy', `${dy}px`)
+      card.style.setProperty('--door-k', `${k}`)
     }
     setEntering(door)
-    setMode(door)
-    timerRef.current = window.setTimeout(onDone, 1050)
+    if (door === 'cockpit') {
+      // 右门：先在当前页面上播完卡片缩小消失（画面 ≈.85s 淡出、1.05s 收缩到位），再切入 Xin台
+      // —— 模式延后切换，Xin台层间 crossfade 直接发生在当前页面之上（图消在先、页现在后）
+      modeTimerRef.current = window.setTimeout(() => setMode('cockpit'), 950)
+      timerRef.current = window.setTimeout(onDone, 1500)
+    } else {
+      // 左门：目标本就是当前 Xin语层，立即切模式；卡片铺满后淡出（1.05–1.45s），界面浮现完成后卸载
+      setMode('tower')
+      timerRef.current = window.setTimeout(onDone, 1500)
+    }
   }
 
   return (

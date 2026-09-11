@@ -39,7 +39,7 @@ export default function LoginPage() {
         }}
       >
         <div className="login-brand">
-          <img className="logo" src="/assets/logo-tower.png" alt="XinHere" />
+          <img className="logo" src="/assets/logo-watchtower.svg" alt="XinHere" />
           <h1>XinHere</h1>
           <span className="slogan">信在此 · 新在此</span>
         </div>

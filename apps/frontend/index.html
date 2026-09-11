@@ -6,6 +6,9 @@
     <title>XinHere · Xin语 ⇄ Xin台</title>
     <!-- 运行时配置（生产由 nginx 渲染注入；开发环境无此文件时前端回退构建期 VITE_*） -->
     <script src="/config.js"></script>
+    <!-- 开屏双门背景图预加载：保证首帧开屏卡片窗口内即有画面，动画中途不出现解码/加载卡顿 -->
+    <link rel="preload" as="image" href="/assets/bg-watchtower.png" />
+    <link rel="preload" as="image" href="/assets/bg-cockpit.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

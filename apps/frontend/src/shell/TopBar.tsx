@@ -25,8 +25,8 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <img className="brand-logo cockpit" src="/assets/logo-cockpit.png" alt="XinHere" />
-        <img className="brand-logo tower" src="/assets/logo-tower.png" alt="XinHere" />
+        <img className="brand-logo cockpit" src="/assets/logo-cockpit.svg" alt="XinHere" />
+        <img className="brand-logo tower" src="/assets/logo-watchtower.svg" alt="XinHere" />
         <span className="slogan">  ·  </span>
       </div>
       <span />
