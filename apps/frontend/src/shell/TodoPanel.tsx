@@ -157,7 +157,7 @@ export default function TodoPanel() {
           我派发的
         </div>
         <div className={`todo-tab ${xp ? 'on' : ''}`} onClick={() => setXp(true)}>
-          XuanPu待办
+          分身待办
         </div>
       </div>
       {xp ? (
