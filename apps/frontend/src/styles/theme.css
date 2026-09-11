@@ -1046,6 +1046,10 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 /* 展开（split）：滑开转正；悬停的卡片微放大（走变量，与 art 逆变换保持锁定） */
 #door-entry.split .door-slot { --door-x: var(--door-spread); --door-rot: 0deg; }
 #door-entry.split .door-slot:hover { --door-hover-k: 1.045; }
+/* 收合交叠：左门卡片微透明，隐隐透出压在下面的右门画面（叠卡质感，透光区呈玻璃感）；
+   hover 展开/进入动效时恢复完全不透明（本规则在前，进入覆盖规则在后以同级优先级取胜） */
+#door-entry:not(.split) .door-slot--tower .door-card { opacity: .88; }
+#door-entry.is-entering .door-slot .door-card { opacity: 1; }
 /* 门卡（card）：进入动效时 JS 写入 --door-dx/--door-dy/--door-k，卡片平移+缩放；
    过渡写在变量上（1.05s），卡内 art 逆变换共享同一变量源 → 每帧互为精确倒数 */
 #door-entry .door-card { --door-dx: 0px; --door-dy: 0px; --door-k: 1;
