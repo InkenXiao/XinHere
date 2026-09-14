@@ -49,4 +49,7 @@ log "  数据库迁移完成"
 # ---------- 4. 启动 / 更新服务 ----------
 log "步骤 4/4：启动服务 ..."
 $COMPOSE up -d
+# vite build 会清空重建 dist，连带删掉 nginx entrypoint 渲染的 config.js；
+# up -d 不会重启已存在的容器，必须显式重启 frontend 以重新渲染运行时配置
+$COMPOSE restart frontend
 log "发布完成。前端 https://localhost:8096 （经外部 nginx https 反代 frontend 容器，API 经其反代 backend:8196）"
