@@ -31,6 +31,7 @@ export default function MeetingPage() {
   const statusText = useMeetingStore((s) => s.statusText)
   const audioUrl = useMeetingStore((s) => s.audioUrl)
   const error = useMeetingStore((s) => s.error)
+  const connecting = useMeetingStore((s) => s.connecting)
 
   const transRef = useRef<HTMLDivElement>(null)
   const minutesRef = useRef<HTMLPreElement>(null)
@@ -67,14 +68,16 @@ export default function MeetingPage() {
             ))}
           </div>
           <div className="mt-time">
-            {recording ? fmtDur(elapsed) : finalizing ? '正在结束…' : hasMinutes ? '录音已停止' : '未开始'}
+            {connecting ? '检测中…' : recording ? fmtDur(elapsed) : finalizing ? '正在结束…' : hasMinutes ? '录音已停止' : '未开始'}
           </div>
           <div className="mt-hint">
-            {recording
-              ? '正在录音，语音实时转写；每分钟自动生成阶段纪要，收起页面后录音继续'
-              : finalizing
-                ? '正在结清转写并生成最终纪要…'
-                : '点击开始录音，转写与会议纪要实时生成'}
+            {connecting
+              ? '正在检测录音状态…'
+              : recording
+                ? '正在录音，语音实时转写；每分钟自动生成阶段纪要，录音在独立小窗进行，刷新页面不影响'
+                : finalizing
+                  ? '正在结清转写并生成最终纪要…'
+                  : '点击开始录音，转写与会议纪要实时生成'}
           </div>
           {error && <div className="mt-err">{error}</div>}
         </div>
@@ -155,8 +158,8 @@ export default function MeetingPage() {
               停止录音
             </button>
           ) : (
-            <button className="btn-primary" disabled={finalizing} onClick={() => void m.start()}>
-              {finalizing ? '正在结束…' : '开始录音'}
+            <button className="btn-primary" disabled={finalizing || connecting} onClick={() => void m.start()}>
+              {connecting ? '检测中…' : finalizing ? '正在结束…' : '开始录音'}
             </button>
           )}
           {audioUrl && (

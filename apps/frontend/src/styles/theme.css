@@ -1265,5 +1265,41 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 .radar-axis--s { bottom: 2%; left: 50%; }
 .radar-axis--w { top: 50%; left: 2%; }
 @keyframes radar-signal-pulse { 0% { opacity: .8; transform: scale(.5); } 75%, 100% { opacity: 0; transform: scale(1.7); } }
+/* ===== 录音小窗（RecorderApp）：360×190 独立弹窗，深色玻璃质感 ===== */
+body.mode-recorder { overflow: hidden; }
+body.mode-recorder #root, .rc-app { height: 100%; }
+.rc-app { display: flex; flex-direction: column; padding: 10px 12px 8px; gap: 6px;
+  background: var(--fr-bg, rgba(8, 14, 20, .62)); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+/* 主体：点击即打开会议页 */
+.rc-main { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; border: 1px solid var(--glass-bd); border-radius: 14px; background: var(--glass);
+  cursor: pointer; font: inherit; color: inherit; transition: background .2s; }
+.rc-main:hover { background: var(--glass-2); }
+.rc-main:focus-visible { outline: 1px solid var(--accent); }
+.rc-top { display: flex; align-items: center; gap: 9px; }
+.rc-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-30); }
+.rc-dot.on { background: var(--red); box-shadow: 0 0 10px rgba(220, 38, 38, .8); animation: rc-breath 1.4s ease-in-out infinite; }
+@keyframes rc-breath { 0%, 100% { opacity: .55; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.12); } }
+.rc-state { font-size: 13px; color: var(--ink-100); letter-spacing: .06em; }
+.rc-time { font-family: var(--font-roman); font-size: 22px; color: var(--ink-100);
+  font-variant-numeric: tabular-nums; line-height: 1; }
+.rc-wave { display: flex; align-items: center; gap: 3px; height: 22px; }
+.rc-wave span { width: 3px; border-radius: 2px; background: linear-gradient(180deg, #9FD3A0, #1784BC);
+  height: 20%; opacity: .5; animation: rc-bounce 1.1s ease-in-out infinite; }
+@keyframes rc-bounce { 0%, 100% { height: 20%; } 50% { height: 100%; } }
+.rc-hint { font-size: 11px; color: var(--ink-30); }
+.rc-err { color: #ef4444; }
+.rc-audio { width: 100%; height: 30px; }
+.rc-foot { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.rc-btn { border-radius: 20px; padding: 6px 18px; font-size: 12.5px; cursor: pointer; border: none;
+  letter-spacing: .04em; transition: .15s; }
+.rc-btn:disabled { opacity: .45; cursor: not-allowed; }
+.rc-btn--start { background: var(--accent-grad); color: #fff; font-weight: 500; }
+.rc-btn--start:hover { filter: brightness(1.08); }
+.rc-btn--stop { background: linear-gradient(90deg, #f87171, #dc2626); color: #fff; font-weight: 500; }
+.rc-btn--stop:hover { filter: brightness(1.08); }
+.rc-btn--ghost { background: transparent; border: 1px solid var(--glass-bd); color: var(--ink-70); }
+.rc-btn--ghost:hover { color: var(--ink-100); border-color: var(--accent); }
+
 /* 窄屏隐藏雷达，避免与问数框重叠 */
 @media (max-width: 1500px) { .tw-radar { display: none; } }

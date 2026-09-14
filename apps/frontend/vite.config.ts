@@ -7,6 +7,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        recorder: path.resolve(__dirname, 'recorder.html'),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

@@ -20,6 +20,7 @@ function CardView({ card, onOpenLink }: { card: CockpitCardItem; onOpenLink: (c:
   const busy = useTaskRunStore((s) => s.busy[card.key] === true)
   const recording = useMeetingStore((s) => s.recording)
   const elapsed = useMeetingStore((s) => s.elapsed)
+  const connecting = useMeetingStore((s) => s.connecting)
 
   if (card.kind === 'link') {
     return (
@@ -41,6 +42,8 @@ function CardView({ card, onOpenLink }: { card: CockpitCardItem; onOpenLink: (c:
             <>
               <span className="dot" /> 录音中 {fmtDur(elapsed)}
             </>
+          ) : connecting ? (
+            '检测中…'
           ) : (
             '未在录音'
           )}
@@ -51,7 +54,7 @@ function CardView({ card, onOpenLink }: { card: CockpitCardItem; onOpenLink: (c:
               停止
             </button>
           ) : (
-            <button className="btn-mini" onClick={() => void useMeetingStore.getState().start()}>
+            <button className="btn-mini" disabled={connecting} onClick={() => void useMeetingStore.getState().start()}>
               开始
             </button>
           )}

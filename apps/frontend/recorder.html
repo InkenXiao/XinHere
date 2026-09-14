@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>实时纪要</title>
+    <!-- 运行时配置（生产由 nginx 渲染注入；开发环境无此文件时前端回退构建期 VITE_*） -->
+    <script src="/config.js"></script>
+  </head>
+  <body class="mode-tower mode-recorder">
+    <div id="root"></div>
+    <script type="module" src="/src/recorder/main.tsx"></script>
+  </body>
+</html>
