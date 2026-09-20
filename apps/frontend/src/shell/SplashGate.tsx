@@ -1,17 +1,19 @@
 // 开屏双门「背景窗口」：两张全屏背景图固定加载于开屏页，仅透过左右卡片内部可见（窗口机制见 theme.css 开屏区块）
 // 默认交叉合拢，鼠标进入展开、离开收合；点击左门「向前放大铺满全屏」进入 Xin语，右门「向后缩小消失」进入 Xin台
-// JS 只写入 --door-dx/--door-dy/--door-k 三个变量，card 与卡内 .door-art 的逆变换引用同一变量源
-// （@property 注册过渡），动画中途任意时刻卡内画面都与真实全屏背景逐像素对齐，衔接无缝
-import { useEffect, useRef, useState } from 'react'
+// 双门展开（split）后，底部亮起全屏氛围光，青山知识库以「能量裂隙」（题字 + 发光线）自水面浮出；
+// 点击裂隙开屏整体由下向上推移，进入第三页面（样式见 theme.css qingshan 区块）
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useUiStore } from '@/state/uiStore'
 
-type Door = 'tower' | 'cockpit'
+type Door = 'tower' | 'cockpit' | 'qingshan'
 
 export default function SplashGate({ onDone }: { onDone: () => void }) {
   const setMode = useUiStore((s) => s.setMode)
   const [split, setSplit] = useState(false)
   const [entering, setEntering] = useState<Door | null>(null)
   const timerRef = useRef<number | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  // 两个门 slot 的 ref：进入动效时测量姿态/尺寸，计算放大位移与缩放倍率
   const towerSlotRef = useRef<HTMLDivElement>(null)
   const cockpitSlotRef = useRef<HTMLDivElement>(null)
 
@@ -29,6 +31,13 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
 
   const enter = (door: Door) => {
     if (entering) return
+    // 青山知识库：跳过门卡形变测量，setMode 触发第三层自下向上推进，开屏整体同步上移退场
+    if (door === 'qingshan') {
+      setEntering(door)
+      setMode(door)
+      timerRef.current = window.setTimeout(onDone, 1200)
+      return
+    }
     // 写入三个动画变量（不再拼 --door-fx 变换字符串）：
     //   --door-dx/--door-dy：门卡中心移到屏幕中心的位移；--door-k：缩放倍率
     //   左门放大到溢出全屏（1.06 过扫描，保证圆角归零前已盖满），右门缩小到 0.26 后随透明度淡出
@@ -56,6 +65,7 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
         door === 'tower'
           ? Math.max(3.6, cover * 1.08) // demo: frameScale = max(3.6, cover*1.08) 过扫描
           : 0.26
+      // 写入门卡动画变量：card 的过渡引用变量源（@property 注册），动画平滑推进
       card.style.setProperty('--door-dx', `${dx}px`)
       card.style.setProperty('--door-dy', `${dy}px`)
       card.style.setProperty('--door-k', `${k}`)
@@ -68,10 +78,42 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
     timerRef.current = window.setTimeout(onDone, 1500)
   }
 
+  // 门渲染：slot 承担交互与姿态变换，card 内的窗口画面与视口锁死（art 逆变换见 theme.css）
+  const renderDoor = (doorType: 'tower' | 'cockpit', slotRef: RefObject<HTMLDivElement | null>) => {
+    const isTower = doorType === 'tower'
+    const enteringClass = entering === doorType ? (isTower ? 'enter-forward' : 'enter-back') : entering ? 'exit' : ''
+    return (
+      <div
+        ref={slotRef}
+        className={`door-slot door-slot--${doorType} ${enteringClass}`}
+        role="button"
+        tabIndex={0}
+        aria-label={`进入${isTower ? '瞭望塔' : '驾驶舱'}`}
+        onClick={() => enter(doorType)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            enter(doorType)
+          }
+        }}
+      >
+        <div className="door-card">
+          <div className={`door-art door-art--${doorType}`} />
+          <div className="door-tag">{isTower ? '攻 · 面向未来' : '守 · 立足当下'}</div>
+          <div className="door-name">
+            <b>{isTower ? '瞭望塔' : '驾驶舱'}</b>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
+      ref={rootRef}
       id="door-entry"
-      className={`${split ? 'split' : ''} ${entering ? `is-entering is-${entering === 'tower' ? 'forward' : 'back'}` : ''}`}
+      className={`${split ? 'split' : ''} ${entering ? `is-entering is-${entering === 'tower' ? 'forward' : entering === 'qingshan' ? 'qingshan' : 'back'}` : ''}`}
       onMouseEnter={() => !entering && setSplit(true)}
       onMouseLeave={() => !entering && setSplit(false)}
     >
@@ -96,52 +138,48 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
         <p>信在此，新在此</p>
       </div>
 
-      <div
-        ref={towerSlotRef}
-        className={`door-slot door-slot--tower ${entering === 'tower' ? 'enter-forward' : entering ? 'exit' : ''}`}
-        role="button"
-        tabIndex={0}
-        aria-label="进入瞭望塔"
-        onClick={() => enter('tower')}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            enter('tower')
-          }
-        }}
-      >
-        <div className="door-card">
-          <div className="door-art door-art--tower" />
-          <div className="door-tag">攻 · 面向未来</div>
-          <div className="door-name">
-            <b>瞭望塔</b>
-            <span>WATCHTOWER</span>
-          </div>
-        </div>
+      {/* 底部氛围光：双门展开后从水线向上弥散的全屏青绿微光，融合场景（纯展示，不拦截交互） */}
+      <div className="qingshan-amblight" aria-hidden="true" />
+
+      {/* 实体门（可交互） */}
+      <div className="doors-group main-doors">
+        {renderDoor('tower', towerSlotRef)}
+        {renderDoor('cockpit', cockpitSlotRef)}
       </div>
 
+      {/* 水面：深青水质底色 + 波光细纹 + 光斑晕染 + 粼粼光点 + 自中心扩散的涟漪（纯展示，不拦截交互） */}
+      <div className="water-surface" aria-hidden="true">
+        <div className="water-shimmer" />
+        <div className="water-gleam" />
+        <div className="water-sparkle water-sparkle--1" />
+        <div className="water-sparkle water-sparkle--2" />
+        <div className="water-sparkle water-sparkle--3" />
+        <span className="water-ripple water-ripple--1" />
+        <span className="water-ripple water-ripple--2" />
+        <span className="water-ripple water-ripple--3" />
+        <span className="water-ripple water-ripple--4" />
+      </div>
+
+      {/* 青山知识库入口：双门展开后自水中浮出（位于两门正下方），极简题字悬浮于一条发光「能量裂隙」之上；
+          点击后开屏整体由下向上推移进入第三页面 */}
       <div
-        ref={cockpitSlotRef}
-        className={`door-slot door-slot--cockpit ${entering === 'cockpit' ? 'enter-back' : entering ? 'exit' : ''}`}
+        className="qingshan-steps"
         role="button"
         tabIndex={0}
-        aria-label="进入驾驶舱"
-        onClick={() => enter('cockpit')}
+        aria-label="进入青山知识库"
+        onClick={(e) => {
+          e.stopPropagation()
+          enter('qingshan')
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
-            enter('cockpit')
+            enter('qingshan')
           }
         }}
       >
-        <div className="door-card">
-          <div className="door-art door-art--cockpit" />
-          <div className="door-tag">守 · 立足当下</div>
-          <div className="door-name">
-            <b>驾驶舱</b>
-            <span>COCKPIT</span>
-          </div>
-        </div>
+        <div className="qingshan-label">青山知识库</div>
+        <div className="qingshan-line" aria-hidden="true" />
       </div>
     </div>
   )

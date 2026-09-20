@@ -54,6 +54,7 @@ export default function App() {
     const b = document.body
     b.classList.toggle('mode-tower', mode === 'tower')
     b.classList.toggle('mode-cockpit', mode === 'cockpit')
+    b.classList.toggle('mode-qingshan', mode === 'qingshan')
     b.classList.toggle('history-open', historyOpen)
     b.classList.toggle('history-pinned', historyPinned)
     b.classList.toggle('kanban-open', kanbanOpen)
@@ -83,6 +84,14 @@ export default function App() {
         <div className="bg" />
         <Starfield visible={mode === 'tower' && !kanbanOpen} />
         <ScreenWork />
+      </section>
+      {/* 青山知识库（青绿山水·第三页面）：点击开屏台阶后自下向上推进入场 */}
+      <section className="layer layer-qingshan">
+        <div className="bg" />
+        <div className="qs-home">
+          <h1>青山知识库</h1>
+          <p>知行山水间</p>
+        </div>
       </section>
       {/* 框架（不随模式切换而改变布局） */}
       <TopBar />

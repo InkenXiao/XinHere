@@ -17,6 +17,8 @@ export const TOOL_ZH: Record<string, string> = {
   xuanpu_dashboard: '平台数据看板',
   xuanpu_skills: '查询平台技能',
   xuanpu_skill_run: '执行平台技能',
+  xuanpu_skill_info: '读取技能指引',
+  xuanpu_skill_script: '执行技能脚本',
   xuanpu_tools: '查询平台工具',
   xuanpu_tool_run: '调用平台工具',
   xuanpu_mcp_servers: '查询 MCP 服务',
@@ -24,6 +26,9 @@ export const TOOL_ZH: Record<string, string> = {
   xuanpu_im_channels: '查询 IM 通道',
   xuanpu_im_send: '发送 IM 消息',
   xuanpu_im_messages: '拉取 IM 消息',
+  read_skill_file: '读取技能文件',
+  write_skill_file: '写入技能文件',
+  run_skill_script: '运行技能脚本',
 }
 
 export const SCENE_ZH: Record<string, string> = {

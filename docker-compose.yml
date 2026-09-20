@@ -25,6 +25,8 @@ services:
       - ./plugins:/app/plugins
       - ./packages/contracts:/app/packages/contracts
       - ./apps/backend/data:/app/apps/backend/data
+      # 文件夹式技能（SKILL.md + 脚本；运行期写入 .research_state/ 与 reports/，需可写）
+      - ./apps/backend/skills:/app/apps/backend/skills
     # 不发布宿主端口（参照 xuanpu 模式 ports: []）：backend 仅在 ai_network 内互通，
     # 由 frontend nginx 的 /api/ 反代 (backend:8196)；调试走 https://宿主:8096/api/...
     healthcheck:

@@ -109,6 +109,22 @@ def skill_run(skill: str, input_data: str, user_name: str,
                      user_name, timeout=320.0, xuanpu_token=xuanpu_token)
 
 
+def skill_info(skill: str, user_name: str,
+               xuanpu_token: str | None = None) -> dict:
+    """读取上架技能（Skill 压缩包）的执行指引与包内资源清单"""
+    return call_tool("xuanpu_skill_info", {"skill": skill}, user_name,
+                     xuanpu_token=xuanpu_token)
+
+
+def skill_script(skill: str, script: str, arguments: list | None,
+                 user_name: str, xuanpu_token: str | None = None) -> dict:
+    """执行上架技能包内脚本（.py/.sh）；arguments 为脚本参数数组"""
+    return call_tool("xuanpu_skill_script", {
+        "skill": skill, "script": script,
+        "arguments": json.dumps(arguments or [], ensure_ascii=False),
+    }, user_name, timeout=320.0, xuanpu_token=xuanpu_token)
+
+
 def platform_tools(user_name: str, xuanpu_token: str | None = None) -> list[dict]:
     return call_tool("xuanpu_tools", {}, user_name, xuanpu_token=xuanpu_token)
 

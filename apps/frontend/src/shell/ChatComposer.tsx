@@ -1,5 +1,5 @@
 // WorkBuddy 风格输入区（Xin语首屏与会话视图共用）
-// 工具条：左 = ＋文件 / 知识库(多选) / 联网搜索；右 = 模型 / 录音 / 发送|停止
+// 工具条：左 = ＋文件 / 知识库(多选) / 联网搜索 / 技能；右 = 模型 / 录音 / 发送|停止
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiUpload } from '@/transport/api'
 import type { KbSource, ModelOption, SendOptions } from '@/types'
@@ -8,6 +8,19 @@ interface UploadedFile {
   name: string // 服务端存储名（发送携带）
   displayName: string
   size: number
+}
+
+interface SkillItem {
+  id: number
+  name: string
+  description?: string
+  category?: string
+  selId: string // 发送给后端的技能标识（local:<key> / xuanpu:<name>）
+  source: 'local' | 'market'
+}
+
+function skillDisplayName(selId: string) {
+  return selId.replace(/^(local|xuanpu):/, '')
 }
 
 interface Props {
@@ -40,7 +53,9 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
   const [models, setModels] = useState<ModelOption[]>([])
   const [modelsLoaded, setModelsLoaded] = useState(false)
   const [model, setModel] = useState('') // '' = 标准
-  const [pop, setPop] = useState<'kb' | 'model' | null>(null)
+  const [skills, setSkills] = useState<SkillItem[] | null>(null)
+  const [skillSel, setSkillSel] = useState('') // '' = 未选技能
+  const [pop, setPop] = useState<'kb' | 'model' | 'skill' | null>(null)
   const [recActive, setRecActive] = useState(false)
   const [recBusy, setRecBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -64,7 +79,7 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
 
   const currentModelLabel = models.find((m) => m.key === model)?.label ?? '标准'
 
-  const togglePop = (p: 'kb' | 'model') => {
+  const togglePop = (p: 'kb' | 'model' | 'skill') => {
     const next = pop === p ? null : p
     setPop(next)
     if (next === 'kb' && kbSources === null) {
@@ -77,6 +92,28 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
         .then((r) => setModels(r.items ?? []))
         .catch(() => setModels([]))
         .finally(() => setModelsLoaded(true))
+    }
+    if (next === 'skill' && skills === null) {
+      // 本地技能 + 技能市场合并展示；任一来源失败不影响另一来源
+      void Promise.allSettled([
+        api<{ items: { skill_key: string; name: string; desc?: string }[] }>('GET', '/skills/local'),
+        api<{ items: Omit<SkillItem, 'selId' | 'source'>[] }>('GET', '/xuanpu/skills'),
+      ]).then(([local, market]) => {
+        const localItems: SkillItem[] = (local.status === 'fulfilled' ? local.value.items ?? [] : []).map(
+          (s, i) => ({
+            id: -(i + 1),
+            name: s.name,
+            description: s.desc,
+            category: '本地',
+            selId: `local:${s.skill_key}`,
+            source: 'local' as const,
+          }),
+        )
+        const marketItems: SkillItem[] = (market.status === 'fulfilled' ? market.value.items ?? [] : []).map(
+          (s) => ({ ...s, selId: `xuanpu:${s.name}`, source: 'market' as const }),
+        )
+        setSkills([...localItems, ...marketItems])
+      })
     }
   }
 
@@ -171,6 +208,7 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
       webSearch: webSearch || undefined,
       model: model || undefined,
       fileNames: files.length > 0 ? files.map((f) => f.name) : undefined,
+      skill: skillSel || undefined,
     })
     setText('')
     if (taRef.current) taRef.current.style.height = ''
@@ -181,8 +219,17 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
 
   return (
     <div className={`cmp cmp-${variant}`} ref={rootRef}>
-      {files.length > 0 && (
+      {(files.length > 0 || skillSel) && (
         <div className="cmp-chips">
+          {skillSel && (
+            <span className="cmp-chip" title="本条消息将按该技能的流程执行">
+              <span>⚙</span>
+              <span className="cmp-chip-name">{skillDisplayName(skillSel)}</span>
+              <span className="cmp-chip-x" title="移除" onClick={() => setSkillSel('')}>
+                ×
+              </span>
+            </span>
+          )}
           {files.map((f) => (
             <span className="cmp-chip" key={f.name} title={f.displayName}>
               <span>{fileIcon(f.displayName)}</span>
@@ -265,6 +312,15 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
             onClick={() => setWebSearch((v) => !v)}
           >
             🌐 联网搜索
+          </button>
+          <button
+            type="button"
+            className={`cmp-btn ${skillSel ? 'on' : ''} ${pop === 'skill' ? 'open' : ''}`}
+            title="选择技能（本条消息将按该技能的流程执行）"
+            disabled={disabled}
+            onClick={() => togglePop('skill')}
+          >
+            ⚙ 技能
           </button>
         </div>
         <div className="cmp-bar-right">
@@ -370,6 +426,69 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
                 </span>
               </label>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 技能选择弹层（单选，选中后本条消息按技能流程执行） */}
+      {pop === 'skill' && (
+        <div className="cmp-pop cmp-pop-skill">
+          <div className="cmp-pop-head">
+            <span>选择技能</span>
+            <span className="cmp-pop-sub">发送后按所选技能的流程执行</span>
+            <button className="cmp-pop-x" onClick={() => setPop(null)}>
+              ×
+            </button>
+          </div>
+          <div className="cmp-pop-list">
+            {skills === null && <div className="cmp-pop-empty">加载中…</div>}
+            {skills !== null && skills.length === 0 && (
+              <div className="cmp-pop-empty">暂无可用技能</div>
+            )}
+            {(['local', 'market'] as const).map((src) => {
+              const group = skills?.filter((s) => s.source === src) ?? []
+              if (group.length === 0) return null
+              return (
+                <div key={src}>
+                  <div className="cmp-kb-group">{src === 'local' ? '本地技能' : '技能市场'}</div>
+                  {group.map((s) => (
+                    <label
+                      className={`cmp-pop-item ${skillSel === s.selId ? 'sel' : ''}`}
+                      key={s.selId}
+                      title={s.description || s.name}
+                    >
+                      <input
+                        type="radio"
+                        name="cmp-skill"
+                        checked={skillSel === s.selId}
+                        onChange={() => {
+                          setSkillSel(skillSel === s.selId ? '' : s.selId)
+                          setPop(null)
+                        }}
+                      />
+                      <span className="cmp-pop-name">⚙ {s.name}</span>
+                      <span className="cmp-pop-tag">
+                        {(s.description || '').slice(0, 40) || s.category || ''}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+          <div className="cmp-pop-foot">
+            <button
+              className="cmp-pop-link"
+              onClick={() => {
+                setSkillSel('')
+                setPop(null)
+              }}
+            >
+              不使用技能
+            </button>
+            <button className="cmp-pop-ok" onClick={() => setPop(null)}>
+              完成
+            </button>
           </div>
         </div>
       )}

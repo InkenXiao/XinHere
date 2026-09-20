@@ -1,8 +1,63 @@
 from __future__ import annotations
 
+from typing import Any, Iterator, Optional
+
+from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.messages import BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_openai import ChatOpenAI
 
 from ...core.config import settings
+
+
+class _EmptyRetryChatOpenAI(ChatOpenAI):
+    """模型侧偶发「整条响应为空」（无文本、无工具调用）时自动重试的防御层。
+
+    判定标准：message 无 content 且无 tool_calls/tool_call_chunks 即视为空。
+    重试对上层透明：只有上一轮完全没有任何产出时才重发，已产出内容绝不重复。
+    """
+
+    empty_retries: int = 2
+
+    @staticmethod
+    def _has_payload(message: BaseMessage) -> bool:
+        c = message.content
+        if isinstance(c, str) and c.strip():
+            return True
+        if isinstance(c, list) and any(
+            isinstance(p, dict) and (p.get("text") or p.get("type") == "tool_use") for p in c
+        ):
+            return True
+        return bool(getattr(message, "tool_calls", None) or getattr(message, "tool_call_chunks", None))
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: Optional[list[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        last: ChatResult | None = None
+        for _ in range(self.empty_retries + 1):
+            last = super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+            if last.generations and self._has_payload(last.generations[0].message):
+                return last
+        return last
+
+    def _stream(
+        self,
+        messages: list[BaseMessage],
+        stop: Optional[list[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> Iterator[ChatGenerationChunk]:
+        for _ in range(self.empty_retries + 1):
+            emitted = False
+            for chunk in super()._stream(messages, stop=stop, run_manager=run_manager, **kwargs):
+                emitted = emitted or self._has_payload(chunk.message)
+                yield chunk
+            if emitted:
+                return
 
 
 def build_model(channel: str = "main", **overrides) -> ChatOpenAI:
@@ -15,7 +70,7 @@ def build_model(channel: str = "main", **overrides) -> ChatOpenAI:
         url = settings.small_api_url or settings.main_api_url
         key = settings.small_api_key or settings.main_api_key
         name = settings.small_model
-    return ChatOpenAI(
+    return _EmptyRetryChatOpenAI(
         base_url=url,
         api_key=key,
         model=name,

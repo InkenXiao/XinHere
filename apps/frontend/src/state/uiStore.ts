@@ -17,7 +17,7 @@ interface ToastItem {
 
 interface UiState {
   theme: 'dark'
-  mode: 'tower' | 'cockpit' // 双模式：Xin语（夜·问答）⇄ Xin台（日·业务）
+  mode: 'tower' | 'cockpit' | 'qingshan' // 三模式：Xin语（夜·问答）⇄ Xin台（日·业务）⇄ 青山知识库（青绿山水）
   historyOpen: boolean // 框架一：左侧历史对话抽屉
   historyPinned: boolean // 历史抽屉固定：pinned 时常驻展开、失焦不收起
   kanbanOpen: boolean // 框架三：底部看板抽屉
@@ -32,7 +32,7 @@ interface UiState {
   meetingOpen: boolean // 实时会议页开关（录音由 meetingStore 持有，关闭页面不影响后台运行）
   execDetail: TaskRecordItem | null // 历史任务「执行记录」详情弹窗目标
   toasts: ToastItem[]
-  setMode: (v: 'tower' | 'cockpit') => void
+  setMode: (v: 'tower' | 'cockpit' | 'qingshan') => void
   toggleHistory: () => void
   setHistoryOpen: (v: boolean) => void
   toggleHistoryPin: () => void

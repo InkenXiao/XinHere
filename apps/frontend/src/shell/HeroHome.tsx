@@ -1,5 +1,5 @@
 // Xin语默认 hero：居中大问数框（ChatComposer 提供 文件/知识库/联网/模型/录音/发送 全真实功能）
-// 发送/点快捷 chip → 进入会话视图；chips 下方为用户自定义卡片（链接 / 技能，存于数据库）
+// 发送 → 进入会话视图；输入框下方为用户自定义卡片（链接 / 技能，存于数据库）
 import { useEffect, useState } from 'react'
 import { api } from '@/transport/api'
 import { useSessionStore } from '@/state/sessionStore'
@@ -8,8 +8,6 @@ import { useTaskRunStore } from '@/state/taskRunStore'
 import type { HeroCardItem, SendOptions } from '@/types'
 import ChatComposer from './ChatComposer'
 import HeroCardModal from './HeroCardModal'
-
-const HERO_CHIPS = ['发起风险填报', '现金保障试算', '生成投后报告', '任务执行统计']
 
 export default function HeroHome() {
   const sending = useSessionStore((s) => s.sending)
@@ -69,16 +67,6 @@ export default function HeroHome() {
       </div>
       <div className="tw-chat">
         <ChatComposer variant="hero" onSend={(t, opts) => void enterChat(t, opts)} />
-      </div>
-      <div className="tw-chips">
-        {HERO_CHIPS.map((c) => (
-          <button className="chip" key={c} onClick={() => void enterChat(c)}>
-            {c}
-          </button>
-        ))}
-        <button className="chip chip-new" onClick={() => void enterChat('')}>
-          ＋ 新对话
-        </button>
       </div>
       {heroCards.length > 0 && (
         <div className="hero-cards">

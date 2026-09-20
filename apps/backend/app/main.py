@@ -29,6 +29,7 @@ from .platform.api import (
     reports,
     risk_fills,
     sessions,
+    skills,
     tasks,
     todos,
     xuanpu,
@@ -151,7 +152,7 @@ for r in (
     auth.router, sessions.router, todos.router, dashboard.router, risk_fills.router,
     cash.router, kpi.router, reports.router, kb.router, plugins.router,
     xuanpu.router, cockpit.router, tasks.router, hero.router,
-    models_router.router, media.router, minutes.router,
+    models_router.router, media.router, minutes.router, skills.router,
 ):
     app.include_router(r, prefix=API)
 

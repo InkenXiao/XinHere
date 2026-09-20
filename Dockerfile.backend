@@ -17,8 +17,8 @@ WORKDIR /app/apps/backend
 COPY apps/backend/requirements.txt /app/apps/backend/requirements.txt
 RUN pip install -r /app/apps/backend/requirements.txt
 
-# 健康检查用 curl（python:slim 不带）
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# 健康检查用 curl（python:slim 不带）；pango + 中文字体供 weasyprint 渲染报告 PDF
+RUN apt-get update && apt-get install -y --no-install-recommends curl libpango-1.0-0 libpangocairo-1.0-0 fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8196

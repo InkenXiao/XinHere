@@ -302,6 +302,44 @@ def build_common_tools(ctx: ToolCtx) -> list:
             return f"XuanPu 技能执行失败：{_fail_msg(exc)}"
         return _xj(data)
 
+    @tool("xuanpu_skill_info", description="读取 XuanPu 上架技能（Skill 包）的执行指引与包内资源清单。skill 传技能 ID 或名称（先用 xuanpu_skills 查询）。拿到指引后请严格按指引完成任务；指引中提到的包内脚本用 xuanpu_skill_script 执行。")
+    def xuanpu_skill_info_tool(
+        skill: str,
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"skill": skill}
+        with tool_scope(ctx, "xuanpu_skill_info", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.skill_info(skill, identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"XuanPu 技能指引读取失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_skill_script", description="执行 XuanPu 上架技能包内的脚本（.py/.sh）。skill 传技能 ID 或名称，script 为指引中给出的包内相对路径，arguments 为脚本参数的 JSON 数组字符串（如 \"[\\\"abc\\\"]\"）。仅用于技能指引中提到的脚本。")
+    def xuanpu_skill_script_tool(
+        skill: str,
+        script: str,
+        arguments: str = "[]",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        import json
+
+        try:
+            parsed = json.loads(arguments) if arguments and arguments.strip() else []
+        except json.JSONDecodeError:
+            parsed = [arguments]
+        if not isinstance(parsed, list):
+            parsed = [parsed]
+        args = {"skill": skill, "script": script}
+        with tool_scope(ctx, "xuanpu_skill_script", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.skill_script(skill, script, parsed, identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"XuanPu 技能脚本执行失败：{_fail_msg(exc)}"
+        return _xj(data)
+
     @tool("xuanpu_tools", description="列出 XuanPu 平台可调用的平台工具（原子能力，仅「使用中」状态），含参数 Schema。")
     def xuanpu_tools_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
         with tool_scope(ctx, "xuanpu_tools", tool_call_id, {}) as db:
@@ -518,6 +556,7 @@ def build_common_tools(ctx: ToolCtx) -> list:
             query_task_stats, xuanpu_chat_tool, xuanpu_todos_tool,
             xuanpu_create_todo_tool, xuanpu_dashboard_tool,
             xuanpu_skills_tool, xuanpu_skill_run_tool,
+            xuanpu_skill_info_tool, xuanpu_skill_script_tool,
             xuanpu_tools_tool, xuanpu_tool_run_tool,
             xuanpu_mcp_servers_tool, xuanpu_mcp_call_tool,
             xuanpu_im_channels_tool, xuanpu_im_send_tool,

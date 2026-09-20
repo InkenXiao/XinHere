@@ -1,4 +1,4 @@
-// 对话面板（核心）：消息流/执行态双 pane 过渡 + composer + 快捷标签 + 知识库选择
+// 对话面板（核心）：消息流/执行态双 pane 过渡 + composer + 知识库选择
 import { useEffect, useRef } from 'react'
 import { useSessionStore } from '@/state/sessionStore'
 import { useUiStore } from '@/state/uiStore'
@@ -6,9 +6,7 @@ import type { Node } from '@/registry/ConversationAssembler'
 import { toolZh } from '@/utils'
 import ChatComposer from './ChatComposer'
 import ExecutionView from './ExecutionView'
-
-const QUICK_TAGS = ['发起风险填报', '现金保障试算', '任务执行统计', '生成投后报告']
-const EXAMPLES = ['帮我发起 8 月风险填报', '查一下本周任务完成率', '生成 7 月投后报告']
+import Markdown from './Markdown'
 
 export default function ChatPanel() {
   const current = useSessionStore((s) => s.current)
@@ -27,12 +25,6 @@ export default function ChatPanel() {
     if (el) el.scrollTop = el.scrollHeight
   }, [snap])
 
-  const doSend = (msg: string) => {
-    const t = msg.trim()
-    if (!t || sending || !current) return
-    void send(t)
-  }
-
   const renderNode = (node: Node) => {
     switch (node.type) {
       case 'user':
@@ -50,7 +42,7 @@ export default function ChatPanel() {
       case 'assistant':
         return (
           <div className="msg-ai" key={node.key}>
-            {node.content}
+            <Markdown text={node.content} />
             {node.usage && (
               <div style={{ marginTop: 6, fontSize: 11, color: 'var(--ink-30)' }}>
                 tokens: {node.usage.prompt}+{node.usage.completion}
@@ -114,7 +106,7 @@ export default function ChatPanel() {
           {current?.title ?? '新对话'}
           {current?.title && <span className="chat-sub">{current.session_id}</span>}
         </div>
-        <button className="chat-new" onClick={() => void useSessionStore.getState().newSession()}>
+        <button className="chat-new" onClick={() => useUiStore.getState().setWorkView('hero')}>
           + 新会话
         </button>
       </div>
@@ -125,32 +117,16 @@ export default function ChatPanel() {
               <div className="welcome">
                 <div className="welcome-ico">✦</div>
                 <div className="welcome-t">信在此 · 新在此</div>
-                <div className="welcome-h" style={{ marginBottom: 14 }}>
-                  用自然语言发起任务、追踪进度，组件在对话中直接操作
-                </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {EXAMPLES.map((q) => (
-                    <button className="tag-chip" key={q} onClick={() => doSend(q)}>
-                      {q}
-                    </button>
-                  ))}
-                </div>
+                <div className="welcome-h">用自然语言发起任务、追踪进度，组件在对话中直接操作</div>
               </div>
             )}
             {snap.nodes.map(renderNode)}
             {snap.streaming && (
               <div className="msg-ai">
-                {snap.streaming.text}
+                <Markdown text={snap.streaming.text} />
                 <span className="cursor-blink" />
               </div>
             )}
-          </div>
-          <div className="tags-row">
-            {QUICK_TAGS.map((t) => (
-              <button className="tag-chip" key={t} onClick={() => doSend(t)}>
-                {t}
-              </button>
-            ))}
           </div>
           <div className="composer">
             <ChatComposer

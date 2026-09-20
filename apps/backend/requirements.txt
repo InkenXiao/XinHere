@@ -15,3 +15,6 @@ bcrypt==5.0.0
 pytest==9.1.1
 python-multipart==0.0.20
 PyMuPDF==1.26.3
+# 行研报告技能 PDF 成对交付（md2pdf.py）
+weasyprint==70.0
+markdown==3.10.3

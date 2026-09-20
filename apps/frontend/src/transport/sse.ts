@@ -90,7 +90,14 @@ async function readStream(res: Response, handlers: SseHandlers): Promise<void> {
 /** POST chat → SSE 流（一次 run） */
 export async function streamChat(
   sessionId: string,
-  body: { message: string; kb_ids?: string[]; web_search?: boolean; model?: string; file_names?: string[] },
+  body: {
+    message: string
+    kb_ids?: string[]
+    web_search?: boolean
+    model?: string
+    file_names?: string[]
+    skill?: string // 技能市场技能名：本轮对话加载并执行该技能
+  },
   handlers: SseHandlers,
   signal?: AbortSignal,
 ): Promise<void> {

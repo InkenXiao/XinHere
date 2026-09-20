@@ -117,6 +117,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           web_search: o.webSearch || undefined,
           model: o.model || undefined,
           file_names: o.fileNames && o.fileNames.length > 0 ? o.fileNames : undefined,
+          skill: o.skill || undefined,
         },
         handlers,
         abortCtl.signal,

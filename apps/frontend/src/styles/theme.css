@@ -87,6 +87,38 @@ body.mode-cockpit {
   --rim-line: rgba(20, 30, 40, .12);
 }
 
+/* ===== 青山知识库（青绿山水·第三模式） ===== */
+body.mode-qingshan {
+  --accent: #10B981;
+  --accent-grad: linear-gradient(90deg, #34D399 0%, #059669 100%);
+  --accent-soft: rgba(16, 185, 129, .15);
+  --watch: #34D399;
+  /* 框架 */
+  --fr-bg: rgba(6, 20, 16, .85); --fr-bd: rgba(255, 255, 255, .15);
+  --fr-ink: #e2f1ec; --fr-ink-2: rgba(226, 241, 236, .55);
+  --fr-item: rgba(255, 255, 255, .06); --fr-item-hover: rgba(255, 255, 255, .12); --fr-item-active: rgba(16, 185, 129, .20);
+  --fr-accent: #10B981;
+  --fr-tab-bg: rgba(6, 20, 16, .55); --fr-tab-bd: rgba(255, 255, 255, .18); --fr-tab-ink: rgba(226, 241, 236, .82);
+  /* 桥接旧变量 */
+  --bg: #04100c;
+  --text: #e2f1ec;
+  --muted: rgba(226, 241, 236, .60);
+  --faint: rgba(226, 241, 236, .40);
+  --glass: rgba(255, 255, 255, .06);
+  --glass-2: rgba(255, 255, 255, .10);
+  --glass-bd: rgba(255, 255, 255, .14);
+  --glow: rgba(16, 185, 129, .28);
+  --amber-glow: rgba(16, 185, 129, .16);
+  --ink-100: #e2f1ec; --ink-70: rgba(226, 241, 236, .78); --ink-50: rgba(226, 241, 236, .55); --ink-30: rgba(226, 241, 236, .40);
+  --card-bg: rgba(8, 26, 20, .82);
+  --card-border: rgba(255, 255, 255, .12);
+  --input-bg: rgba(6, 20, 16, .75);
+  --input-border: rgba(255, 255, 255, .16);
+  --tag-bg: rgba(255, 255, 255, .05);
+  --tag-border: rgba(255, 255, 255, .14);
+  --rim-line: rgba(255, 255, 255, .12);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 html, body { height: 100%; }
@@ -116,19 +148,32 @@ input, textarea, select { font: inherit; }
 .layer-cockpit::after { mix-blend-mode: normal; opacity: 1;
   background:
     linear-gradient(90deg, rgba(246,242,233,.92) 0%, rgba(246,242,233,.62) 38%, rgba(246,242,233,.05) 72%),
-    linear-gradient(180deg, rgba(244,240,232,.5), transparent 27%, transparent 66%, rgba(226,222,213,.42)); }
+    linear-gradient(180deg, rgba(244,240,232,.5), transparent 27%, transparent 66%, rgba(226,222,213,.2)); }
 /* 瞭望塔（夜·星空灯塔）：推近亮塔 + 12s 呼吸 */
 .layer-tower { z-index: 3; color: #f1eee6; }
 .layer-tower .bg { background-image: url('/assets/bg-watchtower.png'); background-position: 50% 54%;
-  filter: brightness(.7) saturate(.8) contrast(1.08); animation: bg-breathe 12s ease-in-out infinite alternate; }
+  filter: brightness(.82) saturate(.85) contrast(1.04); animation: bg-breathe 12s ease-in-out infinite alternate; }
 @keyframes bg-breathe { from { transform: scale(1); } to { transform: scale(1.045); } }
 .layer-tower::after { mix-blend-mode: soft-light; }
+/* 青山知识库（青绿山水·第三页面）：层体自下向上推进入场，离开时落回；背景为纯 CSS/SVG 青绿山水（无外部图片依赖） */
+.layer-qingshan { z-index: 4; color: #e2f1ec; transform: translateY(38vh); will-change: transform, opacity;
+  transition: opacity .9s ease, transform 1.15s cubic-bezier(.22, 1, .36, 1), visibility 0s linear .9s; }
+body.mode-qingshan .layer-qingshan { transform: translateY(0); }
+.layer-qingshan .bg { background-color: #04100c;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='900' viewBox='0 0 1600 900' preserveAspectRatio='xMidYMid slice'><defs><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%230b2d24'/><stop offset='.5' stop-color='%230e3a2d'/><stop offset='1' stop-color='%2304100c'/></linearGradient><linearGradient id='mist' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%239fd3c0' stop-opacity='0'/><stop offset='.5' stop-color='%239fd3c0' stop-opacity='.14'/><stop offset='1' stop-color='%239fd3c0' stop-opacity='0'/></linearGradient></defs><rect width='1600' height='900' fill='url(%23sky)'/><path d='M0 500 L150 420 L320 495 L480 375 L650 480 L830 385 L1010 490 L1190 405 L1370 485 L1600 415 L1600 900 L0 900 Z' fill='%23155040' opacity='.55'/><path d='M0 610 L190 505 L380 590 L570 470 L770 585 L980 495 L1190 600 L1400 515 L1600 585 L1600 900 L0 900 Z' fill='%230f3d31' opacity='.8'/><rect y='520' width='1600' height='120' fill='url(%23mist)'/><path d='M0 740 L230 630 L450 715 L680 610 L920 720 L1160 630 L1400 725 L1600 655 L1600 900 L0 900 Z' fill='%23092019'/><rect y='700' width='1600' height='110' fill='url(%23mist)' opacity='.7'/></svg>");
+  animation: bg-breathe 14s ease-in-out infinite alternate; }
+.layer-qingshan::after { mix-blend-mode: soft-light; opacity: .5; }
+/* 青山首屏主视觉（占位）：居中题字 */
+.qs-home { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
+.qs-home h1 { font-family: var(--font-han); font-size: clamp(30px, 5vh, 44px); font-weight: 600; letter-spacing: .34em; text-indent: .34em; color: #eafaf3; text-shadow: 0 4px 30px rgba(4, 16, 12, .8); }
+.qs-home p { margin-top: 14px; font-size: clamp(12px, 1.8vh, 14px); letter-spacing: .5em; text-indent: .5em; color: rgba(226, 241, 236, .66); }
 /* 夜态星空粒子 canvas（Starfield 组件）：位于背景之上、内容之下 */
 .tw-fx { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 /* 层显隐：当前模式立即显形（visibility 延迟清零），离场层淡出 .9s 后再隐藏 */
-body.mode-tower .layer-tower, body.mode-cockpit .layer-cockpit { opacity: 1; visibility: visible; transition-delay: 0s, 0s; }
-body.mode-cockpit .layer-tower { opacity: 0; visibility: hidden; pointer-events: none; z-index: 1; }
-body.mode-tower .layer-cockpit { opacity: 0; visibility: hidden; pointer-events: none; z-index: 1; }
+body.mode-tower .layer-tower, body.mode-cockpit .layer-cockpit, body.mode-qingshan .layer-qingshan { opacity: 1; visibility: visible; transition-delay: 0s, 0s; }
+body.mode-cockpit .layer-tower, body.mode-qingshan .layer-tower { opacity: 0; visibility: hidden; pointer-events: none; z-index: 1; }
+body.mode-tower .layer-cockpit, body.mode-qingshan .layer-cockpit { opacity: 0; visibility: hidden; pointer-events: none; z-index: 1; }
+body.mode-tower .layer-qingshan, body.mode-cockpit .layer-qingshan { opacity: 0; visibility: hidden; pointer-events: none; z-index: 1; }
 
 /* ===== 顶栏 ===== */
 .topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 60; display: grid; grid-template-columns: 1fr auto 1fr;
@@ -344,21 +389,18 @@ body.mode-tower .tw-wrap { opacity: 1; transform: none; }
   background: rgba(8, 14, 22, .72); filter: blur(10px); }
 .tw-chat { position: relative; z-index: 1; width: 100%; display: flex; flex-direction: column;
   background: linear-gradient(180deg, rgba(18,30,46,.50) 0%, rgba(10,18,30,.40) 100%);
-  border: 1px solid rgba(255, 255, 255, .14); border-radius: 15px; overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .14); border-radius: 15px;
   box-shadow: 0 30px 80px -22px rgba(0,0,0,.72), 0 0 0 1px rgba(255,255,255,.04) inset,
              0 0 42px -10px rgba(23,132,188,.30), 0 1px 0 0 rgba(255,255,255,.10) inset; }
+/* 注意：不可设 overflow:hidden —— hero 输入框的工具弹层（技能/知识库/模型）向上弹出，
+   会越过输入框顶缘，裁剪将导致弹层不可见 */
 .tw-chat::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; pointer-events: none; z-index: 2;
   background: linear-gradient(90deg, transparent, rgba(159,211,160,.55), rgba(23,132,188,.55), transparent); opacity: .85; }
-/* 塔中标题与快捷 chips */
+/* 塔中标题 */
 .tw-title { text-align: center; margin-bottom: 26px; position: relative; z-index: 1; }
 .tw-title h1 { font-family: var(--font-han); font-size: clamp(26px, 3.4vw, 38px); font-weight: 700; letter-spacing: .10em;
   color: #f1eee6; text-shadow: 0 2px 24px rgba(0,0,0,.5); }
 .tw-title .sub { margin-top: 10px; font-size: 12.5px; color: rgba(241,238,230,.55); letter-spacing: .22em; font-weight: 300; }
-.tw-chips { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; position: relative; z-index: 1; }
-.tw-chips .chip { padding: 9px 16px; border-radius: 999px; font-size: 13px; color: rgba(241,238,230,.85); cursor: pointer;
-  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(10px); transition: .2s; }
-.tw-chips .chip:hover { background: rgba(255,255,255,.12); transform: translateY(-1px); color: #fff; }
-.tw-chips .chip-new { border-color: rgba(63,185,214,.4); color: var(--watch); }
 /* 会话态：塔层中央全量对话容器 */
 .tw-chat-live { position: relative; z-index: 1; width: min(960px, 94vw); height: min(76vh, 860px); display: flex; flex-direction: column;
   background: linear-gradient(180deg, rgba(14,24,38,.62) 0%, rgba(8,14,24,.55) 100%);
@@ -446,6 +488,35 @@ body.mode-cockpit .cp-wrap { opacity: 1; transform: none; }
   margin-left: 2px; animation: blink .8s infinite; border-radius: 2px; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
 
+/* assistant 消息 Markdown 渲染（表格/代码块/标题/列表，经 CSS 变量适配明暗双主题） */
+.md-body { white-space: normal; word-break: break-word; line-height: 1.7; }
+.md-body > :first-child { margin-top: 0; }
+.md-body > :last-child { margin-bottom: 0; }
+.md-body h1, .md-body h2, .md-body h3, .md-body h4 {
+  font-family: var(--font-han); color: var(--ink-100); font-weight: 700;
+  line-height: 1.4; margin: 14px 0 8px; letter-spacing: .02em; }
+.md-body h1 { font-size: 17px; }
+.md-body h2 { font-size: 15.5px; }
+.md-body h3 { font-size: 14px; }
+.md-body h4 { font-size: 13px; }
+.md-body p { margin: 6px 0; }
+.md-body ul, .md-body ol { margin: 6px 0; padding-left: 20px; }
+.md-body li { margin: 3px 0; }
+.md-body blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--accent);
+  color: var(--ink-50); background: rgba(127,127,127,.06); border-radius: 4px; }
+.md-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px;
+  background: rgba(127,127,127,.12); padding: 1px 5px; border-radius: 4px; }
+.md-body pre { margin: 8px 0; padding: 10px 12px; background: rgba(127,127,127,.10);
+  border: 1px solid var(--glass-bd); border-radius: 8px; overflow-x: auto; }
+.md-body pre code { background: none; padding: 0; font-size: 11.5px; line-height: 1.6; }
+.md-body table { border-collapse: collapse; margin: 8px 0; width: 100%; font-size: 12px;
+  display: block; overflow-x: auto; }
+.md-body th, .md-body td { border: 1px solid var(--glass-bd); padding: 5px 9px; text-align: left; vertical-align: top; }
+.md-body th { background: rgba(127,127,127,.10); color: var(--ink-100); font-weight: 600; white-space: nowrap; }
+.md-body td { color: var(--ink-70); }
+.md-body tr:nth-child(even) td { background: rgba(127,127,127,.04); }
+.md-body hr { border: none; border-top: 1px solid var(--glass-bd); margin: 10px 0; }
+
 /* 步骤流水线 */
 .steps { display: flex; flex-wrap: wrap; gap: 8px; }
 .step { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-30);
@@ -507,7 +578,6 @@ body.mode-cockpit .input-pill { box-shadow: 0 4px 20px rgba(20,30,40,.10), inset
   white-space: nowrap; letter-spacing: 0.3px; margin-bottom: 1px; }
 .send-pill:hover { transform: translateY(-1px); box-shadow: 0 6px 20px var(--glow); filter: brightness(1.08); }
 .send-pill:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-.tags-row { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; padding: 2px 16px 10px; }
 .tag-chip { display: inline-flex; align-items: center; gap: 4px; padding: 7px 16px; border-radius: 50px;
   background: var(--tag-bg); border: 1px solid var(--tag-border); color: var(--ink-70); font-size: 12.5px;
   font-weight: 400; cursor: pointer; transition: all .2s ease; white-space: nowrap; }
@@ -930,6 +1000,7 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
   box-shadow: 0 24px 60px -14px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset; }
 .cmp-pop-kb { left: 8px; }
 .cmp-pop-model { right: 8px; }
+.cmp-pop-skill { left: 8px; }
 .cmp-pop-head { display: flex; align-items: baseline; gap: 8px; padding: 4px 14px 8px; font-size: 13px;
   font-weight: 600; color: var(--ink-100); }
 .cmp-pop-sub { font-size: 11px; font-weight: 300; color: var(--ink-30); }
@@ -1015,10 +1086,10 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry { --door-width: min(222px, 38vw, 39.4vh); --door-spread: min(140px, 23vw); --door-stack: min(52px, 9vw);
   position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; overflow: hidden;
   transition: opacity .24s ease-out, visibility .24s; }
-/* 面纱：静止与进入全程保持浅色底（demo 同款），中途不淡出 —— 无背景切换、无闪烁；
+/* 面纱：舞台光影——柔径向渐变聚光灯（中心微亮、四周微暗），替代纯白硬底；
    场景从门内扩展铺满后，由整层统一淡出进入当前页面（见 door-overlay-out） */
 #door-entry .door-veil { position: absolute; inset: 0; z-index: 0;
-  background: radial-gradient(120% 90% at 50% 8%, #ffffff 0%, #fbfaf8 55%, #f3f1ec 100%);
+  background: radial-gradient(120% 95% at 50% 26%, #ffffff 0%, #fbfcfd 44%, #f2f4f7 76%, #e9edf2 100%);
   transition: transform .95s cubic-bezier(.32, 0, .18, 1); }
 #door-entry.is-entering.is-forward .door-veil { transform: scale(.94); }
 #door-entry.is-entering.is-back .door-veil { transform: scale(1.07); }
@@ -1032,6 +1103,9 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry #door-copy p { margin-top: 6px; font-size: clamp(10px, 1.5vh, 12px); letter-spacing: .3em; color: #a39c92; }
 #door-entry.is-entering #door-copy { opacity: 0; transform: translateY(-8px); }
 #door-entry.is-entering.is-back #door-copy { transform: translateY(-8px) scale(1.1); }
+/* 门组：仅作定位上下文（inset:0 对齐视口），slot 的全部既有定位/变换规则不变；
+   main-doors 不设 z-index —— slot 的层级直接参与 #door-entry 层叠上下文，与单份渲染时一致 */
+#door-entry .doors-group { position: absolute; inset: 0; }
 /* 门位（slot）：默认合拢（--door-x=stack、±11°交叉），展开（split）滑到 ±spread、转正微放大；
    运动全部走注册变量的过渡，transform 本身不再做 transition（避免双重平滑打断窗口锁定） */
 #door-entry .door-slot { --door-x: var(--door-stack); --door-hover-k: 1;
@@ -1051,13 +1125,18 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry:not(.split) .door-slot--tower .door-card { opacity: .88; }
 #door-entry.is-entering .door-slot .door-card { opacity: 1; }
 /* 门卡（card）：进入动效时 JS 写入 --door-dx/--door-dy/--door-k，卡片平移+缩放；
-   过渡写在变量上（1.05s），卡内 art 逆变换共享同一变量源 → 每帧互为精确倒数 */
+   过渡写在变量上（1.05s），卡内 art 逆变换共享同一变量源 → 每帧互为精确倒数。
+   多层弥散阴影 + 微光细边：柔和光线散射替代生硬单层投影，悬浮呼吸感 */
 #door-entry .door-card { --door-dx: 0px; --door-dy: 0px; --door-k: 1;
   position: absolute; inset: 0; border-radius: 6px; overflow: hidden; background: #fff;
-  box-shadow: 0 22px 50px rgba(20, 18, 14, .18), 0 3px 10px rgba(20, 18, 14, .08);
+  border: 1px solid rgba(255, 255, 255, .55);
+  box-shadow:
+    0 6px 18px -6px rgba(30, 50, 70, .07),
+    0 18px 44px -18px rgba(30, 50, 70, .16),
+    0 36px 90px -32px rgba(30, 50, 70, .13);
   will-change: transform;
   transition: --door-dx 1.05s cubic-bezier(.32, 0, .18, 1), --door-dy 1.05s cubic-bezier(.32, 0, .18, 1),
-    --door-k 1.05s cubic-bezier(.32, 0, .18, 1), opacity .5s ease, border-radius .7s ease, box-shadow .6s ease;
+    --door-k 1.05s cubic-bezier(.32, 0, .18, 1), opacity .5s ease, border-radius .7s ease, box-shadow .6s ease, border-color .6s ease;
   transform: translate(var(--door-dx), var(--door-dy)) scale(var(--door-k)); }
 /* 窗口画面层（art）：100vw×100vh 大图，逆变换抵消 slot+card 全部祖先变换 → 恒与视口锁死。
    逆变换公式（与计划一致，外→内 = 左→右）：
@@ -1069,7 +1148,7 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
     translateX(calc(-1 * var(--door-sign) * var(--door-x))); }
 /* 画面参数与真实页面背景逐项一致（对应 .layer-tower/.layer-cockpit 的 position+filter），衔接零色差 */
 #door-entry .door-art--tower { background-image: url('/assets/bg-watchtower.png'); background-position: 50% 54%;
-  filter: brightness(.7) saturate(.8) contrast(1.08); }
+  filter: brightness(.82) saturate(.85) contrast(1.04); }
 #door-entry .door-art--cockpit { background-image: url('/assets/bg-cockpit.png'); background-position: center center;
   filter: brightness(.98) saturate(.78) contrast(1.02); }
 /* 色调连续叠层（art::after 复刻 .layer::after）：tower 噪点 soft-light；cockpit 浅色渐晕 normal */
@@ -1079,7 +1158,7 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry .door-slot--cockpit .door-art::after { opacity: 1; mix-blend-mode: normal;
   background:
     linear-gradient(90deg, rgba(246, 242, 233, .92) 0%, rgba(246, 242, 233, .62) 38%, rgba(246, 242, 233, .05) 72%),
-    linear-gradient(180deg, rgba(244, 240, 232, .5), transparent 27%, transparent 66%, rgba(226, 222, 213, .42)); }
+    linear-gradient(180deg, rgba(244, 240, 232, .5), transparent 27%, transparent 66%, rgba(226, 222, 213, .2)); }
 /* 光影层（card::before）：顶部柔和高光 + 斜向流光，hover 时流光平移、亮度微升；is-entering 时淡出 */
 #door-entry .door-card::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   mix-blend-mode: soft-light; opacity: .9;
@@ -1112,12 +1191,15 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry.is-entering.is-forward { animation: door-overlay-out .45s ease 1.05s forwards; }
 #door-entry.is-entering.is-back { animation: door-overlay-out .45s ease .95s forwards; }
 @keyframes door-overlay-out { to { opacity: 0; } }
+/* 青山知识库（第三入口）：门卡不走形变，开屏整体由下向上推移退场（第三层同步自下向上推进，见 layer-qingshan） */
+#door-entry.is-entering.is-qingshan { transform: translateY(-100vh); opacity: 0;
+  transition: transform 1.2s cubic-bezier(.76, 0, .24, 1), opacity 1s ease .2s; }
 /* 左门（Xin语）：参照 ui/XinHere.html demo —— 门框随放大淡出模糊（opacity 1-q、blur 6q，文字/阴影隐去），
    门内场景（与页面同源的窗口锁定背景）同步扩展铺满全屏 */
 #door-entry .door-slot.enter-forward { z-index: 6; }
-#door-entry .door-slot.enter-forward .door-card { border-radius: 0; box-shadow: none;
+#door-entry .door-slot.enter-forward .door-card { border-radius: 0; border-color: transparent; box-shadow: none;
   transition: --door-dx 1.05s cubic-bezier(.32, 0, .18, 1), --door-dy 1.05s cubic-bezier(.32, 0, .18, 1),
-    --door-k 1.05s cubic-bezier(.32, 0, .18, 1), border-radius .7s ease, box-shadow 1.05s cubic-bezier(.32, 0, .18, 1); }
+    --door-k 1.05s cubic-bezier(.32, 0, .18, 1), border-radius .7s ease, border-color .6s ease, box-shadow 1.05s cubic-bezier(.32, 0, .18, 1); }
 #door-entry .door-slot.enter-forward .door-tag,
 #door-entry .door-slot.enter-forward .door-name { opacity: 0; filter: blur(6px);
   transition: opacity 1.05s cubic-bezier(.32, 0, .18, 1), filter 1.05s cubic-bezier(.32, 0, .18, 1); }
@@ -1132,12 +1214,169 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 /* 未选中的门退场：变量归中（x=0、转正、缩 .9）+ 淡出 */
 #door-entry .door-slot.exit { --door-x: 0px; --door-rot: 0deg; --door-hover-k: .9; opacity: 0; pointer-events: none;
   transition: --door-x .42s ease-in, --door-rot .42s ease-in, --door-hover-k .42s ease-in, opacity .28s ease-in; }
+/* =====================================================================
+   水面（door-water）：水线以下的光影动效区——深青蓝水质底色（远岸薄雾渐入深水 +
+   右上暖金光区）、波光细纹、光斑晕染、粼粼光点、自中心扩散的涟漪；纯装饰层
+   不承载门的映像，与扁平门卡同处一个物理空间
+   ===================================================================== */
+/* 水线 = 门底缘 + 26px 间隙 + 额外下移 7vh —— 水面下移让出门与水面之间的 band，
+   供青山能量裂隙浮出（见 qingshan-steps 区块）；
+   用 vh 绝对单位而非 % —— 避免各使用处包含块高度不同导致百分比错位 */
+#door-entry { --door-water-y: calc(50vh + var(--door-width) * .7928 + 26px + 7vh); }
+/* 水面容器：铺在水线之下，overflow:hidden 兜底防溢出；
+   深青蓝水质底色——顶部远岸薄雾（衔接白色舞台）渐入深水，右上叠一抹暖金光区
+   （对应真实水面的夕照光路），水线中轴透出青山裂隙的绿光 */
+#door-entry .water-surface { position: absolute; left: 0; right: 0; top: var(--door-water-y); bottom: 0; z-index: 1;
+  overflow: hidden; pointer-events: none;
+  background:
+    radial-gradient(46% 62% at 80% -8%, rgba(238, 198, 140, .4) 0%, rgba(238, 198, 140, .1) 46%, transparent 72%),
+    radial-gradient(42% 55% at 50% -4%, rgba(16, 185, 129, .13) 0%, transparent 70%),
+    linear-gradient(180deg, #ccd9de 0%, #93b1bd 9%, #567f92 24%, #336076 44%, #1d475a 68%, #0e2f40 100%); }
+/* 水线高光：远岸雾面与天光的分界 */
+#door-entry .water-surface::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; z-index: 2;
+  background: linear-gradient(90deg, transparent 8%, rgba(214, 234, 244, .45) 50%, transparent 92%); }
+/* 深水压暗：越近越深，让水质沉稳，也压住底部避免波光过亮 */
+#door-entry .water-surface::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, transparent 42%, rgba(6, 22, 31, .5) 100%); }
+/* 波光细纹（shimmer）：断续的短条光斑（细椭圆）以素数尺寸 tile 平铺，
+   两个 tile 组 × 各 4 条斑，漂移方向两两相反、位移 = 各自 tile 高度（无缝循环），
+   相互错切叠出细密水纹底理——比通长条纹更贴近真实水面的断续反光 */
+#door-entry .water-shimmer { position: absolute; inset: 0; opacity: .9;
+  background-image:
+    radial-gradient(30px 2px at 18% 22%, rgba(255, 255, 255, .12) 0%, transparent 100%),
+    radial-gradient(46px 2.5px at 62% 48%, rgba(200, 230, 245, .1) 0%, transparent 100%),
+    radial-gradient(24px 1.6px at 84% 70%, rgba(255, 255, 255, .09) 0%, transparent 100%),
+    radial-gradient(38px 2px at 40% 86%, rgba(190, 225, 240, .09) 0%, transparent 100%),
+    radial-gradient(26px 1.8px at 70% 30%, rgba(255, 255, 255, .08) 0%, transparent 100%),
+    radial-gradient(40px 2.2px at 12% 58%, rgba(200, 230, 245, .08) 0%, transparent 100%),
+    radial-gradient(22px 1.5px at 52% 12%, rgba(255, 255, 255, .07) 0%, transparent 100%),
+    radial-gradient(34px 2px at 88% 90%, rgba(190, 225, 240, .07) 0%, transparent 100%);
+  background-size: 257px 83px, 257px 83px, 257px 83px, 257px 83px, 173px 61px, 173px 61px, 173px 61px, 173px 61px;
+  background-repeat: repeat;
+  animation: water-shimmer 12s linear infinite; }
+@keyframes water-shimmer { to { background-position: 0 83px, 0 -83px, 0 83px, 0 -83px, 0 61px, 0 -61px, 0 61px, 0 -61px; } }
+/* 光斑晕染（gleam）：右上暖金光区 + 边缘亮纱，screen 提亮，呼吸式明暗模拟光路闪烁 */
+#door-entry .water-gleam { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background:
+    radial-gradient(38% 52% at 79% 8%, rgba(238, 198, 140, .3) 0%, transparent 70%),
+    radial-gradient(24% 34% at 90% 30%, rgba(255, 244, 224, .18) 0%, transparent 70%);
+  animation: water-gleam 5.2s ease-in-out infinite alternate; }
+@keyframes water-gleam {
+  0% { opacity: .5; transform: scaleY(1); }
+  100% { opacity: 1; transform: scaleY(1.1); }
+}
+/* 粼粼光点（sparkle）：细碎光点以素数尺寸 tile 密铺，三层不同密度/相位各自闪烁 +
+   极缓慢横漂，模拟阳光在波峰上的点点反光；第三层光点更大更暖，用 mask 渐入靠向
+   右上光区——光点亮度随光路分布，与照片中的粼粼金波同构 */
+#door-entry .water-sparkle { position: absolute; inset: 0; pointer-events: none; }
+#door-entry .water-sparkle--1 {
+  background-image:
+    radial-gradient(1.6px 1px at 14% 30%, rgba(255, 255, 255, .9) 35%, transparent 70%),
+    radial-gradient(1.2px .8px at 52% 66%, rgba(255, 255, 255, .65) 35%, transparent 70%),
+    radial-gradient(1.8px 1.1px at 80% 42%, rgba(255, 246, 224, .8) 35%, transparent 70%),
+    radial-gradient(1.1px .7px at 36% 84%, rgba(214, 238, 255, .6) 35%, transparent 70%);
+  background-size: 163px 59px;
+  animation: water-sparkle-a 3.4s ease-in-out infinite, water-drift 17s linear infinite; }
+#door-entry .water-sparkle--2 {
+  background-image:
+    radial-gradient(1.4px .9px at 28% 52%, rgba(255, 255, 255, .75) 35%, transparent 70%),
+    radial-gradient(1.9px 1.2px at 66% 24%, rgba(255, 255, 255, .7) 35%, transparent 70%),
+    radial-gradient(1.2px .8px at 88% 78%, rgba(214, 238, 255, .55) 35%, transparent 70%),
+    radial-gradient(1.6px 1px at 6% 12%, rgba(255, 246, 224, .6) 35%, transparent 70%);
+  background-size: 197px 71px;
+  animation: water-sparkle-b 4.6s ease-in-out infinite, water-drift 23s linear infinite reverse; }
+#door-entry .water-sparkle--3 {
+  background-image:
+    radial-gradient(2.6px 1.6px at 22% 38%, rgba(255, 240, 214, .85) 30%, transparent 70%),
+    radial-gradient(3.2px 2px at 58% 58%, rgba(255, 236, 200, .7) 30%, transparent 70%),
+    radial-gradient(2.2px 1.4px at 82% 26%, rgba(255, 248, 230, .9) 30%, transparent 70%),
+    radial-gradient(2px 1.2px at 8% 74%, rgba(255, 240, 214, .55) 30%, transparent 70%);
+  background-size: 233px 89px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 22%, #000 70%);
+  mask-image: linear-gradient(90deg, transparent 22%, #000 70%);
+  animation: water-sparkle-c 2.9s ease-in-out infinite, water-drift 29s linear infinite; }
+@keyframes water-sparkle-a { 0%, 100% { opacity: .2; } 50% { opacity: .95; } }
+@keyframes water-sparkle-b { 0%, 100% { opacity: .85; } 45% { opacity: .15; } }
+@keyframes water-sparkle-c { 0%, 100% { opacity: .3; } 40% { opacity: 1; } 70% { opacity: .5; } }
+@keyframes water-drift { to { background-position: -40px 0, 26px 0, -32px 0, 20px 0; } }
+/* 涟漪：自水面中心（双门合拢轴心）不断向外扩散的同心椭圆环——四环错相位连续发射，
+   循环无缝（延迟 = 周期/4），扩散至约 3 倍后淡出，呈现水纹层层荡开的韵律 */
+#door-entry .water-ripple { position: absolute; left: 50%; top: 44px; width: 240px; height: 48px; margin: -24px 0 0 -120px;
+  border-radius: 50%; border: 1px solid rgba(214, 236, 250, .6); box-shadow: inset 0 0 16px rgba(255, 255, 255, .12);
+  opacity: 0; transform: scale(.16); animation: water-ripple 5.6s cubic-bezier(.17, .6, .35, 1) infinite; }
+#door-entry .water-ripple--2 { animation-delay: 1.4s; }
+#door-entry .water-ripple--3 { animation-delay: 2.8s; }
+#door-entry .water-ripple--4 { animation-delay: 4.2s; }
+@keyframes water-ripple {
+  0% { opacity: 0; transform: scale(.16); }
+  10% { opacity: .55; }
+  100% { opacity: 0; transform: scale(3); }
+}
+/* =====================================================================
+   青山知识库（第三入口）：能量裂隙式底座——极窄发光线 + 椭圆光池，文字悬浮其上；
+   无实体色块、无 3D 俯视角，与扁平门卡同处一个物理空间；
+   全屏氛围光自底部弥散融入舞台；点击后开屏整体上推进入第三页面
+   ===================================================================== */
+/* 全屏氛围光：底部青绿微光向上弥散至半屏淡出（替代聚焦光束，作全局氛围而非一团雾气） */
+#door-entry .qingshan-amblight { position: absolute; left: 0; right: 0; bottom: 0; height: 56vh; z-index: 1;
+  pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(60% 55% at 50% 108%, rgba(16, 185, 129, .15) 0%, transparent 70%),
+    linear-gradient(to top, rgba(16, 185, 129, .09) 0%, rgba(16, 185, 129, .035) 40%, transparent 75%);
+  transition: opacity .9s ease; }
+#door-entry.split .qingshan-amblight { opacity: 1; transition-delay: .3s; }
+#door-entry.is-entering:not(.is-qingshan) .qingshan-amblight { opacity: 0;
+  transition: opacity .35s ease-in; transition-delay: 0s; }
+/* 底座容器：题字 + 裂隙发光线，初始沉入水下，split 后延后浮出 */
+#door-entry .qingshan-steps { position: absolute; z-index: 20; left: 50%;
+  bottom: calc(100vh - var(--door-water-y) - 1vh); /* 发光线贴着水线：光从水中裂隙透出 */
+  display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer;
+  padding: 12px 56px 18px;
+  transform: translateX(-50%) translateY(110px); opacity: 0; pointer-events: none;
+  will-change: transform, opacity;
+  transition: transform 1s cubic-bezier(.23, 1, .32, 1), opacity .8s ease; }
+/* 双门展开：底座延后浮出水面（delay 错开门体滑开动画） */
+#door-entry.split .qingshan-steps { transform: translateX(-50%) translateY(0); opacity: 1;
+  pointer-events: auto; transition-delay: .45s, .45s; }
+/* 进入 Xin语/Xin台 时底座退场（青山进入时随开屏整体上推，不在此列） */
+#door-entry.is-entering:not(.is-qingshan) .qingshan-steps { opacity: 0; pointer-events: none;
+  transform: translateX(-50%) translateY(110px);
+  transition: transform .35s ease-in, opacity .35s ease-in; transition-delay: 0s, 0s; }
+/* 极简题字：无底色悬浮，深松绿压在浅色舞台上，微弱青绿衬光 */
+#door-entry .qingshan-label { position: relative; font-family: var(--font-han); font-size: 18px; font-weight: 600;
+  letter-spacing: .42em; text-indent: .42em; color: #1d4a3a;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .65), 0 6px 18px rgba(16, 185, 129, .16);
+  transition: color .3s ease, text-shadow .3s ease; }
+/* 能量裂隙：极窄发光线（椭圆透视）+ ::after 椭圆光池，舞台感而非按钮感 */
+#door-entry .qingshan-line { position: relative; width: min(400px, 52vw); height: 4px; border-radius: 50%;
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, .8) 32% 68%, transparent);
+  box-shadow: 0 0 20px 5px rgba(16, 185, 129, .32);
+  animation: qingshan-line 3.8s ease-in-out infinite alternate; }
+#door-entry .qingshan-line::after { content: ""; position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); width: 175%; height: 110px; border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(16, 185, 129, .2) 0%, transparent 70%);
+  filter: blur(6px); pointer-events: none; }
+@keyframes qingshan-line { 0% { opacity: .6; transform: scaleX(.94); } 100% { opacity: 1; transform: scaleX(1); } }
+/* hover：光隙增亮、题字转深，光池同步变亮 */
+#door-entry .qingshan-steps:hover .qingshan-line { box-shadow: 0 0 30px 8px rgba(16, 185, 129, .48); filter: brightness(1.25); }
+#door-entry .qingshan-steps:hover .qingshan-line::after { background: radial-gradient(50% 50% at 50% 50%, rgba(16, 185, 129, .3) 0%, transparent 70%); }
+#door-entry .qingshan-steps:hover .qingshan-label { color: #0f3d2e;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .7), 0 8px 24px rgba(16, 185, 129, .28); }
 /* 无障碍：偏好减弱动效时压缩运动（变量瞬时到位，仅保留淡入淡出） */
 @media (prefers-reduced-motion: reduce) {
   #door-entry .door-veil { transition: none; }
   #door-entry.is-entering.is-forward, #door-entry.is-entering.is-back { animation-duration: .15s; animation-delay: .1s; }
   #door-entry .door-slot { transition: --door-x .01s, --door-rot .01s, --door-hover-k .01s, opacity .25s ease; }
   #door-entry .door-card { transition: --door-dx .01s, --door-dy .01s, --door-k .01s, opacity .25s ease; }
+  /* 水面降级：关掉涟漪/波光/光点动画，保留静态水质底色与微弱光斑 */
+  #door-entry .water-ripple, #door-entry .water-shimmer, #door-entry .water-sparkle { animation: none; }
+  #door-entry .water-ripple { opacity: 0; }
+  #door-entry .water-shimmer { opacity: .45; }
+  #door-entry .water-sparkle { opacity: .55; }
+  #door-entry .water-gleam { animation: none; opacity: .6; }
+  #door-entry .qingshan-line { animation: none; opacity: .9; }
+  #door-entry .qingshan-amblight { transition: none; }
+  #door-entry .qingshan-steps { transition-duration: .01s, .01s; transition-delay: 0s, 0s; }
 }
 
 /* =====================================================================

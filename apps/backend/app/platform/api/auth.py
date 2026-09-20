@@ -110,6 +110,9 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
     ):
         raise errors.unauthorized("用户名或口令错误")
     token = _issue_token(db, user)
+    # 登录关键路径：立即提交，确保响应发出前 token 已落库，
+    # 避免客户端拿到 token 立即请求时偶发 401（新 token 短暂不可见）。
+    db.commit()
     return {"token": token, "user": user_view(user)}
 
 
@@ -208,6 +211,8 @@ def sso_callback(
     if xuanpu_token and isinstance(expires_in, (int, float)):
         xuanpu_token_exp = datetime.now(timezone.utc) + timedelta(seconds=float(expires_in))
     token = _issue_token(db, user, xuanpu_token=xuanpu_token, xuanpu_token_exp=xuanpu_token_exp)
+    # 同登录路径：立即提交，保证 302 落地后 token 立即可用。
+    db.commit()
     return RedirectResponse(
         f"{settings.frontend_url}/?sso_token={quote(token, safe='')}", status_code=302
     )
@@ -258,6 +263,8 @@ def sso_ticket(
     if xuanpu_token and isinstance(expires_in, (int, float)):
         xuanpu_token_exp = datetime.now(timezone.utc) + timedelta(seconds=float(expires_in))
     token = _issue_token(db, user, xuanpu_token=xuanpu_token, xuanpu_token_exp=xuanpu_token_exp)
+    # 同登录路径：立即提交，保证 302 落地后 token 立即可用。
+    db.commit()
     return RedirectResponse(
         f"{settings.frontend_url}/?sso_token={quote(token, safe='')}", status_code=302
     )

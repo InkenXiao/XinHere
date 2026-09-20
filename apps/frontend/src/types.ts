@@ -370,4 +370,5 @@ export interface SendOptions {
   webSearch?: boolean
   model?: string
   fileNames?: string[]
+  skill?: string // 技能市场技能名：本轮对话加载并执行该技能
 }

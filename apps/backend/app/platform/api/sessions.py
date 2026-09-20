@@ -21,6 +21,8 @@ from ...persistence.models import (
     SysUser,
 )
 from ...services import files as files_svc
+from ...services import skill_files
+from ...services import xuanpu as xuanpu_svc
 from ...persistence.session import get_db
 from ..agent.component_handlers import HANDLERS, apply_update_draft
 from ..agent.executor import executor
@@ -139,6 +141,40 @@ class ChatIn(BaseModel):
     web_search: bool = False   # 联网搜索开关
     model: str = ""            # 模型通道 (main 标准 / small 快速, 空=标准)
     file_names: list[str] | None = None  # 已上传附件的存储名
+    # 技能市场技能名（如 deep_research_v3）：本轮对话加载该技能的执行指引
+    skill: str | None = None
+
+
+def _resolve_skill(user: SysUser, skill: str | None) -> tuple[str | None, str, str]:
+    """解析本轮技能选择 → (执行指引, 本地技能 key, 技能来源)。
+
+    - local:<key>：本地文件夹技能（backend/skills/<key>/SKILL.md 正文即指引）；
+    - xuanpu:<name>：技能市场技能（读取上架执行指引；兼容不带前缀的市场技能名）。
+      若本地存在同名文件夹技能包，则附加其 key（混合模式：市场指引 + 本地文件/脚本工具，
+      使市场链路具备真实落盘与 PDF 生成能力；无同名包时维持纯市场模式）。
+    技能不存在或平台不可达时拒绝本轮请求。
+    """
+    s = (skill or "").strip()
+    if not s:
+        return None, "", ""
+    if s.startswith("local:"):
+        key = s[len("local:"):].strip()
+        sk = skill_files.get_file_skill(key)
+        if not sk:
+            raise errors.validation(f"未找到本地技能「{key}」，请确认技能名称")
+        return sk["prompt"], key, "local"
+    if s.startswith("xuanpu:"):
+        s = s[len("xuanpu:"):].strip()
+    identity = user.display_name or user.username
+    try:
+        info = xuanpu_svc.skill_info(s, identity)
+    except Exception as exc:  # noqa: BLE001
+        raise errors.validation(f"技能指引读取失败（{str(exc)[:120]}），请稍后重试或取消选择技能")
+    prompt = (info or {}).get("instructions") if isinstance(info, dict) else None
+    if not prompt:
+        raise errors.validation(f"未找到技能「{s}」的执行指引，请确认技能名称")
+    local = skill_files.get_file_skill(s)
+    return prompt[:20000], local["skill_key"] if local else "", "xuanpu"
 
 
 @router.post("/{session_id}/chat")
@@ -171,9 +207,9 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         )
     ) + 1
     store.append(session_id, "turn/start", {"turn": turn, "version": 1}, turn=turn)
-    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s files=%s model=%s web=%s msg=%.80s",
+    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s files=%s model=%s web=%s skill=%s msg=%.80s",
                 session_id, turn, user.username, body.kb_ids, file_names,
-                body.model, body.web_search, message)
+                body.model, body.web_search, body.skill or "-", message)
 
     # 组装 LLM 实际输入: 附件深度解析 (图片→视觉模型 / PDF→文本层→mineru) + 联网开关提示
     llm_content = message
@@ -192,7 +228,12 @@ async def chat(session_id: str, body: ChatIn, request: Request,
             logger.warning("附件解析失败 sid=%s: %s", session_id, exc)
     if body.web_search:
         llm_content = f"【联网搜索已开启】可使用 web_search 工具检索互联网公开信息后作答。\n{llm_content}"
-    executor.start_turn(session_id, user, llm_content, request_id, model_key=body.model)
+    skill_prompt, skill_key, skill_source = _resolve_skill(user, body.skill)
+    if skill_prompt:
+        llm_content = f"{llm_content}\n（用户已选择技能，请严格按系统提示词中的技能约定执行）"
+    executor.start_turn(session_id, user, llm_content, request_id,
+                        model_key=body.model, skill_prompt=skill_prompt, skill_key=skill_key,
+                        skill_source=skill_source)
 
     async def gen():
         try:
