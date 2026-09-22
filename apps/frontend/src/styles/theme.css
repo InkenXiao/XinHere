@@ -155,18 +155,18 @@ input, textarea, select { font: inherit; }
   filter: brightness(.82) saturate(.85) contrast(1.04); animation: bg-breathe 12s ease-in-out infinite alternate; }
 @keyframes bg-breathe { from { transform: scale(1); } to { transform: scale(1.045); } }
 .layer-tower::after { mix-blend-mode: soft-light; }
-/* 青山知识库（青绿山水·第三页面）：层体自下向上推进入场，离开时落回；背景为纯 CSS/SVG 青绿山水（无外部图片依赖） */
+/* 青山知识库（青绿山水·第三页面）：层体自下向上推进入场，离开时落回；背景为青绿山水，
+   兼作内嵌知识库平台（iframe）的加载幕 */
 .layer-qingshan { z-index: 4; color: #e2f1ec; transform: translateY(38vh); will-change: transform, opacity;
   transition: opacity .9s ease, transform 1.15s cubic-bezier(.22, 1, .36, 1), visibility 0s linear .9s; }
 body.mode-qingshan .layer-qingshan { transform: translateY(0); }
 .layer-qingshan .bg { background-color: #04100c;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='900' viewBox='0 0 1600 900' preserveAspectRatio='xMidYMid slice'><defs><linearGradient id='sky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%230b2d24'/><stop offset='.5' stop-color='%230e3a2d'/><stop offset='1' stop-color='%2304100c'/></linearGradient><linearGradient id='mist' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%239fd3c0' stop-opacity='0'/><stop offset='.5' stop-color='%239fd3c0' stop-opacity='.14'/><stop offset='1' stop-color='%239fd3c0' stop-opacity='0'/></linearGradient></defs><rect width='1600' height='900' fill='url(%23sky)'/><path d='M0 500 L150 420 L320 495 L480 375 L650 480 L830 385 L1010 490 L1190 405 L1370 485 L1600 415 L1600 900 L0 900 Z' fill='%23155040' opacity='.55'/><path d='M0 610 L190 505 L380 590 L570 470 L770 585 L980 495 L1190 600 L1400 515 L1600 585 L1600 900 L0 900 Z' fill='%230f3d31' opacity='.8'/><rect y='520' width='1600' height='120' fill='url(%23mist)'/><path d='M0 740 L230 630 L450 715 L680 610 L920 720 L1160 630 L1400 725 L1600 655 L1600 900 L0 900 Z' fill='%23092019'/><rect y='700' width='1600' height='110' fill='url(%23mist)' opacity='.7'/></svg>");
   animation: bg-breathe 14s ease-in-out infinite alternate; }
-.layer-qingshan::after { mix-blend-mode: soft-light; opacity: .5; }
-/* 青山首屏主视觉（占位）：居中题字 */
-.qs-home { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
-.qs-home h1 { font-family: var(--font-han); font-size: clamp(30px, 5vh, 44px); font-weight: 600; letter-spacing: .34em; text-indent: .34em; color: #eafaf3; text-shadow: 0 4px 30px rgba(4, 16, 12, .8); }
-.qs-home p { margin-top: 14px; font-size: clamp(12px, 1.8vh, 14px); letter-spacing: .5em; text-indent: .5em; color: rgba(226, 241, 236, .66); }
+.layer-qingshan::after { display: none; }
+/* 知识库平台内嵌页（iframe）：铺满层体，未加载完成/未配置 KB_URL 时露出下方青绿山水加载幕 */
+.layer-qingshan .qs-frame { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
+  border: 0; display: block; background: transparent; }
 /* 夜态星空粒子 canvas（Starfield 组件）：位于背景之上、内容之下 */
 .tw-fx { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 /* 层显隐：当前模式立即显形（visibility 延迟清零），离场层淡出 .9s 后再隐藏 */
@@ -1086,10 +1086,13 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry { --door-width: min(222px, 38vw, 39.4vh); --door-spread: min(140px, 23vw); --door-stack: min(52px, 9vw);
   position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; overflow: hidden;
   transition: opacity .24s ease-out, visibility .24s; }
-/* 面纱：舞台光影——柔径向渐变聚光灯（中心微亮、四周微暗），替代纯白硬底；
-   场景从门内扩展铺满后，由整层统一淡出进入当前页面（见 door-overlay-out） */
+/* 面纱：舞台光影——暖纸白墙面（与 demo 离线版同配方）+ 中央柔光聚亮，
+   替代纯白硬底；场景从门内扩展铺满后，由整层统一淡出进入当前页面（见 door-overlay-out） */
 #door-entry .door-veil { position: absolute; inset: 0; z-index: 0;
-  background: radial-gradient(120% 95% at 50% 26%, #ffffff 0%, #fbfcfd 44%, #f2f4f7 76%, #e9edf2 100%);
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 40%,
+      #ffffff 0%, rgba(255, 255, 255, .55) 42%, rgba(255, 255, 255, 0) 78%),
+    linear-gradient(180deg, #f9f8f3 0%, #f4f3ee 100%);
   transition: transform .95s cubic-bezier(.32, 0, .18, 1); }
 #door-entry.is-entering.is-forward .door-veil { transform: scale(.94); }
 #door-entry.is-entering.is-back .door-veil { transform: scale(1.07); }
@@ -1213,362 +1216,105 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry .door-slot.exit { --door-x: 0px; --door-rot: 0deg; --door-hover-k: .9; opacity: 0; pointer-events: none;
   transition: --door-x .42s ease-in, --door-rot .42s ease-in, --door-hover-k .42s ease-in, opacity .28s ease-in; }
 /* =====================================================================
-   水面（door-water）：水线以下的光影动效区——深青蓝水质底色（远岸薄雾渐入深水 +
-   右上暖金光区）、水线浪脊起伏、宽幅涌浪波带、波光细纹、光斑晕染、粼粼光点、
-   近岸碎浪花、中心扩散涟漪 + 偏心次级涟漪；纯装饰层
-   不承载门的映像，与扁平门卡同处一个物理空间
+   水面（door-water）：水线以下的青山倒影 + 液态水面（参照 ui demo 离线版）——
+   CSS 倒影兜底层（青山画卷垂直翻转沉入水线以下，水波轻晃、向下渐隐）+
+   threejs-components liquid1 液态水面（底图 = 倒影 + 水色烘进纹理，波纹实时扭曲，
+   指针划过起涟漪、「青山」中心定时荡开大环）；WebGL 不可用时静默回退 CSS 倒影；
+   默认水面干净，双门展开（split）后与门立正同步淡入
    ===================================================================== */
 /* 水线 = 门底缘 + 26px 间隙 + 额外下移 7vh —— 水面下移让出门与水面之间的 band，
-   供青山能量裂隙浮出（见 qingshan-steps 区块）；
+   供「青山」入口浮出（见 qingshan-mark 区块）；
    用 vh 绝对单位而非 % —— 避免各使用处包含块高度不同导致百分比错位 */
-#door-entry { --door-water-y: calc(50vh + var(--door-width) * .7928 + 26px + 7vh);
-  /* 青山山形宽度：双峰并峙、体量秀气——峰顶段自两卡间隙探出，山麓没入水中 */
-  --qingshan-w: min(400px, 50vw); }
-/* 水面容器：铺在水线之下，overflow:hidden 兜底防溢出；
-   山水一体水质，五重层次——顶部暖白柔雾横带（衔接山脚雾气）、右上淡暖光、
-   水中雾影团块（青灰影/暖影/浅色反光带错落漂浮）、向下多段渐入青绿深水 */
-#door-entry .water-surface { position: absolute; left: 0; right: 0; top: var(--door-water-y); bottom: 0; z-index: 1;
-  overflow: hidden; pointer-events: none;
-  background:
-    radial-gradient(52% 46% at 50% 0%, rgba(248, 244, 226, .92) 0%, rgba(240, 240, 222, .5) 42%, transparent 74%),
-    radial-gradient(46% 62% at 80% -8%, rgba(240, 214, 170, .16) 0%, rgba(240, 214, 170, .04) 46%, transparent 72%),
-    radial-gradient(42% 20% at 26% 26%, rgba(96, 146, 124, .16) 0%, transparent 72%),
-    radial-gradient(36% 18% at 74% 44%, rgba(206, 192, 156, .13) 0%, transparent 70%),
-    radial-gradient(50% 24% at 48% 64%, rgba(236, 246, 234, .15) 0%, transparent 72%),
-    linear-gradient(180deg, #f0f2e4 0%, #d9e7d2 12%, #b3d6bd 26%, #8fbfa6 42%, #6fae97 58%, #55a08a 74%, #42907c 88%, #378572 100%); }
-/* 水线微光：雾面与水面的柔和衔接（弱化分界感，融入山水一体） */
-#door-entry .water-surface::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; z-index: 2;
-  background: linear-gradient(90deg, transparent 8%, rgba(230, 244, 238, .32) 50%, transparent 92%); }
-/* 深水压暗：越近越深但保持通透清澈（轻度压暗，也压住底部避免波光过亮） */
-#door-entry .water-surface::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(180deg, transparent 50%, rgba(4, 32, 28, .07) 100%); }
-/* 波光细纹（shimmer）：断续的短条光斑（细椭圆）以素数尺寸 tile 平铺，
-   两个 tile 组 × 各 4 条斑，斜向漂移、方向两两相反（纵向位移 = tile 高度保证无缝循环），
-   相互错切叠出细密水纹底理——比通长条纹更贴近真实水面的断续反光 */
-#door-entry .water-shimmer { position: absolute; inset: 0; opacity: .9;
-  background-image:
-    radial-gradient(30px 2px at 18% 22%, rgba(255, 255, 255, .12) 0%, transparent 100%),
-    radial-gradient(46px 2.5px at 62% 48%, rgba(200, 230, 245, .1) 0%, transparent 100%),
-    radial-gradient(24px 1.6px at 84% 70%, rgba(255, 255, 255, .09) 0%, transparent 100%),
-    radial-gradient(38px 2px at 40% 86%, rgba(190, 225, 240, .09) 0%, transparent 100%),
-    radial-gradient(26px 1.8px at 70% 30%, rgba(255, 255, 255, .08) 0%, transparent 100%),
-    radial-gradient(40px 2.2px at 12% 58%, rgba(200, 230, 245, .08) 0%, transparent 100%),
-    radial-gradient(22px 1.5px at 52% 12%, rgba(255, 255, 255, .07) 0%, transparent 100%),
-    radial-gradient(34px 2px at 88% 90%, rgba(190, 225, 240, .07) 0%, transparent 100%);
-  background-size: 257px 83px, 257px 83px, 257px 83px, 257px 83px, 173px 61px, 173px 61px, 173px 61px, 173px 61px;
-  background-repeat: repeat;
-  animation: water-shimmer 12s linear infinite; }
-@keyframes water-shimmer { to { background-position: -41px 83px, 53px -83px, -29px 83px, 47px -83px, -23px 61px, 31px -61px, -19px 61px, 27px -61px; } }
-/* 光斑晕染（gleam）：右上暖金光区 + 边缘亮纱，screen 提亮，呼吸式明暗模拟光路闪烁 */
-#door-entry .water-gleam { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
-  background:
-    radial-gradient(38% 52% at 79% 8%, rgba(238, 198, 140, .3) 0%, transparent 70%),
-    radial-gradient(24% 34% at 90% 30%, rgba(255, 244, 224, .18) 0%, transparent 70%);
-  animation: water-gleam 5.2s ease-in-out infinite alternate; }
-@keyframes water-gleam {
-  0% { opacity: .5; transform: translateX(-1.2%) scaleY(1); }
-  100% { opacity: 1; transform: translateX(1.2%) scaleY(1.08); }
+#door-entry { --door-water-y: calc(50vh + var(--door-width) * .7928 + 26px + 7vh); }
+
+/* ---- 青山倒影（CSS 兜底层）：图片垂直翻转沉到水线下，沿水线全宽铺开，
+   雾岸贴线、山脊倒悬、向下渐隐；青灰水色融合 + 轻微虚化，随水波轻晃 ---- */
+#door-entry .qs-reflection { position: absolute; left: 0; right: 0; top: var(--door-water-y); bottom: 0; z-index: 1;
+  overflow: hidden; pointer-events: none; opacity: 0;
+  transition: opacity 1.1s cubic-bezier(.2, .7, .3, 1);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, .07) 0%, rgba(0, 0, 0, .07) 12%, #000 50%, #000 100%), linear-gradient(180deg, rgba(0, 0, 0, .96) 0%, rgba(0, 0, 0, .65) 38%, rgba(0, 0, 0, .30) 76%, rgba(0, 0, 0, .04) 96%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, .07) 0%, rgba(0, 0, 0, .07) 12%, #000 50%, #000 100%), linear-gradient(180deg, rgba(0, 0, 0, .96) 0%, rgba(0, 0, 0, .65) 38%, rgba(0, 0, 0, .30) 76%, rgba(0, 0, 0, .04) 96%);
+  mask-composite: intersect; }
+#door-entry .qs-reflection i { position: absolute; inset: 0; display: block;
+  transform: scaleY(-1);
+  background-image: url('/assets/qingshan-reflect.jpg');
+  background-size: 100% auto;
+  background-position: center 70%;
+  background-repeat: no-repeat;
+  filter: blur(2px) saturate(.9) brightness(1.03);
+  opacity: .28;
+  animation: qs-water-sway 7s ease-in-out infinite; }
+@keyframes qs-water-sway {
+  0%, 100% { transform: scaleY(-1) translateX(0) skewX(0deg); }
+  30% { transform: scaleY(-1) translateX(2.5px) skewX(.45deg); }
+  65% { transform: scaleY(-1) translateX(-2px) skewX(-.4deg); }
 }
-/* 水线浪脊（crest）：两排不同尺度的连续浪峰瓦片沿水线反向横移 + 整层缓慢起伏，
-   叠出水线自身的涌动感——水缘不再是静止直线，而是持续微涌的浪脊 */
-#door-entry .water-crest { position: absolute; left: -160px; right: -160px; top: -4px; height: 16px; pointer-events: none;
-  background-image:
-    radial-gradient(44px 8px at 50% 0, rgba(255, 255, 255, .38) 0%, rgba(214, 242, 235, .13) 52%, transparent 74%),
-    radial-gradient(66px 11px at 50% 2px, rgba(236, 255, 250, .2) 0%, transparent 72%);
-  background-size: 113px 16px, 197px 16px;
-  background-repeat: repeat-x;
-  mix-blend-mode: screen; opacity: .85;
-  animation: water-crest 13s linear infinite, water-crest-bob 5.6s ease-in-out infinite alternate; }
-@keyframes water-crest { to { background-position: 113px 0, -197px 0; } }
-@keyframes water-crest-bob { from { transform: translateY(0); } to { transform: translateY(2.4px); } }
-/* 宽幅涌浪（swell）：两道横贯水面的柔光波带，反向缓漂 + 纵向舒展呼吸，
-   screen 提亮叠出「涌」的体量感（blur 让波缘融进水质，似远水推近的暗涌） */
-#door-entry .water-swell { position: absolute; left: -18%; width: 136%; pointer-events: none; mix-blend-mode: screen; }
-#door-entry .water-swell--1 { top: 5%; height: 34%; opacity: .6; filter: blur(7px);
-  background: radial-gradient(56% 90% at 50% 50%, rgba(188, 240, 222, .17) 0%, rgba(188, 240, 222, .05) 52%, transparent 78%);
-  animation: water-swell-a 11s ease-in-out infinite alternate; }
-#door-entry .water-swell--2 { top: 30%; height: 40%; opacity: .5; filter: blur(9px);
-  background: radial-gradient(60% 88% at 50% 50%, rgba(158, 224, 244, .14) 0%, rgba(158, 224, 244, .04) 50%, transparent 76%);
-  animation: water-swell-b 14.5s ease-in-out infinite alternate; }
-@keyframes water-swell-a {
-  0% { transform: translateX(-6%) scaleY(1); }
-  100% { transform: translateX(6%) scaleY(1.28); }
+#door-entry.split .qs-reflection { opacity: 1; }
+
+/* ---- 液态水面：liquid1 画布铺满整个水面区域（水线 → 页底），
+   底图 = 青山倒影 + 水色直接烘进纹理，波纹实时扭曲倒影；
+   库的鼠标监听绑在 document 上（pointermove + 射线映射），画布本身 pointer-events:none——
+   不挡门，鼠标划过水面即起波纹；与倒影 / 青山二字同节奏淡入 ---- */
+#door-entry .water-liquid { position: absolute; left: 0; right: 0; top: var(--door-water-y); bottom: 0; z-index: 1;
+  overflow: hidden; pointer-events: none; opacity: 0;
+  transition: opacity 1.1s cubic-bezier(.2, .7, .3, 1); }
+#door-entry .water-liquid canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#door-entry.split .water-liquid { opacity: 1; }
+/* ---- 「青山」入口按钮：宋体「青山」+ 细线箭头，无壳无底无图；
+   颜色取水墨青山图同源的深青绿（松烟色），像题在画角的款识；
+   白色柔光晕把字从水面上轻轻托起；双门展开后自水下浮出，点击进入青山知识库 ---- */
+#door-entry .qingshan-mark { position: absolute; left: calc(50% + 24px); z-index: 1;
+  top: calc(var(--door-water-y) + (100vh - var(--door-water-y)) / 2 - 2.5vh);
+  transform: translate(-50%, -50%);
+  pointer-events: auto; cursor: pointer;
+  border: none; background: none; box-shadow: none; padding: .3em .4em;
+  display: inline-flex; align-items: center;
+  font-family: var(--font-han); font-size: clamp(18px, 2.6vh, 26px); font-weight: 400;
+  letter-spacing: .52em; text-indent: .52em; color: #455449;
+  text-shadow: 0 1px 1px rgba(69, 84, 73, .18), 0 2px 12px rgba(255, 255, 255, .5);
+  opacity: 0;
+  transition: color .35s cubic-bezier(.2, .7, .3, 1), transform .35s cubic-bezier(.2, .7, .3, 1), opacity .5s ease; }
+#door-entry .qingshan-mark .qs-text { /* 「青山」二字：上白下墨绿渐变（山卷同源绿） */
+  background: linear-gradient(180deg, #FFFFFF 0%, #455449 78%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-stroke: .4px rgba(69, 84, 73, .26);
+  transition: filter .35s cubic-bezier(.2, .7, .3, 1); }
+@keyframes qs-rise { /* 从水面下浮出：自水下 55px 上浮 + 显影 */
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 55px)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
 }
-@keyframes water-swell-b {
-  0% { transform: translateX(8%) scaleX(1.05) scaleY(1.22); }
-  100% { transform: translateX(-8%) scaleX(.95) scaleY(.9); }
-}
-/* 近岸浪花（foam）：碎亮光点密铺 + 上密下疏的 mask 收束在水线附近，
-   不规则节奏的明灭（忽明忽暗、无固定呼吸相位）+ 缓慢横漂——读作浪尖的碎沫反光 */
-#door-entry .water-foam { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
-  background-image:
-    radial-gradient(2.6px 1.5px at 30% 24%, rgba(255, 255, 255, .95) 30%, transparent 70%),
-    radial-gradient(1.9px 1.1px at 64% 42%, rgba(240, 255, 250, .8) 30%, transparent 70%),
-    radial-gradient(3px 1.7px at 84% 16%, rgba(255, 252, 240, .85) 30%, transparent 70%),
-    radial-gradient(1.7px 1px at 12% 50%, rgba(228, 248, 242, .7) 30%, transparent 70%);
-  background-size: 139px 47px;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 30%, transparent 68%);
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 30%, transparent 68%);
-  animation: water-foam 4.2s ease-in-out infinite, water-drift 21s linear infinite; }
-@keyframes water-foam {
-  0%, 100% { opacity: .22; }
-  11% { opacity: 1; }
-  34% { opacity: .28; }
-  52% { opacity: .9; }
-  71% { opacity: .18; }
-  86% { opacity: .6; }
-}
-/* 粼粼光点（sparkle）：细碎光点以素数尺寸 tile 密铺，三层不同密度/相位各自闪烁 +
-   极缓慢横漂，模拟阳光在波峰上的点点反光；第三层光点更大更暖，用 mask 渐入靠向
-   右上光区——光点亮度随光路分布，与照片中的粼粼金波同构 */
-#door-entry .water-sparkle { position: absolute; inset: 0; pointer-events: none; }
-#door-entry .water-sparkle--1 {
-  background-image:
-    radial-gradient(1.6px 1px at 14% 30%, rgba(255, 255, 255, .9) 35%, transparent 70%),
-    radial-gradient(1.2px .8px at 52% 66%, rgba(255, 255, 255, .65) 35%, transparent 70%),
-    radial-gradient(1.8px 1.1px at 80% 42%, rgba(255, 246, 224, .8) 35%, transparent 70%),
-    radial-gradient(1.1px .7px at 36% 84%, rgba(214, 238, 255, .6) 35%, transparent 70%);
-  background-size: 163px 59px;
-  animation: water-sparkle-a 3.4s ease-in-out infinite, water-drift 17s linear infinite; }
-#door-entry .water-sparkle--2 {
-  background-image:
-    radial-gradient(1.4px .9px at 28% 52%, rgba(255, 255, 255, .75) 35%, transparent 70%),
-    radial-gradient(1.9px 1.2px at 66% 24%, rgba(255, 255, 255, .7) 35%, transparent 70%),
-    radial-gradient(1.2px .8px at 88% 78%, rgba(214, 238, 255, .55) 35%, transparent 70%),
-    radial-gradient(1.6px 1px at 6% 12%, rgba(255, 246, 224, .6) 35%, transparent 70%);
-  background-size: 197px 71px;
-  animation: water-sparkle-b 4.6s ease-in-out infinite, water-drift 23s linear infinite reverse; }
-#door-entry .water-sparkle--3 {
-  background-image:
-    radial-gradient(2.6px 1.6px at 22% 38%, rgba(255, 240, 214, .85) 30%, transparent 70%),
-    radial-gradient(3.2px 2px at 58% 58%, rgba(255, 236, 200, .7) 30%, transparent 70%),
-    radial-gradient(2.2px 1.4px at 82% 26%, rgba(255, 248, 230, .9) 30%, transparent 70%),
-    radial-gradient(2px 1.2px at 8% 74%, rgba(255, 240, 214, .55) 30%, transparent 70%);
-  background-size: 233px 89px;
-  -webkit-mask-image: linear-gradient(90deg, transparent 22%, #000 70%);
-  mask-image: linear-gradient(90deg, transparent 22%, #000 70%);
-  animation: water-sparkle-c 2.9s ease-in-out infinite, water-drift 29s linear infinite; }
-@keyframes water-sparkle-a { 0%, 100% { opacity: .2; } 50% { opacity: .95; } }
-@keyframes water-sparkle-b { 0%, 100% { opacity: .85; } 45% { opacity: .15; } }
-@keyframes water-sparkle-c { 0%, 100% { opacity: .3; } 40% { opacity: 1; } 70% { opacity: .5; } }
-@keyframes water-drift { to { background-position: -40px 0, 26px 0, -32px 0, 20px 0; } }
-/* 涟漪：自水面中心（双门合拢轴心）不断向外扩散的同心椭圆环——四环错相位连续发射，
-   循环无缝（延迟 = 周期/4）；基准 64vw 宽椭圆，最大扩散 1.75 倍 ≈ 112vw，
-   水纹一直荡出整个水面（左右溢出屏幕被裁）才淡出；3px 描边 + 青绿亮色，波纹清晰醒目 */
-#door-entry .water-ripple { position: absolute; left: 50%; top: 44px; width: 64vw; height: 12.8vw; margin: -6.4vw 0 0 -32vw;
-  border-radius: 50%; border: 3px solid rgba(196, 244, 226, .55);
-  box-shadow: inset 0 0 24px rgba(255, 255, 255, .14), 0 0 18px rgba(160, 240, 214, .18);
-  opacity: 0; transform: scale(.12); animation: water-ripple 7.2s cubic-bezier(.17, .6, .35, 1) infinite; }
-#door-entry .water-ripple--2 { animation-delay: 1.8s; }
-#door-entry .water-ripple--3 { animation-delay: 3.6s; }
-#door-entry .water-ripple--4 { animation-delay: 5.4s; }
-@keyframes water-ripple {
-  0% { opacity: 0; transform: scale(.12); }
-  8% { opacity: .75; }
-  100% { opacity: 0; transform: scale(1.75); }
-}
-/* 偏心次级涟漪：两圈更小、错位于轴心两侧的涟漪，独立周期与相位——
-   打破中心对称的机械感，让涟漪分布更接近自然落点 */
-#door-entry .water-ripple--5 { left: 24%; top: 26px; width: 34vw; height: 6.8vw; margin: -3.4vw 0 0 -17vw;
-  border-width: 2px; border-color: rgba(190, 236, 244, .45);
-  animation-duration: 9.5s; animation-delay: 2.3s; }
-#door-entry .water-ripple--6 { left: 77%; top: 64px; width: 27vw; height: 5.4vw; margin: -2.7vw 0 0 -13.5vw;
-  border-width: 2px; border-color: rgba(196, 244, 226, .4);
-  animation-duration: 8.2s; animation-delay: 5.1s; }
-/* =====================================================================
-   青山水下呼应层（qs-sunken-glow / qs-bubbles / water-breach）：
-   山体潜伏与升沉时水体内部的对应反馈——山潜水中透出山影辉光、气泡上冒，
-   破水瞬间沿水线扩出挤压涟漪；上浮时辉光随山离水渐熄、气泡连串爆发
-   ===================================================================== */
-/* 沉底辉光：山体潜伏水下时自水底透出的山影翠光（山在水中的「体光」）；
-   split 山体升离水面时辉光同拍渐熄，沉回时复亮（呼吸仅动纵向形变，opacity 交给升沉过渡） */
-#door-entry .qs-sunken-glow { position: absolute; left: 50%; top: 0;
-  width: var(--qingshan-w); height: 42%; margin-left: calc(var(--qingshan-w) / -2);
-  pointer-events: none; mix-blend-mode: screen; filter: blur(4px);
-  background: radial-gradient(58% 78% at 50% 10%, rgba(16, 185, 129, .32) 0%, rgba(16, 185, 129, .11) 46%, transparent 74%);
-  animation: qs-sunken-breathe 5.6s ease-in-out infinite alternate;
-  transition: opacity 1.1s ease; }
-#door-entry.split .qs-sunken-glow { opacity: .2; transition-delay: .5s; }
-@keyframes qs-sunken-breathe { from { transform: scaleY(1); } to { transform: scaleY(1.14); } }
-/* 气泡：容器锚在山体正下方水柱，气泡自深处上冒、摇曳升高后消散 */
-#door-entry .qs-bubbles { position: absolute; left: 50%; top: 0; width: min(380px, 56vw); height: 120px;
-  margin-left: calc(min(380px, 56vw) / -2); pointer-events: none; }
-#door-entry .qs-bubbles span { position: absolute; bottom: 0; width: 4px; height: 4px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 32%, rgba(255, 255, 255, .95) 0%, rgba(214, 244, 236, .4) 58%, transparent 100%);
-  box-shadow: 0 0 5px rgba(214, 244, 236, .3); opacity: 0;
-  animation: qs-bubble 6.5s ease-in infinite; }
-@keyframes qs-bubble {
-  0% { opacity: 0; transform: translate(0, 12px) scale(.5); }
-  14% { opacity: .85; }
-  60% { transform: translate(7px, -62px) scale(1); }
-  100% { opacity: 0; transform: translate(-4px, -118px) scale(1.06); }
-}
-/* 常潜组：山体未浮出时细水长流的缓冒气泡（山体水下的「呼吸」），错相位长循环 */
-#door-entry .qs-bubbles--sink span:nth-child(1) { left: 30%; width: 3px; height: 3px; animation-duration: 7.2s; }
-#door-entry .qs-bubbles--sink span:nth-child(2) { left: 56%; width: 4.5px; height: 4.5px; animation-duration: 5.8s; animation-delay: 2.6s; }
-#door-entry .qs-bubbles--sink span:nth-child(3) { left: 74%; width: 2.5px; height: 2.5px; animation-duration: 6.4s; animation-delay: 4.4s; }
-/* 上浮组：split 后山体升起搅动水流，气泡连串爆发（错相位三连发后收敛；split 前静止） */
-#door-entry .qs-bubbles--rise span { animation: none; }
-#door-entry.split .qs-bubbles--rise span { animation-name: qs-bubble; animation-duration: 1.6s; animation-iteration-count: 3; }
-#door-entry.split .qs-bubbles--rise span:nth-child(1) { left: 20%; width: 4px; height: 4px; animation-delay: .55s; }
-#door-entry.split .qs-bubbles--rise span:nth-child(2) { left: 37%; width: 3px; height: 3px; animation-delay: .7s; animation-duration: 1.45s; }
-#door-entry.split .qs-bubbles--rise span:nth-child(3) { left: 53%; width: 6px; height: 6px; animation-delay: .6s; animation-duration: 1.8s; }
-#door-entry.split .qs-bubbles--rise span:nth-child(4) { left: 68%; width: 3.5px; height: 3.5px; animation-delay: .82s; animation-duration: 1.5s; }
-#door-entry.split .qs-bubbles--rise span:nth-child(5) { left: 82%; width: 5px; height: 5px; animation-delay: .74s; animation-duration: 1.7s; }
-/* 破水涟漪：山体破水瞬间，自破水点沿水线扩出的挤压椭圆环——上半环越出水面被裁、
-   只露水下半弧，似水中推开的涌波；三环错相位一次播完，末环更宽更慢作余波 */
-#door-entry .water-breach { position: absolute; left: 50%; top: -24px; width: var(--qingshan-w); height: 64px;
-  border-radius: 50%; border: 2px solid rgba(176, 240, 218, .5);
-  box-shadow: 0 0 16px rgba(160, 240, 214, .18), inset 0 0 12px rgba(255, 255, 255, .08);
-  opacity: 0; pointer-events: none;
-  transform: translateX(-50%) scale(.35); }
-#door-entry.split .water-breach--1 { animation: water-breach 1.6s cubic-bezier(.17, .6, .35, 1) .8s 1 both; }
-#door-entry.split .water-breach--2 { animation: water-breach 1.85s cubic-bezier(.17, .6, .35, 1) 1.0s 1 both; }
-#door-entry.split .water-breach--3 { animation: water-breach 2.1s cubic-bezier(.17, .6, .35, 1) 1.2s 1 both; }
-@keyframes water-breach {
-  0% { opacity: 0; transform: translateX(-50%) scale(.35); }
-  10% { opacity: .7; }
-  100% { opacity: 0; transform: translateX(-50%) scale(1.55); }
-}
-/* =====================================================================
-   青山知识库（第三入口）：线描山形自水中浮出 + 能量裂隙式底座——极窄发光线 +
-   椭圆光池，题字悬浮于山脚；无实体色块、无 3D 俯视角，与扁平门卡同处一个物理空间；
-   全屏氛围光自底部弥散融入舞台；点击后开屏整体上推进入第三页面
-   ===================================================================== */
-/* 全屏氛围光：底部青绿微光向上弥散至半屏淡出（替代聚焦光束，作全局氛围而非一团雾气） */
-#door-entry .qingshan-amblight { position: absolute; left: 0; right: 0; bottom: 0; height: 56vh; z-index: 1;
-  pointer-events: none; opacity: 0;
-  background:
-    radial-gradient(60% 55% at 50% 108%, rgba(16, 185, 129, .15) 0%, transparent 70%),
-    linear-gradient(to top, rgba(16, 185, 129, .09) 0%, rgba(16, 185, 129, .035) 40%, transparent 75%);
-  transition: opacity .9s ease; }
-#door-entry.split .qingshan-amblight { opacity: 1; transition-delay: .3s; }
-#door-entry.is-entering:not(.is-qingshan) .qingshan-amblight { opacity: 0;
-  transition: opacity .35s ease-in; transition-delay: 0s; }
-/* 底座容器：题字 + 裂隙发光线。置于山形之上、水体之下（z1，先于水体渲染）——
-   初始整体沉在水下（下移 110px 被水体遮没），split 后与山体同延迟同缓动升起，鼠标离开一同沉回；
-   裂隙与山形同宽同位，题字落位山脚 */
-#door-entry .qingshan-steps { position: absolute; z-index: 1; left: 50%;
-  bottom: calc(100vh - var(--door-water-y) - 16px); /* 裂隙中线正压水线：山体自光隙中升起 */
-  display: flex; flex-direction: column; align-items: center; gap: 10px; cursor: pointer;
-  padding: 12px 56px 18px;
-  transform: translateX(-50%) translateY(110px); pointer-events: none;
-  will-change: transform;
-  transition: transform 1.1s cubic-bezier(.23, 1, .32, 1); }
-/* 双门展开：底座与山体同时延后浮出水面（一体升沉） */
-#door-entry.split .qingshan-steps { transform: translateX(-50%) translateY(0);
-  pointer-events: auto; transition-delay: .5s; }
-/* 进入 Xin语/Xin台 时底座加速沉回水下（青山进入时随开屏整体上推，不在此列） */
-#door-entry.is-entering:not(.is-qingshan) .qingshan-steps { pointer-events: none;
-  transform: translateX(-50%) translateY(110px);
-  transition: transform .35s ease-in; transition-delay: 0s; }
-/* 极简题字：落位山脚坡面留白处，深松绿与山脊线同色系，字距放宽如题刻；
-   随底座升起途中淡现上浮（.8s 起，与山体描画同拍落款）；::before 云雾留白垫底防线条穿字 */
-#door-entry .qingshan-label { position: relative; font-family: var(--font-han); font-size: 18px; font-weight: 600;
-  letter-spacing: .5em; text-indent: .5em; color: #1d4a3a; opacity: 0;
-  transform: translateY(14px);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .5), 0 6px 18px rgba(16, 185, 129, .14);
-  transition: opacity .55s ease, transform .7s cubic-bezier(.23, 1, .32, 1), color .3s ease, text-shadow .3s ease; }
-/* 云雾留白：题字背后的羽化光斑把穿过的山脊线晕开（负 z 压在文字与山脊线之间） */
-#door-entry .qingshan-label::before { content: ""; position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%, -50%); width: 200%; height: 320%; z-index: -1; pointer-events: none;
-  background: radial-gradient(closest-side, rgba(240, 249, 245, .95) 0%, rgba(240, 249, 245, .5) 52%, transparent 100%);
-  filter: blur(2px); }
-#door-entry.split .qingshan-label { opacity: 1; transform: translateY(0);
-  transition-delay: .8s, .8s, 0s, 0s; }
-/* 能量裂隙：窄于山形的居中发光线（入口焦点），正压水线、叠于山脚渐隐区；
-   山破水而出的瞬间自中心展开点亮（.8s 起，约山顶出水时刻），1.5s 起无缝接入呼吸明灭
-   （动画仅 .split 态挂载） */
-#door-entry .qingshan-line { position: relative; width: min(340px, 58vw); height: 4px; border-radius: 50%;
-  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, .8) 32% 68%, transparent);
-  box-shadow: 0 0 20px 5px rgba(16, 185, 129, .32); opacity: 0; transform: scaleX(.3);
-  transition: opacity .7s ease, transform .85s cubic-bezier(.23, 1, .32, 1); }
-#door-entry.split .qingshan-line { opacity: 1; transform: scaleX(1);
-  transition-delay: .65s, .65s;
-  animation: qingshan-line 3.8s ease-in-out 1.5s infinite alternate; }
-#door-entry .qingshan-line::after { content: ""; position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%, -50%); width: 120%; height: 64px; border-radius: 50%;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(16, 185, 129, .2) 0%, transparent 70%);
-  filter: blur(6px); pointer-events: none; }
-@keyframes qingshan-line { 0% { opacity: 1; transform: scaleX(1); } 100% { opacity: .68; transform: scaleX(.94); } }
-/* hover：光隙增亮、题字转深，光池同步变亮 */
-#door-entry .qingshan-steps:hover .qingshan-line { box-shadow: 0 0 30px 8px rgba(16, 185, 129, .48); filter: brightness(1.25); }
-#door-entry .qingshan-steps:hover .qingshan-line::after { background: radial-gradient(50% 50% at 50% 50%, rgba(16, 185, 129, .3) 0%, transparent 70%); }
-#door-entry .qingshan-steps:hover .qingshan-label { color: #0f3d2e;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .7), 0 8px 24px rgba(16, 185, 129, .28); }
-/* =====================================================================
-   山形（qingshan-peak）：水墨晕染山水一体——远山淡影（qs-mtn--far，满幅绵延、
-   重雾化）、主山三峰墨色晕染（qs-mtn--near，峰浓脚淡）、主脊勾勒+皴线作笔骨
-   （qs-ridge，draw 动效见下）；独立图层置于门卡之后（z1，先于门卡/水体渲染）——
-   初始整座没于水下（顶边贴水线、山体潜伏水中被不透明水体遮没），split 后升起至
-   半山出水（translateY(-46%)：主峰顶露出水线约 85px、仍低于门卡底缘）；
-   山脚经 mask 雾化渐隐沉入水中，与水面融为一体；鼠标离开整座沉回
-   ===================================================================== */
-#door-entry .qingshan-peak { position: absolute; left: 50%; top: var(--door-water-y); z-index: 1;
-  width: var(--qingshan-w); height: auto; aspect-ratio: 340 / 220;
-  /* 升沉物理：初始 translateY(0) 整座在水下；终态 -46% 半山出水（上 46% 浮出水面、
-     下 54% 没于水下，峰顶不超高门卡底缘）；1.1s 与底座同延迟（.5s）同缓动，一体升沉 */
-  transform: translateX(-50%) translateY(0); pointer-events: none; overflow: visible;
-  will-change: transform;
-  /* 山水一体关键：mask 自山腰向山脚渐隐——山过水线后迅速淡出、雾化沉入水中，
-     不与水面形成硬分界（远山淡影同受此 mask，一并融入雾气） */
-  -webkit-mask-image: linear-gradient(180deg, #000 32%, rgba(0, 0, 0, .62) 48%, rgba(0, 0, 0, .24) 64%, transparent 84%);
-  mask-image: linear-gradient(180deg, #000 32%, rgba(0, 0, 0, .62) 48%, rgba(0, 0, 0, .24) 64%, transparent 84%);
-  transition: transform 1.1s cubic-bezier(.23, 1, .32, 1); }
-#door-entry.split .qingshan-peak { transform: translateX(-50%) translateY(-46%);
-  transition-delay: .5s; }
-/* 山脊线条：pathLength=1 归一；勾勒自水下起笔（split 一到就开始画，山尚潜伏水中、
-   已画的线随山升起逐渐露出），五笔（主脊+四皴）同时收笔于「升到位」刻
-   （.05+1.55 = .35+1.25 = 1.6s）；沉回时无延迟倒抹褪笔 */
-#door-entry .qingshan-peak .qs-ridge { fill: none; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.55s ease; }
-#door-entry .qingshan-peak .qs-ridge--front { stroke: #2f7260; stroke-width: 1.8; fill: none; }
-#door-entry .qingshan-peak .qs-ridge--accent { stroke: rgba(31, 128, 100, .55); stroke-width: 1.1; }
-#door-entry.split .qingshan-peak .qs-ridge--front { stroke-dashoffset: 0; transition-delay: .05s; transition-duration: 1.55s; }
-#door-entry.split .qingshan-peak .qs-ridge--accent { stroke-dashoffset: 0; transition-delay: .35s; transition-duration: 1.25s; }
-/* 成形后山体极缓浮动（呼吸式升降），与水面涌浪同一节奏感 */
-#door-entry .qingshan-peak .qs-float { will-change: transform; animation: qs-float 7s ease-in-out 1.9s infinite alternate; }
-@keyframes qs-float { from { transform: translateY(0); } to { transform: translateY(-4px); } }
-/* 破水涟漪：山体刺破水线瞬间自基线扩出的椭圆环（错相位两圈，播放一次即隐） */
-#door-entry .qingshan-pierce { position: absolute; left: 50%; bottom: 12px; width: 150px; height: 26px;
-  margin-left: -75px; border-radius: 50%; border: 1.5px solid rgba(16, 185, 129, .55);
-  box-shadow: 0 0 12px rgba(16, 185, 129, .25); opacity: 0; transform: scale(.35); pointer-events: none; }
-#door-entry.split .qingshan-pierce--1 { animation: qs-pierce 1.6s ease-out .8s; }
-#door-entry.split .qingshan-pierce--2 { animation: qs-pierce 1.8s ease-out 1.05s; }
-@keyframes qs-pierce {
-  0% { opacity: .75; transform: scale(.35); }
-  100% { opacity: 0; transform: scale(1.7); }
-}
-/* hover：山形与题字一同提亮，缀青绿衬光（山形已移出底座，用 :has() 联动悬停态） */
-#door-entry:has(.qingshan-steps:hover) .qingshan-peak { filter: brightness(1.18) drop-shadow(0 2px 10px rgba(16, 185, 129, .3));
-  transition: filter .35s ease; }
+#door-entry .qingshan-mark .qs-arrow { display: inline-flex; margin-left: .12em;
+  transition: transform .35s cubic-bezier(.2, .7, .3, 1); }
+#door-entry .qingshan-mark::after { /* 「青山」二字身后的一卷水墨远山（雾山卷，文字浮在卷中雾区） */
+  content: ""; position: absolute; left: 50%; top: calc(50% + 12px);
+  width: 420%; aspect-ratio: 6 / 1;
+  transform: translate(-50%, -50%);
+  background: url('/assets/qingshan-mount.png') center / 100% 100% no-repeat;
+  opacity: .9; z-index: -1;
+  transition: opacity .35s cubic-bezier(.2, .7, .3, 1), filter .35s cubic-bezier(.2, .7, .3, 1); }
+#door-entry .qingshan-mark:hover, #door-entry .qingshan-mark:focus-visible { color: #3A473E; }
+#door-entry .qingshan-mark:hover .qs-text, #door-entry .qingshan-mark:focus-visible .qs-text { filter: brightness(.85); }
+#door-entry .qingshan-mark:hover::after, #door-entry .qingshan-mark:focus-visible::after {
+  opacity: 1; filter: brightness(.82) saturate(1.25); }
+#door-entry .qingshan-mark:hover .qs-arrow, #door-entry .qingshan-mark:focus-visible .qs-arrow { transform: translateX(4px); }
+#door-entry .qingshan-mark:focus-visible { outline: 1px solid rgba(65, 101, 79, .45); outline-offset: 5px; }
+#door-entry .qingshan-mark:active { transform: translate(-50%, -50%) scale(.97); }
+#door-entry.split .qingshan-mark { opacity: 1;
+  animation: qs-rise 1.4s cubic-bezier(.2, .7, .3, 1) backwards; }
 /* 无障碍：偏好减弱动效时压缩运动（变量瞬时到位，仅保留淡入淡出） */
 @media (prefers-reduced-motion: reduce) {
   #door-entry .door-veil { transition: none; }
   #door-entry.is-entering.is-forward, #door-entry.is-entering.is-back { animation-duration: .15s; animation-delay: .1s; }
   #door-entry .door-slot { transition: --door-x .01s, --door-rot .01s, --door-hover-k .01s, opacity .25s ease; }
   #door-entry .door-card { transition: --door-dx .01s, --door-dy .01s, --door-k .01s, opacity .25s ease; }
-  /* 水面降级：关掉涟漪/浪脊/涌浪/浪花/波光/光点动画，保留静态水质底色与微弱光斑 */
-  #door-entry .water-ripple, #door-entry .water-shimmer, #door-entry .water-sparkle,
-  #door-entry .water-crest, #door-entry .water-swell, #door-entry .water-foam { animation: none; }
-  #door-entry .water-ripple { opacity: 0; }
-  #door-entry .water-shimmer { opacity: .45; }
-  #door-entry .water-sparkle { opacity: .55; }
-  #door-entry .water-gleam { animation: none; opacity: .6; }
-  #door-entry .water-crest { opacity: .55; }
-  #door-entry .water-swell { opacity: .4; }
-  #door-entry .water-foam { opacity: .35; }
-  #door-entry .qingshan-line { animation: none; transition-duration: .01s, .01s; transition-delay: 0s, 0s; }
-  #door-entry .qingshan-label { transition-duration: .01s, .01s, .01s, .01s; transition-delay: 0s, 0s, 0s, 0s; }
-  #door-entry .qingshan-peak { transition-duration: .01s; transition-delay: 0s; }
-  #door-entry .qingshan-peak .qs-ridge { transition: none; stroke-dashoffset: 0; }
-  #door-entry .qingshan-peak .qs-float { animation: none; }
-  #door-entry .qingshan-pierce { animation: none; opacity: 0; }
-  #door-entry .qs-sunken-glow { animation: none; opacity: .5; transition: none; }
-  #door-entry .qs-bubbles span { animation: none; opacity: 0; }
-  #door-entry .water-breach { animation: none; opacity: 0; }
-  #door-entry .qingshan-amblight { transition: none; }
-  #door-entry .qingshan-steps { transition-duration: .01s; transition-delay: 0s; }
+  /* 水面降级：关掉倒影摇晃与题字上浮动画（液态水面在组件中直接不初始化），
+     CSS 倒影静态呈现、「青山」题字直接显影 */
+  #door-entry .qs-reflection, #door-entry .qs-reflection i { transition: none; animation: none; }
+  #door-entry .water-liquid { transition: none; }
+  #door-entry .qingshan-mark, #door-entry .qingshan-mark::after,
+  #door-entry .qingshan-mark .qs-text, #door-entry .qingshan-mark .qs-arrow { transition: none; }
+  #door-entry.split .qingshan-mark { animation: none; opacity: 1; }
 }
 
 /* =====================================================================

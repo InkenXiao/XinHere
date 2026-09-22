@@ -1,10 +1,11 @@
 // 开屏双门「背景窗口」：两张全屏背景图固定加载于开屏页，仅透过左右卡片内部可见（窗口机制见 theme.css 开屏区块）
 // 默认交叉合拢，鼠标进入展开、离开收合；点击左门「向前放大铺满全屏」进入 Xin语，右门「向后缩小消失」进入 Xin台
-// 双门展开（split）后，底部亮起全屏氛围光，青山知识库以「能量裂隙」（题字 + 发光线）自水面浮出；
-// 点击裂隙开屏整体由下向上推移，进入第三页面（样式见 theme.css qingshan 区块）
+// 双门展开（split）后，水线以下浮现青山倒影与液态水面（threejs-components liquid1：鼠标划过起涟漪、
+// 「青山」中心定时荡开大环），水面中央「青山」题字自水下浮出；点击题字开屏整体由下向上推移，进入第三页面
+// （样式见 theme.css door-water 区块）
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useUiStore } from '@/state/uiStore'
-
+ 
 type Door = 'tower' | 'cockpit' | 'qingshan'
 
 export default function SplashGate({ onDone }: { onDone: () => void }) {
@@ -16,6 +17,9 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
   // 两个门 slot 的 ref：进入动效时测量姿态/尺寸，计算放大位移与缩放倍率
   const towerSlotRef = useRef<HTMLDivElement>(null)
   const cockpitSlotRef = useRef<HTMLDivElement>(null)
+  // 液态水面画布 + 「青山」入口 ref（定时涟漪以「青山」二字中心为落点）
+  const liquidCanvasRef = useRef<HTMLCanvasElement>(null)
+  const markRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     // 触屏适配：无 hover 能力的设备没有「鼠标进入展开」交互，常驻展开态让卡片直接可点
@@ -29,9 +33,251 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
     [],
   )
 
+  // 液态水面（threejs-components liquid1，public/assets/liquid1.min.js，demo 离线版同款）：
+  // 画布铺满水线以下区域，底图 = 青山倒影（垂直翻转 + 渐隐）+ 水色烘进纹理，波纹以「高度场
+  // 扭曲采样 UV」显形——程序波自体荡漾 + 指针涟漪 + 「青山」中心定时大环，完全不经光照；
+  // 库以 ES Module 运行时动态 import，加载失败 / 不支持 WebGL / 偏好减弱动效时静默回退，
+  // CSS 倒影（.qs-reflection）照常工作
+  useEffect(() => {
+    const wrap = liquidCanvasRef.current?.parentElement
+    const canvas = liquidCanvasRef.current
+    if (!wrap || !canvas) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    let disposed = false
+    const cleanups: Array<() => void> = []
+    const timers: number[] = []
+    const later = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(() => {
+        if (!disposed) fn()
+      }, ms)
+      timers.push(id)
+    }
+
+    void (async () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const w = wrap.clientWidth || window.innerWidth
+      const h = wrap.clientHeight || Math.round(window.innerHeight * 0.34)
+
+      // 底图：青山倒影图，取景与 CSS 兜底层一致（100% auto / center 70%）
+      const img = new Image()
+      img.src = '/assets/qingshan-reflect.jpg'
+      await new Promise<void>((res) => {
+        if (img.complete && img.naturalWidth) return res()
+        img.onload = () => res()
+        img.onerror = () => res()
+        window.setTimeout(res, 4000)
+      })
+      if (disposed || !img.naturalWidth) return
+
+      const drawW = w
+      const drawH = (w * img.naturalHeight) / img.naturalWidth
+      const offY = (h - drawH) * 0.7
+
+      // 1) 倒影层：图片按取景画入临时画布
+      const refl = document.createElement('canvas')
+      refl.width = Math.round(w * dpr)
+      refl.height = Math.round(h * dpr)
+      const rc = refl.getContext('2d')
+      if (!rc) return
+      rc.scale(dpr, dpr)
+      rc.drawImage(img, 0, offY, drawW, drawH)
+
+      // 2) 最终纹理：垂直翻转的倒影叠在青灰水面上（整幅不透明，配色 = 墙色在水线处的延续）
+      const off = document.createElement('canvas')
+      off.width = refl.width
+      off.height = refl.height
+      const ctx = off.getContext('2d')
+      if (!ctx) return
+      ctx.scale(dpr, dpr)
+      let g = ctx.createLinearGradient(0, 0, 0, h)
+      g.addColorStop(0, '#f6f5f0')
+      g.addColorStop(1, '#f4f3ee')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, w, h)
+      g = ctx.createLinearGradient(0, 0, 0, h)
+      g.addColorStop(0, 'rgba(20,20,16,0)')
+      g.addColorStop(0.34, 'rgba(20,20,16,.018)')
+      g.addColorStop(1, 'rgba(20,20,16,.048)')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, w, h)
+      // 倒影 = 垂直翻转后烘入渐隐（方向与 CSS mask 一致：水线浓、向下淡出）
+      const fadeCv = document.createElement('canvas')
+      fadeCv.width = refl.width
+      fadeCv.height = refl.height
+      const fc = fadeCv.getContext('2d')
+      if (!fc) return
+      fc.scale(dpr, dpr)
+      fc.save()
+      fc.translate(0, h)
+      fc.scale(1, -1)
+      fc.drawImage(refl, 0, 0, w, h)
+      fc.restore()
+      fc.globalCompositeOperation = 'destination-out'
+      const fade = fc.createLinearGradient(0, 0, 0, h)
+      fade.addColorStop(0, 'rgba(0,0,0,.03)')
+      fade.addColorStop(0.38, 'rgba(0,0,0,.26)')
+      fade.addColorStop(0.76, 'rgba(0,0,0,.60)')
+      fade.addColorStop(0.96, 'rgba(0,0,0,.94)')
+      fc.fillStyle = fade
+      fc.fillRect(0, 0, w, h)
+      // 左右浓度均衡：图源左侧近山浓墨、右侧远山淡彩，左缘再减淡一层（50% 处过渡到 0）
+      const fadeH = fc.createLinearGradient(0, 0, w, 0)
+      fadeH.addColorStop(0, 'rgba(0,0,0,.93)')
+      fadeH.addColorStop(0.5, 'rgba(0,0,0,0)')
+      fc.fillStyle = fadeH
+      fc.fillRect(0, 0, w, h)
+      // 倒影整体降不透明度（统一减淡，不用白洗渐变——色相保持原样）
+      ctx.globalAlpha = 0.26
+      ctx.drawImage(fadeCv, 0, 0, w, h)
+      ctx.globalAlpha = 1
+
+      // 液态渲染：库加载 / WebGL 失败则什么都不做，CSS 倒影照常工作
+      const libUrl = '/assets/liquid1.min.js'
+      const mod: { default: (canvas: HTMLCanvasElement) => any } = await import(
+        /* @vite-ignore */ libUrl
+      )
+      const app = mod.default(canvas)
+      cleanups.push(() => {
+        try {
+          app.dispose?.()
+        } catch {
+          /* 忽略销毁异常 */
+        }
+      })
+      await app.loadImage(off.toDataURL('image/png'))
+      const lmat = app.liquidPlane.material
+      // 清澈水面 = 纯折射方案：场景无灯，光照全部归零（无白翳无黑斑），
+      // 倒影纹理经 emissive 通道直出原色，波纹以「高度场扭曲采样 UV」显形；
+      // 重写库的 shader 补丁：去掉其 RGB 色散偏移（彩边=脏）与法线光照（白翳来源）
+      lmat.metalness = 0
+      lmat.roughness = 1
+      lmat.envMapIntensity = 0
+      lmat.emissive.setRGB(1, 1, 1)
+      lmat.emissiveMap = lmat.map
+      lmat.emissiveIntensity = 1
+      lmat.needsUpdate = true
+      app.liquidPlane.uniforms.displacementScale.value = 1.6
+      app.setRain(false)
+      lmat.onBeforeCompile = (shader: { uniforms: Record<string, { value: unknown }>; fragmentShader: string }) => {
+        Object.assign(shader.uniforms, app.liquidPlane.uniforms)
+        shader.uniforms.uRes = { value: { x: 1, y: 1 } } // 画布分辨率（three 只读 .x/.y）
+        shader.uniforms.uTime = { value: 0 } // 程序波时钟（rAF 驱动，见下方 tick）
+        lmat.__us = shader.uniforms.uRes
+        lmat.__ut = shader.uniforms.uTime
+        shader.fragmentShader =
+          'uniform vec2 uvMapScale;\nuniform sampler2D displacementMap;\nuniform float displacementScale;\nuniform vec2 uRes;\nuniform float uTime;\n' +
+          shader.fragmentShader
+        shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `
+          #ifdef USE_EMISSIVEMAP
+            vec4 disp = texture2D(displacementMap, vUv);
+            vec2 waterN = vec3(disp.b, disp.a, sqrt(1.0 - dot(disp.ba, disp.ba))).xy;
+            /* 屏幕坐标直采：画布像素 = 纹理像素 1:1，绕开平面/相机映射误差 */
+            vec2 texUv = gl_FragCoord.xy / uRes;
+            /* 程序波：三组不同方向/频率/速度的行波叠加，整片水面自体持续荡漾，无需任何触发 */
+            float asp = uRes.x / max(uRes.y, 1.0);
+            vec2 q = vec2(texUv.x * asp, texUv.y) * 0.72;
+            float wA = sin(q.y * 9.0  + uTime * 1.1);
+            float wB = sin(q.x * 6.0 + q.y * 4.0 - uTime * 0.8);
+            float wC = sin(q.x * 13.0 - q.y * 7.0 + uTime * 1.6);
+            float wh = wA * .45 + wB * .35 + wC * .25;
+            vec2 wg = vec2(
+                6.0 * .35 * cos(q.x*6.0 + q.y*4.0 - uTime*0.8)
+              + 13.0 * .25 * cos(q.x*13.0 - q.y*7.0 + uTime*1.6),
+                9.0 * .45 * cos(q.y*9.0 + uTime*1.1)
+              +  4.0 * .35 * cos(q.x*6.0 + q.y*4.0 - uTime*0.8)
+              -  7.0 * .25 * cos(q.x*13.0 - q.y*7.0 + uTime*1.6)
+            );
+            vec2 waveUv = vec2(wg.x * asp, wg.y) * 0.00075;
+            /* 合成采样偏移：程序波（自动荡漾）+ 涟漪高度场（指针/落滴） */
+            vec2 ripUv = texUv + waterN * displacementScale * 0.02 + waveUv;
+            totalEmissiveRadiance *= texture2D(emissiveMap, ripUv).rgb;
+            /* 波光压到 3%：只留极轻的明暗呼吸 */
+            totalEmissiveRadiance *= 1.0 + wh * 0.03;
+          #endif
+        `)
+      }
+
+      // 指针涟漪：大半径低力度的平缓水波（像流水推开，而不是砸出水坑），节流防淹没高度场
+      let lastDrop = 0
+      const onMove = (e: PointerEvent) => {
+        const r = wrap.getBoundingClientRect()
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return
+        const now = performance.now()
+        if (now - lastDrop < 60) return
+        lastDrop = now
+        const nx = ((e.clientX - r.left) / r.width) * 2 - 1
+        const ny = -(((e.clientY - r.top) / r.height) * 2 - 1)
+        app.liquidPlane.addDrop(nx, ny, 0.13, 0.05)
+      }
+      document.addEventListener('pointermove', onMove)
+      cleanups.push(() => document.removeEventListener('pointermove', onMove))
+
+      // 自动落滴（点睛）：每 2s 以「青山」二字中心为落点荡开一圈大涟漪（大环慢波）；
+      // 水面未显示（opacity≈0）时不落滴，涟漪不留到门打开之后
+      const autoRain = () => {
+        const mark = markRef.current
+        if (!mark) return
+        if (parseFloat(getComputedStyle(wrap).opacity) < 0.5) return
+        const r = wrap.getBoundingClientRect()
+        const m = mark.getBoundingClientRect()
+        const nx = ((m.left + m.width / 2 - r.left) / r.width) * 2 - 1
+        const ny = -(((m.top + m.height / 2 - r.top) / r.height) * 2 - 1)
+        app.liquidPlane.addDrop(nx, ny, 0.2, 0.12)
+      }
+      const rainId = window.setInterval(autoRain, 2000)
+      cleanups.push(() => window.clearInterval(rainId))
+
+      // 关键修复：库的 resize() 初始化时可能拿不到容器尺寸（画布缓冲停在默认 300×150，
+      // 被 CSS 拉伸后整面糊化），init 后主动补尺寸并挂窗口 resize 兜底
+      const fixSize = () => {
+        try {
+          app.three.resize()
+        } catch {
+          /* 忽略 */
+        }
+        if (lmat.__us) {
+          lmat.__us.value.x = canvas.width
+          lmat.__us.value.y = canvas.height
+        }
+      }
+      fixSize()
+      later(fixSize, 300)
+      later(fixSize, 1200)
+      let rsTimer = 0
+      const onResize = () => {
+        window.clearTimeout(rsTimer)
+        rsTimer = window.setTimeout(fixSize, 150)
+      }
+      window.addEventListener('resize', onResize)
+      cleanups.push(() => {
+        window.removeEventListener('resize', onResize)
+        window.clearTimeout(rsTimer)
+      })
+
+      // 环境波时钟：独立 rAF 推进 uTime（秒）
+      let raf = 0
+      const tickTime = () => {
+        if (lmat.__ut) lmat.__ut.value = performance.now() / 1000
+        raf = requestAnimationFrame(tickTime)
+      }
+      tickTime()
+      cleanups.push(() => cancelAnimationFrame(raf))
+    })().catch((err) => {
+      console.warn('[liquid] init failed, fallback to CSS reflection', err)
+    })
+
+    return () => {
+      disposed = true
+      timers.forEach((id) => window.clearTimeout(id))
+      cleanups.forEach((fn) => fn())
+    }
+  }, [])
+
   const enter = (door: Door) => {
     if (entering) return
-    // 青山知识库：跳过门卡形变测量，setMode 触发第三层自下向上推进，开屏整体同步上移退场
+    // 青山知识库：跳过门卡形变测量，setMode 触发第三层（内嵌知识库平台首页）自下向上推进，
+    // 开屏整体同步上移退场将其露出；KB_URL 未配置时第三层仅呈现青绿山水加载幕
     if (door === 'qingshan') {
       setEntering(door)
       setMode(door)
@@ -127,94 +373,31 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
         <p>信在此，新在此</p>
       </div>
 
-      {/* 底部氛围光：双门展开后从水线向上弥散的全屏青绿微光，融合场景（纯展示，不拦截交互） */}
-      <div className="qingshan-amblight" aria-hidden="true" />
+      {/* 实体门（可交互） */}
+      <div className="doors-group main-doors">
+        {renderDoor('tower', towerSlotRef)}
+        {renderDoor('cockpit', cockpitSlotRef)}
+      </div>
 
-      {/* 山形：水墨晕染山水一体——远山淡影、中景低山、主山三峰三层墨色递进，
-          峰体点苔、主脊勾勒作笔骨；山脚经水线雾化隐没（mask 渐隐），与水面融为一体
-          （draw 动效见 theme.css qingshan 区块） */}
-      <svg className="qingshan-peak" viewBox="0 0 340 220" aria-hidden="true">
-        <defs>
-          <linearGradient id="qs-ink-near" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgba(52, 116, 96, .46)" />
-            <stop offset=".55" stopColor="rgba(52, 116, 96, .14)" />
-            <stop offset="1" stopColor="rgba(52, 116, 96, 0)" />
-          </linearGradient>
-          <linearGradient id="qs-ink-mid" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgba(64, 118, 100, .26)" />
-            <stop offset="1" stopColor="rgba(64, 118, 100, 0)" />
-          </linearGradient>
-          <linearGradient id="qs-ink-far" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgba(74, 128, 110, .2)" />
-            <stop offset="1" stopColor="rgba(74, 128, 110, 0)" />
-          </linearGradient>
-          <filter id="qs-blur-near" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="1.4" />
-          </filter>
-          <filter id="qs-blur-mid" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="2.2" />
-          </filter>
-          <filter id="qs-blur-far" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" />
-          </filter>
-          <filter id="qs-blur-dot" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation=".8" />
-          </filter>
-        </defs>
-        <g className="qs-float">
-          {/* 远山：满幅连绵淡影，雾化最重 */}
-          <path
-            className="qs-mtn qs-mtn--far"
-            d="M0 220 L 0 132 C 20 118, 38 96, 56 78 C 64 70, 72 70, 80 78 C 96 94, 112 108, 130 114 C 144 118, 156 108, 166 96 C 168 93, 169 91, 170 91 C 171 91, 172 93, 174 96 C 184 108, 196 118, 210 114 C 228 108, 244 94, 260 78 C 268 70, 276 70, 284 78 C 302 96, 320 118, 340 132 L 340 220 Z"
-            fill="url(#qs-ink-far)"
-            filter="url(#qs-blur-far)"
-          />
-          {/* 中景：两侧低山连绵，中间调过渡（中段横鞍隐入主山之后） */}
-          <path
-            className="qs-mtn qs-mtn--mid"
-            d="M0 220 L 0 150 C 14 132, 28 108, 44 92 C 52 84, 60 84, 68 92 C 82 108, 96 120, 114 126 C 140 134, 200 134, 226 126 C 244 120, 258 108, 272 92 C 280 84, 288 84, 296 92 C 312 108, 326 132, 340 150 L 340 220 Z"
-            fill="url(#qs-ink-mid)"
-            filter="url(#qs-blur-mid)"
-          />
-          {/* 主山：对称三峰，坡面带碎笔起伏，墨色随山脚渐淡入水 */}
-          <path
-            className="qs-mtn qs-mtn--near"
-            d="M0 220 C 10 198, 18 178, 30 160 C 40 144, 46 130, 54 116 C 62 102, 70 88, 78 74 C 82 66, 88 62, 92 66 C 98 74, 108 84, 118 90 C 124 93, 130 92, 136 86 C 144 78, 152 60, 158 46 C 162 36, 166 30, 170 28 C 174 30, 178 36, 182 46 C 188 60, 196 78, 204 86 C 210 92, 216 93, 222 90 C 232 84, 242 74, 248 66 C 252 62, 258 66, 262 74 C 270 88, 278 102, 286 116 C 294 130, 300 144, 310 160 C 322 178, 330 198, 340 220 Z"
-            fill="url(#qs-ink-near)"
-            filter="url(#qs-blur-near)"
-          />
-          {/* 点苔：峰头与坡脊的浓墨提点（对称布点） */}
-          <g className="qs-dots" fill="rgba(47, 102, 84, .4)" filter="url(#qs-blur-dot)">
-            <circle cx="170" cy="34" r="2.2" />
-            <circle cx="162" cy="44" r="1.5" />
-            <circle cx="178" cy="44" r="1.5" />
-            <circle cx="90" cy="72" r="1.8" />
-            <circle cx="250" cy="72" r="1.8" />
-            <circle cx="62" cy="126" r="2" />
-            <circle cx="278" cy="126" r="2" />
-            <circle cx="122" cy="104" r="1.4" />
-            <circle cx="218" cy="104" r="1.4" />
-          </g>
-          {/* 笔骨：主脊勾勒 + 对称皴线 */}
-          <path
-            className="qs-ridge qs-ridge--front"
-            pathLength={1}
-            d="M0 220 C 10 198, 18 178, 30 160 C 40 144, 46 130, 54 116 C 62 102, 70 88, 78 74 C 82 66, 88 62, 92 66 C 98 74, 108 84, 118 90 C 124 93, 130 92, 136 86 C 144 78, 152 60, 158 46 C 162 36, 166 30, 170 28 C 174 30, 178 36, 182 46 C 188 60, 196 78, 204 86 C 210 92, 216 93, 222 90 C 232 84, 242 74, 248 66 C 252 62, 258 66, 262 74 C 270 88, 278 102, 286 116 C 294 130, 300 144, 310 160 C 322 178, 330 198, 340 220 Z"
-          />
-          <path className="qs-ridge qs-ridge--accent" pathLength={1} d="M96 76 C 102 84, 110 90, 120 92" />
-          <path className="qs-ridge qs-ridge--accent" pathLength={1} d="M244 76 C 238 84, 230 90, 220 92" />
-          <path className="qs-ridge qs-ridge--accent" pathLength={1} d="M160 48 C 152 62, 142 76, 132 86" />
-          <path className="qs-ridge qs-ridge--accent" pathLength={1} d="M180 48 C 188 62, 198 76, 208 86" />
-        </g>
-      </svg>
+      {/* 水面倒影（CSS 兜底层）：青山画卷垂直翻转沉入水线以下，沿水线全宽铺开、向下渐隐、
+          随水波轻晃；WebGL 液态水面可用时与其同位叠加、被液态层盖过，不可用时独立承担倒影 */}
+      <div className="qs-reflection" aria-hidden="true">
+        <i />
+      </div>
 
-      {/* 青山知识库入口（可交互）：题字 + 裂隙与山形同一套升沉物理——置于山形之上、水体之下（z1），
-          初始整体沉在水下被水体遮没，split 后随山体同一节奏升起、鼠标离开一同沉回；
-          裂隙正压水线与山同宽，题字落位山脚留白处；点击后开屏整体由下向上推移进入第三页面 */}
-      <div
-        className="qingshan-steps"
-        role="button"
-        tabIndex={0}
+      {/* 液态水面：threejs-components liquid1 画布铺满水线以下区域，底图 = 青山倒影 + 水色烘进纹理，
+          波纹实时扭曲倒影；鼠标划过水面起涟漪，「青山」中心每 2s 荡开一圈大涟漪；
+          加载失败 / 不支持 WebGL / 偏好减弱动效时静默回退到 CSS 倒影（初始化见上方 useEffect） */}
+      <div className="water-liquid" aria-hidden="true">
+        <canvas ref={liquidCanvasRef} />
+      </div>
+
+      {/* 青山知识库入口（可交互）：宋体「青山」+ 细线箭头，身后垫一卷水墨远山；
+          双门展开后自水下浮出、鼠标离开沉回，点击后开屏整体由下向上推移进入第三页面 */}
+      <button
+        ref={markRef}
+        type="button"
+        className="qingshan-mark"
         aria-label="进入青山知识库"
         onClick={(e) => {
           e.stopPropagation()
@@ -227,51 +410,8 @@ export default function SplashGate({ onDone }: { onDone: () => void }) {
           }
         }}
       >
-        {/* 破水涟漪：山体刺破水线瞬间自基线扩出一圈椭圆环（一次性，随浮出触发） */}
-        <span className="qingshan-pierce qingshan-pierce--1" aria-hidden="true" />
-        <span className="qingshan-pierce qingshan-pierce--2" aria-hidden="true" />
-        <div className="qingshan-label">青山知识库</div>
-        <div className="qingshan-line" aria-hidden="true" />
-      </div>
-
-      {/* 实体门（可交互） */}
-      <div className="doors-group main-doors">
-        {renderDoor('tower', towerSlotRef)}
-        {renderDoor('cockpit', cockpitSlotRef)}
-      </div>
-
-      {/* 水面：深青水质底色 + 涌浪波带 + 波光细纹 + 光斑晕染 + 粼粼光点 + 水线浪脊 +
-          近岸浪花 + 中心/偏心涟漪 + 山体升沉的水中呼应（沉底辉光/上浮气泡/破水涟漪，
-          见 theme.css qs-sunken-glow / qs-bubbles / water-breach 区块） */}
-      <div className="water-surface" aria-hidden="true">
-        <div className="qs-sunken-glow" />
-        <div className="water-swell water-swell--1" />
-        <div className="water-swell water-swell--2" />
-        <div className="water-shimmer" />
-        <div className="water-gleam" />
-        <div className="water-sparkle water-sparkle--1" />
-        <div className="water-sparkle water-sparkle--2" />
-        <div className="water-sparkle water-sparkle--3" />
-        <div className="water-crest" />
-        <div className="water-foam" />
-        <span className="water-ripple water-ripple--1" />
-        <span className="water-ripple water-ripple--2" />
-        <span className="water-ripple water-ripple--3" />
-        <span className="water-ripple water-ripple--4" />
-        <span className="water-ripple water-ripple--5" />
-        <span className="water-ripple water-ripple--6" />
-        {/* 山体潜伏水下时气泡缓缓上冒；split 上浮时换上浮组连串爆发 */}
-        <div className="qs-bubbles qs-bubbles--sink" aria-hidden="true">
-          <span /><span /><span />
-        </div>
-        <div className="qs-bubbles qs-bubbles--rise" aria-hidden="true">
-          <span /><span /><span /><span /><span />
-        </div>
-        {/* 破水涟漪：山体上浮/下沉扰动水面，自破水点沿水面向外扩出的椭圆环 */}
-        <span className="water-breach water-breach--1" aria-hidden="true" />
-        <span className="water-breach water-breach--2" aria-hidden="true" />
-        <span className="water-breach water-breach--3" aria-hidden="true" />
-      </div>
+        <span className="qs-text">青山</span>
+      </button>
     </div>
   )
 }

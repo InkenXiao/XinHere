@@ -5,7 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=("../../.docker.env", ".env"), extra="ignore", env_ignore_empty=True
+        env_file=(".env",), extra="ignore", env_ignore_empty=True
+        # 本地开发回退 apps/backend/.env；容器内配置由 compose env_file（.docker.env）注入真实环境变量
     )
 
     database_url: str = ""

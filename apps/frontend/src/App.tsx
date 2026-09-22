@@ -4,6 +4,7 @@ import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { startTodoPolling, stopTodoPolling, useTodoStore } from '@/state/todoStore'
 import { useUiStore } from '@/state/uiStore'
+import { runtimeEnv } from '@/config'
 import { setToken } from '@/transport/api'
 import LoginPage from '@/shell/LoginPage'
 import TopBar from '@/shell/TopBar'
@@ -61,12 +62,23 @@ export default function App() {
   }, [mode, historyOpen, historyPinned, kanbanOpen])
 
   if (!ready) return <section className="layer layer-tower"><div className="bg" /></section>
+  // 青山知识库层（登录态无关都要渲染：未登录也可能从开屏进入）：自下向上推进入场，
+  // 内嵌知识库平台首页（KB_URL，运行时/构建期配置）；未配置或加载期间露出青绿山水加载幕
+  const qingshanLayer = (
+    <section className="layer layer-qingshan">
+      <div className="bg" />
+      {mode === 'qingshan' && runtimeEnv.KB_URL && (
+        <iframe className="qs-frame" src={runtimeEnv.KB_URL} title="青山知识库" />
+      )}
+    </section>
+  )
   if (!token) {
     return (
       <>
         <section className="layer layer-tower">
           <div className="bg" />
         </section>
+        {qingshanLayer}
         <LoginPage />
         {!splashDone && <SplashGate onDone={() => setSplashDone(true)} />}
       </>
@@ -85,14 +97,8 @@ export default function App() {
         <Starfield visible={mode === 'tower' && !kanbanOpen} />
         <ScreenWork />
       </section>
-      {/* 青山知识库（青绿山水·第三页面）：点击开屏台阶后自下向上推进入场 */}
-      <section className="layer layer-qingshan">
-        <div className="bg" />
-        <div className="qs-home">
-          <h1>青山知识库</h1>
-          <p>知行山水间</p>
-        </div>
-      </section>
+      {/* 青山知识库（青绿山水·第三页面）：点击开屏题字后自下向上推进入场，内嵌知识库平台首页 */}
+      {qingshanLayer}
       {/* 框架（不随模式切换而改变布局） */}
       <TopBar />
       <ModeToggle onHome={() => setSplashDone(false)} />

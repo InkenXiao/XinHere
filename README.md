@@ -87,7 +87,7 @@ psql -U dbuser -d xinhere -f scripts/db/03_comments.sql        # 表/字段 COMM
 ## 部署（本机 docker compose）
 
 ```bash
-cp .docker.env .env     # 首次配置：POSTGRES_* / MAIN_* / KB_MCP_URL 等
+vim .docker.env         # 首次配置：POSTGRES_* / MAIN_* / SSO / VITE_* 等（唯一配置文件）
 bash deploy/publish.sh  # 前端构建 → 依赖变化才重建镜像 → alembic 迁移 → up -d
 ```
 

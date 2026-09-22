@@ -3,7 +3,7 @@
 # 发布设计（改码/改配置均不重建镜像）：
 #   - 后端镜像只含 Python 依赖；源码/插件/契约/alembic 卷挂载进容器 → 改代码重启即生效
 #   - 前端镜像为纯 nginx；dist 产物 + nginx.conf 卷挂载 → 改前端代码重新 build dist 后重启
-#   - 环境变量经 env_file 注入（.docker.env 共享基础设施 + .env 生产覆盖层）→ 改配置 up -d 即生效
+#   - 环境变量经 env_file 注入（唯一配置文件 .docker.env，backend/frontend 共用）→ 改配置 up -d 即生效
 #   - 仅依赖(requirements.txt / package.json)变化时才需要 docker compose build（见 deploy/publish.sh）
 # 一次性发布入口：bash deploy/publish.sh（含前端构建、依赖检测、alembic 迁移、启动）
 # ----------------------------------------------------------------------------
@@ -15,8 +15,8 @@ services:
     image: xinhere-backend:latest
     container_name: xinhere-backend
     env_file:
+      # 唯一配置文件（基础设施 + SSO + 模型 + 前端 VITE_* 运行时配置）
       - .docker.env
-      - .env
     volumes:
       # 源码/迁移/插件/契约：与镜像内 /app 布局一致（勿删，缺挂载即缺文件）
       - ./apps/backend/app:/app/apps/backend/app
@@ -47,8 +47,8 @@ services:
     image: xinhere-frontend:latest
     container_name: xinhere-frontend
     env_file:
-      # VITE_* 前端运行时配置（nginx entrypoint 渲染为 config.js）
-      - .env
+      # 与 backend 共用唯一配置文件（VITE_* 经 nginx entrypoint 渲染为 config.js）
+      - .docker.env
     volumes:
       # 宿主构建产物 + nginx 配置（改前端代码/反代配置无需重建镜像）
       - ./apps/frontend/dist:/usr/share/nginx/html
