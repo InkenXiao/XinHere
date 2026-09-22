@@ -77,8 +77,8 @@ export function ModeToggle({ onHome }: { onHome?: () => void }) {
       }}
     >
       <button type="button" className="mt-v" aria-label="返回开屏页" title="返回开屏页" onClick={onHome}>
-        <img className="v-logo tower" src="/assets/xin-watchtower.svg" alt="" aria-hidden="true" />
-        <img className="v-logo cockpit" src="/assets/xin-cockpit.svg" alt="" aria-hidden="true" />
+        <img className="v-logo tower" src="/assets/top-watchtower.svg" alt="" aria-hidden="true" />
+        <img className="v-logo cockpit" src="/assets/top-cockpit.svg" alt="" aria-hidden="true" />
       </button>
       <div className="mt-card mt-card--tower" role="button" tabIndex={0} aria-label="切换到 Xin语（瞭望塔）" onClick={() => setMode('tower')}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMode('tower') } } }>
