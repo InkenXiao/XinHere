@@ -96,7 +96,7 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
     if (next === 'skill' && skills === null) {
       // 本地技能 + 技能市场合并展示；任一来源失败不影响另一来源
       void Promise.allSettled([
-        api<{ items: { skill_key: string; name: string; desc?: string }[] }>('GET', '/skills/local'),
+        api<{ items: { skill_key: string; name: string; desc?: string }[] }>('GET', '/skills'),
         api<{ items: Omit<SkillItem, 'selId' | 'source'>[] }>('GET', '/xuanpu/skills'),
       ]).then(([local, market]) => {
         const localItems: SkillItem[] = (local.status === 'fulfilled' ? local.value.items ?? [] : []).map(

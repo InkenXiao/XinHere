@@ -69,6 +69,24 @@ export interface DashboardSummary {
   trend_14d: { date: string; created: number; completed: number }[]
 }
 
+/** GET /metrics/overview：我的任务看板 + 数据看板（按当前用户过滤） */
+export interface MetricsOverview {
+  task_board: {
+    assigned: { total: number; done: number; open: number; overdue: number }
+    dispatched: { total: number; done: number; open: number; tasks: number }
+    docs: number
+    meetings: number
+    tokens: number
+    assigned_funnel: { status: string; count: number }[]
+    trend_14d: { date: string; created: number; completed: number }[]
+  }
+  data_board: {
+    custom_cards: { id: string; name: string; kind: string; runs: number }[]
+    kb: { internal: number; external: number; total: number }
+    app_usage: { sessions: number; messages: number; exec_runs: number; active_days: number }
+  }
+}
+
 export interface RiskBatch {
   batch_id: string
   period: string

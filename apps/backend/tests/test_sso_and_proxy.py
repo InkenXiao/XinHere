@@ -3,7 +3,8 @@
 函数级直调（不启 TestClient）：处理器均为普通函数，fake Request / SimpleNamespace 驱动。
 X1 sso_login 302 / X2 JIT 建号 / X3 已有账号绑定 / X4 state 防重放 /
 X5 双轨鉴权头互斥 + resolve_token 过期判定 / X6 REST 代理参数透传 /
-X7 cockpit seed 幂等 + CRUD 权限与校验 / X8 launch 两分支。
+X7 cockpit seed 幂等 + CRUD 权限与校验 / X8 launch 两分支 /
+X9 sso/ticket 免登三分支（400 票据失效回落登录页 / ok=False / 上游 5xx）。
 """
 from __future__ import annotations
 
@@ -341,3 +342,35 @@ def test_x8_launch_two_branches(db, monkeypatch):
     with pytest.raises(errors.AppError) as ei:
         xuanpu_api.launch(xuanpu_api.LaunchIn(key="nope"), user=bound, db=db)
     assert ei.value.status == 404
+
+
+# ---------- X9: sso/ticket 免登三分支 ----------
+
+
+def test_x9_sso_ticket_branches(db, monkeypatch):
+    # 分支1：一次性票据无效/过期/重复消费（sso-server 400）→ 静默回落前端登录页，不抛错
+    monkeypatch.setattr(
+        auth_api.httpx, "post",
+        lambda url, **kw: SimpleNamespace(status_code=400, json=lambda: {"detail": "票据无效或已过期"}),
+    )
+    resp = auth_api.sso_ticket(_FakeRequest(), ticket="dead-ticket", db=db)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == settings.frontend_url
+
+    # 分支2：校验通过但 ok=False（门户侧拒绝）→ 同样回落登录页
+    monkeypatch.setattr(
+        auth_api.httpx, "post",
+        lambda url, **kw: SimpleNamespace(status_code=200, json=lambda: {"ok": False}),
+    )
+    resp = auth_api.sso_ticket(_FakeRequest(), ticket="t-rejected", db=db)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == settings.frontend_url
+
+    # 分支3：sso-server 5xx（真实上游故障）→ 502 UPSTREAM_ERROR 继续暴露
+    monkeypatch.setattr(
+        auth_api.httpx, "post",
+        lambda url, **kw: SimpleNamespace(status_code=500, json=lambda: {}),
+    )
+    with pytest.raises(errors.AppError) as ei:
+        auth_api.sso_ticket(_FakeRequest(), ticket="t-upstream", db=db)
+    assert ei.value.status == 502

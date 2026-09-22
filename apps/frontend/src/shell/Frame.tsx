@@ -6,9 +6,9 @@ import TaskList from './TaskList'
 import TodoPanel from './TodoPanel'
 import ScreenDashboard from './ScreenDashboard'
 
-/* 模式切换：页面顶部中间 V 形图标（左杆=Xin语 / 右杆=Xin台，当前模式点亮），点击 V 返回开屏页；
+/* 模式切换：页面顶部中间品牌标识（瞭望塔页=xin-watchtower / 驾驶舱页=xin-cockpit），点击返回开屏页；
    鼠标移上去展开左右双卡，移入卡片放大并显现竖排文字，点击切换。
-   卡片收合以「指针彻底离开 V 与两张卡片的联合范围」为准（240ms 缓冲防抖） */
+   卡片收合以「指针彻底离开标识与两张卡片的联合范围」为准（240ms 缓冲防抖） */
 export function ModeToggle({ onHome }: { onHome?: () => void }) {
   const mode = useUiStore((s) => s.mode)
   const setMode = useUiStore((s) => s.setMode)
@@ -77,8 +77,8 @@ export function ModeToggle({ onHome }: { onHome?: () => void }) {
       }}
     >
       <button type="button" className="mt-v" aria-label="返回开屏页" title="返回开屏页" onClick={onHome}>
-        <i className={mode === 'tower' ? 'cur' : ''} />
-        <i className={mode === 'cockpit' ? 'cur' : ''} />
+        <img className="v-logo tower" src="/assets/xin-watchtower.svg" alt="" aria-hidden="true" />
+        <img className="v-logo cockpit" src="/assets/xin-cockpit.svg" alt="" aria-hidden="true" />
       </button>
       <div className="mt-card mt-card--tower" role="button" tabIndex={0} aria-label="切换到 Xin语（瞭望塔）" onClick={() => setMode('tower')}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMode('tower') } } }>
@@ -203,7 +203,7 @@ export function KanbanDrawer() {
               <span className="arrow">↑</span>
               <span>返回</span>
             </button>
-            <h3>{mode === 'cockpit' ? '经营看板' : '研究看板'}</h3>
+            <h3>{mode === 'cockpit' ? '我的看板' : '我的看板'}</h3>
           </div>
           <ScreenDashboard />
         </div>

@@ -36,6 +36,7 @@ from .platform.api import (
     models as models_router,
     media as media,
     minutes as minutes,
+    metrics as metrics,
 )
 from .platform.plugins.loader import discover
 
@@ -153,6 +154,7 @@ for r in (
     cash.router, kpi.router, reports.router, kb.router, plugins.router,
     xuanpu.router, cockpit.router, tasks.router, hero.router,
     models_router.router, media.router, minutes.router, skills.router,
+    metrics.router,
 ):
     app.include_router(r, prefix=API)
 

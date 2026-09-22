@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
 from ...core import errors
-from ...persistence.models import SysUser
+from ...persistence.models import PlatformOperationLog, SysUser
 from ...persistence.session import get_db
 from ...services import minutes as minutes_svc
 from ...services import xuanpu as xuanpu_svc
@@ -65,5 +65,13 @@ def save(body: SaveIn, user: SysUser = Depends(current_user), db: Session = Depe
         raise HTTPException(status_code=502, detail=f"保存会议纪要失败：{str(exc)[:160]}") from exc
     meeting = result if isinstance(result, dict) else {}
     meeting_id = meeting.get("id") or meeting.get("meeting_id") or (meeting.get("meeting") or {}).get("id")
+    # 保存留痕（看板「保存的会议」计数依据；会议本体存于外部平台，本地无表）
+    db.add(PlatformOperationLog(
+        user_id=user.user_id, channel="page",
+        actor=user.display_name or user.username,
+        entity="xuanpu_meeting", operation="insert",
+        record_key=str(meeting_id) if meeting_id else None,
+        detail={"title": title}, entry_point="POST /api/v1/minutes/save",
+    ))
     return {"ok": True, "meeting_id": meeting_id, "title": title,
             "meet_date": date.today().isoformat(), "raw": meeting}

@@ -206,21 +206,12 @@ body.mode-tower .user-chip .role-tag { color: var(--watch); }
    鼠标移上去展开左右双卡，彻底离开联合范围才收合；卡内为顶部横排标语 + 中心竖排大字 ===== */
 .mode-toggle { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 56;
   display: flex; align-items: flex-start; justify-content: center; padding: 14px 26px 6px; }
-.mt-v { position: relative; display: block; width: 48px; height: 22px; background: none; border: none; padding: 0; cursor: pointer; }
+.mt-v { position: relative; display: block; background: none; border: none; padding: 0; cursor: pointer; }
 .mt-v:focus-visible { outline: 2px solid var(--fr-accent); outline-offset: 5px; border-radius: 6px; }
-.mt-v i { position: absolute; top: 0; left: 50%; width: 5.5px; height: 20px; border-radius: 3px;
-  transition: transform .45s cubic-bezier(.34, 1.4, .4, 1), opacity .3s ease, box-shadow .3s ease; }
-.mt-v i:first-child { background: linear-gradient(180deg, #9FD3A0, #1784BC);
-  transform: translateX(-11px) rotate(-15deg); }
-.mt-v i:last-child { background: linear-gradient(180deg, #5a9cc4, #2A739C);
-  transform: translateX(5.5px) rotate(15deg); }
-.mt-v i:first-child.cur { box-shadow: 0 0 10px rgba(23, 132, 188, .6); }
-.mt-v i:last-child.cur { box-shadow: 0 0 10px rgba(42, 115, 156, .55); }
-.mt-v i:not(.cur) { opacity: .38; }
-/* 悬停：V 双臂张开、双杆点亮 */
-.mode-toggle.cards-open .mt-v i { opacity: 1; }
-.mode-toggle.cards-open .mt-v i:first-child { transform: translateX(-16px) rotate(-21deg); }
-.mode-toggle.cards-open .mt-v i:last-child { transform: translateX(10.5px) rotate(21deg); }
+/* 品牌标识随模式切换：瞭望塔页=xin-watchtower（白标，暗底）/ 驾驶舱页=xin-cockpit（深蓝标，浅底） */
+.mt-v .v-logo { display: none; height: 30px; width: auto; }
+body.mode-tower .mt-v .v-logo.tower { display: block; }
+body.mode-cockpit .mt-v .v-logo.cockpit { display: block; }
 
 /* ===== 框架一：左侧历史对话（左缘热区唤起 + pin 固定常驻） ===== */
 .h-hotzone { position: fixed; left: 0; top: 0; bottom: 0; width: 14px; z-index: 52; cursor: pointer; }
@@ -327,7 +318,8 @@ body.mode-tower .r-rail.open, body.mode-tower .r-rail:hover {
 .td-title { font-size: 13.5px; font-weight: 500; line-height: 1.35; color: var(--fr-ink); flex: 1; font-family: var(--font-han); }
 .td-kind { font-size: 9.5px; padding: 1px 7px; border-radius: 8px; background: rgba(99,102,241,.15); color: #a5b4fc; flex-shrink: 0; }
 .td-kind.na { background: rgba(245,158,11,.15); color: var(--amber-light); }
-body.mode-cockpit .td-kind.na { color: var(--amber-dark); }
+.td-kind.xp { background: rgba(245,158,11,.15); color: var(--amber-light); }
+body.mode-cockpit .td-kind.na, body.mode-cockpit .td-kind.xp { color: var(--amber-dark); }
 .td-sub { margin-top: 5px; font-size: 11.5px; color: var(--fr-ink-2); }
 .td-state { margin-top: 8px; font-size: 11px; color: var(--fr-accent); background: var(--accent-soft);
   border: 1px dashed var(--fr-bd); border-radius: 8px; padding: 4px 9px; display: inline-block; }
@@ -902,6 +894,14 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 .dash-refresh:hover { color: var(--accent); background: var(--accent-soft); }
 .trend-legend { display: flex; gap: 16px; font-size: 11px; color: var(--ink-30); margin-top: 8px; }
 .trend-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 2px; }
+/* 看板双 Tab 切换 */
+.dash-tabs { display: flex; align-items: center; gap: 8px; max-width: 1280px; margin: 0 auto 14px; }
+.dash-tab { font-size: 13px; color: var(--ink-30); padding: 6px 18px; border-radius: 9px; cursor: pointer;
+  border: 1px solid transparent; transition: .15s; letter-spacing: .04em; }
+.dash-tab:hover { color: var(--ink-100); }
+.dash-tab.on { color: var(--accent); background: var(--accent-soft); border-color: var(--glass-bd); font-weight: 600; }
+/* Token 消耗行：数值加宽加大 */
+.scene-row .s-val.big { width: auto; font-size: 16px; color: var(--ink-100); font-weight: 600; }
 
 /* ===== 登录页（夜景山水 + 玻璃卡） ===== */
 .login-stage { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -912,7 +912,7 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 .login-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; pointer-events: none;
   background: linear-gradient(90deg, transparent, rgba(159,211,160,.55), rgba(23,132,188,.55), transparent); opacity: .85; }
 .login-brand { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 26px; }
-.login-brand .logo { height: 40px; width: auto; }
+.login-brand .logo { height: 56px; width: auto; }
 .login-brand h1 { font-size: 22px; color: #f1eee6; letter-spacing: .10em; font-family: var(--font-han); font-weight: 700; }
 .login-brand .slogan { font-size: 12px; color: rgba(241,238,230,.55); letter-spacing: .22em; font-weight: 300; }
 .login-field { margin-bottom: 14px; }
@@ -1095,12 +1095,10 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 #door-entry.is-entering.is-back .door-veil { transform: scale(1.07); }
 #door-entry #door-copy { position: absolute; top: clamp(14px, 5vh, 56px); left: 0; right: 0; text-align: center; z-index: 5; pointer-events: none;
   transition: opacity .28s ease-out, transform .36s cubic-bezier(.22, .8, .2, 1); }
-#door-entry #door-copy .door-logo { width: clamp(36px, 5.5vh, 52px); height: clamp(36px, 5.5vh, 52px); margin: 0 auto 8px;
+#door-entry #door-copy .door-logo { width: clamp(76px, 12vh, 100px); height: auto; aspect-ratio: 543 / 485; margin: 0 auto 10px;
   filter: drop-shadow(0 4px 12px rgba(20, 40, 60, .18)); }
-#door-entry #door-copy .door-logo svg { width: 100%; height: 100%; display: block; }
-#door-entry #door-copy h1 { font-size: clamp(18px, 2.8vh, 26px); font-weight: 600; letter-spacing: .06em; color: #1a1a1a; line-height: 1.1;
-  font-family: var(--font-han-light); }
-#door-entry #door-copy p { margin-top: 6px; font-size: clamp(10px, 1.5vh, 12px); letter-spacing: .3em; color: #a39c92; }
+#door-entry #door-copy .door-logo img { width: 100%; height: 100%; display: block; }
+#door-entry #door-copy p { margin-top: 2px; font-size: clamp(10px, 1.5vh, 12px); letter-spacing: .3em; color: #a39c92; }
 #door-entry.is-entering #door-copy { opacity: 0; transform: translateY(-8px); }
 #door-entry.is-entering.is-back #door-copy { transform: translateY(-8px) scale(1.1); }
 /* 门组：仅作定位上下文（inset:0 对齐视口），slot 的全部既有定位/变换规则不变；
@@ -1216,7 +1214,8 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
   transition: --door-x .42s ease-in, --door-rot .42s ease-in, --door-hover-k .42s ease-in, opacity .28s ease-in; }
 /* =====================================================================
    水面（door-water）：水线以下的光影动效区——深青蓝水质底色（远岸薄雾渐入深水 +
-   右上暖金光区）、波光细纹、光斑晕染、粼粼光点、自中心扩散的涟漪；纯装饰层
+   右上暖金光区）、水线浪脊起伏、宽幅涌浪波带、波光细纹、光斑晕染、粼粼光点、
+   近岸碎浪花、中心扩散涟漪 + 偏心次级涟漪；纯装饰层
    不承载门的映像，与扁平门卡同处一个物理空间
    ===================================================================== */
 /* 水线 = 门底缘 + 26px 间隙 + 额外下移 7vh —— 水面下移让出门与水面之间的 band，
@@ -1224,22 +1223,22 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
    用 vh 绝对单位而非 % —— 避免各使用处包含块高度不同导致百分比错位 */
 #door-entry { --door-water-y: calc(50vh + var(--door-width) * .7928 + 26px + 7vh); }
 /* 水面容器：铺在水线之下，overflow:hidden 兜底防溢出；
-   深青蓝水质底色——顶部远岸薄雾（衔接白色舞台）渐入深水，右上叠一抹暖金光区
-   （对应真实水面的夕照光路），水线中轴透出青山裂隙的绿光 */
+   清澈青绿水质底色——顶部远岸薄雾（衔接白色舞台）渐入青绿深水，中央透出青山裂隙的翠绿光，
+   右上保留一抹暖金光区（对应真实水面的夕照光路） */
 #door-entry .water-surface { position: absolute; left: 0; right: 0; top: var(--door-water-y); bottom: 0; z-index: 1;
   overflow: hidden; pointer-events: none;
   background:
-    radial-gradient(46% 62% at 80% -8%, rgba(238, 198, 140, .4) 0%, rgba(238, 198, 140, .1) 46%, transparent 72%),
-    radial-gradient(42% 55% at 50% -4%, rgba(16, 185, 129, .13) 0%, transparent 70%),
-    linear-gradient(180deg, #ccd9de 0%, #93b1bd 9%, #567f92 24%, #336076 44%, #1d475a 68%, #0e2f40 100%); }
+    radial-gradient(46% 62% at 80% -8%, rgba(238, 198, 140, .38) 0%, rgba(238, 198, 140, .1) 46%, transparent 72%),
+    radial-gradient(48% 60% at 50% -4%, rgba(16, 185, 129, .24) 0%, transparent 72%),
+    linear-gradient(180deg, #d8efe9 0%, #9cd2c6 9%, #5cb0a3 24%, #359084 44%, #1d6b62 68%, #0f4741 100%); }
 /* 水线高光：远岸雾面与天光的分界 */
 #door-entry .water-surface::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px; z-index: 2;
-  background: linear-gradient(90deg, transparent 8%, rgba(214, 234, 244, .45) 50%, transparent 92%); }
-/* 深水压暗：越近越深，让水质沉稳，也压住底部避免波光过亮 */
+  background: linear-gradient(90deg, transparent 8%, rgba(214, 244, 236, .5) 50%, transparent 92%); }
+/* 深水压暗：越近越深但保留清澈感（偏青绿的暗部、轻度压暗），也压住底部避免波光过亮 */
 #door-entry .water-surface::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(180deg, transparent 42%, rgba(6, 22, 31, .5) 100%); }
+  background: linear-gradient(180deg, transparent 42%, rgba(4, 32, 28, .3) 100%); }
 /* 波光细纹（shimmer）：断续的短条光斑（细椭圆）以素数尺寸 tile 平铺，
-   两个 tile 组 × 各 4 条斑，漂移方向两两相反、位移 = 各自 tile 高度（无缝循环），
+   两个 tile 组 × 各 4 条斑，斜向漂移、方向两两相反（纵向位移 = tile 高度保证无缝循环），
    相互错切叠出细密水纹底理——比通长条纹更贴近真实水面的断续反光 */
 #door-entry .water-shimmer { position: absolute; inset: 0; opacity: .9;
   background-image:
@@ -1254,7 +1253,7 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
   background-size: 257px 83px, 257px 83px, 257px 83px, 257px 83px, 173px 61px, 173px 61px, 173px 61px, 173px 61px;
   background-repeat: repeat;
   animation: water-shimmer 12s linear infinite; }
-@keyframes water-shimmer { to { background-position: 0 83px, 0 -83px, 0 83px, 0 -83px, 0 61px, 0 -61px, 0 61px, 0 -61px; } }
+@keyframes water-shimmer { to { background-position: -41px 83px, 53px -83px, -29px 83px, 47px -83px, -23px 61px, 31px -61px, -19px 61px, 27px -61px; } }
 /* 光斑晕染（gleam）：右上暖金光区 + 边缘亮纱，screen 提亮，呼吸式明暗模拟光路闪烁 */
 #door-entry .water-gleam { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
   background:
@@ -1262,8 +1261,57 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
     radial-gradient(24% 34% at 90% 30%, rgba(255, 244, 224, .18) 0%, transparent 70%);
   animation: water-gleam 5.2s ease-in-out infinite alternate; }
 @keyframes water-gleam {
-  0% { opacity: .5; transform: scaleY(1); }
-  100% { opacity: 1; transform: scaleY(1.1); }
+  0% { opacity: .5; transform: translateX(-1.2%) scaleY(1); }
+  100% { opacity: 1; transform: translateX(1.2%) scaleY(1.08); }
+}
+/* 水线浪脊（crest）：两排不同尺度的连续浪峰瓦片沿水线反向横移 + 整层缓慢起伏，
+   叠出水线自身的涌动感——水缘不再是静止直线，而是持续微涌的浪脊 */
+#door-entry .water-crest { position: absolute; left: -160px; right: -160px; top: -4px; height: 16px; pointer-events: none;
+  background-image:
+    radial-gradient(44px 8px at 50% 0, rgba(255, 255, 255, .38) 0%, rgba(214, 242, 235, .13) 52%, transparent 74%),
+    radial-gradient(66px 11px at 50% 2px, rgba(236, 255, 250, .2) 0%, transparent 72%);
+  background-size: 113px 16px, 197px 16px;
+  background-repeat: repeat-x;
+  mix-blend-mode: screen; opacity: .85;
+  animation: water-crest 13s linear infinite, water-crest-bob 5.6s ease-in-out infinite alternate; }
+@keyframes water-crest { to { background-position: 113px 0, -197px 0; } }
+@keyframes water-crest-bob { from { transform: translateY(0); } to { transform: translateY(2.4px); } }
+/* 宽幅涌浪（swell）：两道横贯水面的柔光波带，反向缓漂 + 纵向舒展呼吸，
+   screen 提亮叠出「涌」的体量感（blur 让波缘融进水质，似远水推近的暗涌） */
+#door-entry .water-swell { position: absolute; left: -18%; width: 136%; pointer-events: none; mix-blend-mode: screen; }
+#door-entry .water-swell--1 { top: 5%; height: 34%; opacity: .6; filter: blur(7px);
+  background: radial-gradient(56% 90% at 50% 50%, rgba(188, 240, 222, .17) 0%, rgba(188, 240, 222, .05) 52%, transparent 78%);
+  animation: water-swell-a 11s ease-in-out infinite alternate; }
+#door-entry .water-swell--2 { top: 30%; height: 40%; opacity: .5; filter: blur(9px);
+  background: radial-gradient(60% 88% at 50% 50%, rgba(158, 224, 244, .14) 0%, rgba(158, 224, 244, .04) 50%, transparent 76%);
+  animation: water-swell-b 14.5s ease-in-out infinite alternate; }
+@keyframes water-swell-a {
+  0% { transform: translateX(-6%) scaleY(1); }
+  100% { transform: translateX(6%) scaleY(1.28); }
+}
+@keyframes water-swell-b {
+  0% { transform: translateX(8%) scaleX(1.05) scaleY(1.22); }
+  100% { transform: translateX(-8%) scaleX(.95) scaleY(.9); }
+}
+/* 近岸浪花（foam）：碎亮光点密铺 + 上密下疏的 mask 收束在水线附近，
+   不规则节奏的明灭（忽明忽暗、无固定呼吸相位）+ 缓慢横漂——读作浪尖的碎沫反光 */
+#door-entry .water-foam { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background-image:
+    radial-gradient(2.6px 1.5px at 30% 24%, rgba(255, 255, 255, .95) 30%, transparent 70%),
+    radial-gradient(1.9px 1.1px at 64% 42%, rgba(240, 255, 250, .8) 30%, transparent 70%),
+    radial-gradient(3px 1.7px at 84% 16%, rgba(255, 252, 240, .85) 30%, transparent 70%),
+    radial-gradient(1.7px 1px at 12% 50%, rgba(228, 248, 242, .7) 30%, transparent 70%);
+  background-size: 139px 47px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 30%, transparent 68%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, .55) 30%, transparent 68%);
+  animation: water-foam 4.2s ease-in-out infinite, water-drift 21s linear infinite; }
+@keyframes water-foam {
+  0%, 100% { opacity: .22; }
+  11% { opacity: 1; }
+  34% { opacity: .28; }
+  52% { opacity: .9; }
+  71% { opacity: .18; }
+  86% { opacity: .6; }
 }
 /* 粼粼光点（sparkle）：细碎光点以素数尺寸 tile 密铺，三层不同密度/相位各自闪烁 +
    极缓慢横漂，模拟阳光在波峰上的点点反光；第三层光点更大更暖，用 mask 渐入靠向
@@ -1300,18 +1348,28 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 @keyframes water-sparkle-c { 0%, 100% { opacity: .3; } 40% { opacity: 1; } 70% { opacity: .5; } }
 @keyframes water-drift { to { background-position: -40px 0, 26px 0, -32px 0, 20px 0; } }
 /* 涟漪：自水面中心（双门合拢轴心）不断向外扩散的同心椭圆环——四环错相位连续发射，
-   循环无缝（延迟 = 周期/4），扩散至约 3 倍后淡出，呈现水纹层层荡开的韵律 */
-#door-entry .water-ripple { position: absolute; left: 50%; top: 44px; width: 240px; height: 48px; margin: -24px 0 0 -120px;
-  border-radius: 50%; border: 1px solid rgba(214, 236, 250, .6); box-shadow: inset 0 0 16px rgba(255, 255, 255, .12);
-  opacity: 0; transform: scale(.16); animation: water-ripple 5.6s cubic-bezier(.17, .6, .35, 1) infinite; }
-#door-entry .water-ripple--2 { animation-delay: 1.4s; }
-#door-entry .water-ripple--3 { animation-delay: 2.8s; }
-#door-entry .water-ripple--4 { animation-delay: 4.2s; }
+   循环无缝（延迟 = 周期/4）；基准 64vw 宽椭圆，最大扩散 1.75 倍 ≈ 112vw，
+   水纹一直荡出整个水面（左右溢出屏幕被裁）才淡出；3px 描边 + 青绿亮色，波纹清晰醒目 */
+#door-entry .water-ripple { position: absolute; left: 50%; top: 44px; width: 64vw; height: 12.8vw; margin: -6.4vw 0 0 -32vw;
+  border-radius: 50%; border: 3px solid rgba(196, 244, 226, .55);
+  box-shadow: inset 0 0 24px rgba(255, 255, 255, .14), 0 0 18px rgba(160, 240, 214, .18);
+  opacity: 0; transform: scale(.12); animation: water-ripple 7.2s cubic-bezier(.17, .6, .35, 1) infinite; }
+#door-entry .water-ripple--2 { animation-delay: 1.8s; }
+#door-entry .water-ripple--3 { animation-delay: 3.6s; }
+#door-entry .water-ripple--4 { animation-delay: 5.4s; }
 @keyframes water-ripple {
-  0% { opacity: 0; transform: scale(.16); }
-  10% { opacity: .55; }
-  100% { opacity: 0; transform: scale(3); }
+  0% { opacity: 0; transform: scale(.12); }
+  8% { opacity: .75; }
+  100% { opacity: 0; transform: scale(1.75); }
 }
+/* 偏心次级涟漪：两圈更小、错位于轴心两侧的涟漪，独立周期与相位——
+   打破中心对称的机械感，让涟漪分布更接近自然落点 */
+#door-entry .water-ripple--5 { left: 24%; top: 26px; width: 34vw; height: 6.8vw; margin: -3.4vw 0 0 -17vw;
+  border-width: 2px; border-color: rgba(190, 236, 244, .45);
+  animation-duration: 9.5s; animation-delay: 2.3s; }
+#door-entry .water-ripple--6 { left: 77%; top: 64px; width: 27vw; height: 5.4vw; margin: -2.7vw 0 0 -13.5vw;
+  border-width: 2px; border-color: rgba(196, 244, 226, .4);
+  animation-duration: 8.2s; animation-delay: 5.1s; }
 /* =====================================================================
    青山知识库（第三入口）：能量裂隙式底座——极窄发光线 + 椭圆光池，文字悬浮其上；
    无实体色块、无 3D 俯视角，与扁平门卡同处一个物理空间；
@@ -1368,12 +1426,16 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
   #door-entry.is-entering.is-forward, #door-entry.is-entering.is-back { animation-duration: .15s; animation-delay: .1s; }
   #door-entry .door-slot { transition: --door-x .01s, --door-rot .01s, --door-hover-k .01s, opacity .25s ease; }
   #door-entry .door-card { transition: --door-dx .01s, --door-dy .01s, --door-k .01s, opacity .25s ease; }
-  /* 水面降级：关掉涟漪/波光/光点动画，保留静态水质底色与微弱光斑 */
-  #door-entry .water-ripple, #door-entry .water-shimmer, #door-entry .water-sparkle { animation: none; }
+  /* 水面降级：关掉涟漪/浪脊/涌浪/浪花/波光/光点动画，保留静态水质底色与微弱光斑 */
+  #door-entry .water-ripple, #door-entry .water-shimmer, #door-entry .water-sparkle,
+  #door-entry .water-crest, #door-entry .water-swell, #door-entry .water-foam { animation: none; }
   #door-entry .water-ripple { opacity: 0; }
   #door-entry .water-shimmer { opacity: .45; }
   #door-entry .water-sparkle { opacity: .55; }
   #door-entry .water-gleam { animation: none; opacity: .6; }
+  #door-entry .water-crest { opacity: .55; }
+  #door-entry .water-swell { opacity: .4; }
+  #door-entry .water-foam { opacity: .35; }
   #door-entry .qingshan-line { animation: none; opacity: .9; }
   #door-entry .qingshan-amblight { transition: none; }
   #door-entry .qingshan-steps { transition-duration: .01s, .01s; transition-delay: 0s, 0s; }

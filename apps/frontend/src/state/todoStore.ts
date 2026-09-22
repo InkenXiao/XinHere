@@ -22,12 +22,10 @@ function saveIgnored(s: Set<string>) {
 }
 
 interface TodoState {
-  box: 'assignee' | 'dispatcher'
   items: TodoItem[]
   xpFills: XuanPuFillAssignment[]
   ignored: Set<string>
   loading: boolean
-  setBox: (b: 'assignee' | 'dispatcher') => void
   load: () => Promise<void>
   ignore: (todoId: string) => void
   feedback: (todoId: string, text: string) => Promise<void>
@@ -40,21 +38,16 @@ interface TodoState {
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 export const useTodoStore = create<TodoState>((set, get) => ({
-  box: 'assignee',
   items: [],
   xpFills: [],
   ignored: loadIgnored(),
   loading: false,
 
-  setBox(b) {
-    set({ box: b })
-    void get().load()
-  },
-
   async load() {
     set({ loading: true })
     try {
-      const r = await api<{ items: TodoItem[] }>('GET', `/todos?box=${get().box}`)
+      // 仅拉取需要我办理的待办
+      const r = await api<{ items: TodoItem[] }>('GET', '/todos?box=assignee')
       set({ items: r.items })
     } finally {
       set({ loading: false })

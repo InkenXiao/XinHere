@@ -242,6 +242,10 @@ def sso_ticket(
         resp = httpx.post(settings.sso_verify_url, json={"ticket": ticket}, timeout=15)
     except httpx.HTTPError as exc:
         raise errors.upstream(f"统一身份服务不可达：{exc}") from exc
+    if resp.status_code == 400:
+        # 一次性 ticket 无效/过期/重复消费（如刷新落地页、门户重复跳转）：
+        # 静默回落前端常规登录，与 ok=False 分支同路径，不向用户抛错误
+        return RedirectResponse(settings.frontend_url, status_code=302)
     if resp.status_code != 200:
         raise errors.upstream("统一身份登录凭证校验失败")
     payload = resp.json()
