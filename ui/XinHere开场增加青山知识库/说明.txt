@@ -1,0 +1,18 @@
+【离线版说明】
+
+door-gallery-crossed_v3_离线版.html —— 双击即可离线打开（Chrome/Edge），无需联网：
+  · 所有图片以 base64 内嵌于 HTML；
+  · 水面液态渲染组件（threejs-components liquid1，513KB）已内嵌文件内，
+    以 blob 方式加载，原 CDN 依赖已移除；
+  · 字体走系统内置（宋体/苹方类），无网络字体。
+
+assets/ —— 本页用到的全部资源的独立文件版（HTML 内已有内嵌副本，此文件夹供单独取用）：
+assets/img-tower.jpg            94 KB  瞭望塔门图(星空)
+assets/img-cockpit.jpg          37 KB  驾驶舱门图
+assets/img-mount.png           123 KB  水面山卷(雾山)
+assets/img-qingshan.jpg        123 KB  青山按钮题图
+assets/img-btn-mountain.png     70 KB  青山背影图
+assets/img-scene-mountain.jpg   123 KB  水线上山景
+assets/liquid1.min.js            513 KB   水面渲染组件（threejs-components@0.0.30）
+
+无任何其他外部依赖（无 CDN、无网络字体、无外链图片）。

@@ -27,7 +27,7 @@ export default function ScreenDashboard() {
     <div className="dash-body">
       <div className="dash-tabs">
         <div className={`dash-tab ${tab === 'task' ? 'on' : ''}`} onClick={() => setTab('task')}>
-          我的任务看板
+          任务看板
         </div>
         <div className={`dash-tab ${tab === 'data' ? 'on' : ''}`} onClick={() => setTab('data')}>
           数据看板
