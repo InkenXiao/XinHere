@@ -91,7 +91,7 @@ class AgentExecutor:
     )
 
     def _build_graph(self, tool_ctx: ToolCtx, model_key: str = "", skill_prompt: str | None = None,
-                     skill_key: str = "", skill_source: str = ""):
+                     skill_key: str = "", skill_source: str = "", user_id: str | None = None):
         from deepagents import create_deep_agent
 
         from ..plugins.loader import plugin_tools
@@ -151,7 +151,8 @@ class AgentExecutor:
                 + self.SKILL_OUTPUT_STYLE
             )
         return create_deep_agent(
-            model=build_model(channel=(model_key or "").strip().lower() or "main"),
+            model=build_model(channel=(model_key or "").strip().lower() or "main",
+                              user_id=user_id),
             tools=tools,
             checkpointer=self._saver,
             system_prompt=SYSTEM_PROMPT + skill_note,
@@ -247,7 +248,8 @@ class AgentExecutor:
         try:
             self._ready.wait(timeout=30)
             graph = self._build_graph(tool_ctx, handle.model_key, handle.skill_prompt,
-                                      handle.skill_key, handle.skill_source)
+                                      handle.skill_key, handle.skill_source,
+                                      user_id=handle.user_id)
             config = {"configurable": {"thread_id": sid}}
             input_ = (
                 Command(resume=resume_value)

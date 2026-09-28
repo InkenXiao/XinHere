@@ -21,15 +21,22 @@ class Settings(BaseSettings):
     main_api_url: str = "http://localhost:8000/v1"
     main_api_key: str = ""
     main_model: str = "glm-5.2-fp8"  # LLM 别名上游故障，勿用
-    llm_max_tokens: int = 8192  # 推理型模型必须 >=4096
+    main_max_tokens: int = 8192  # 主推理模型单次生成输出上限（推理型模型必须 >=4096）
     # 轻量快推通道 (对话页「快速」模型; 未配置或与主模型同名时不暴露)
     small_api_url: str = ""
     small_api_key: str = ""
     small_model: str = ""
+    small_max_tokens: int = 4096
+    # 代码生成通道 (预留: AI coding; 未配置时回退主推理模型)
+    coder_api_url: str = ""
+    coder_api_key: str = ""
+    coder_model: str = ""
+    coder_max_tokens: int = 8192
     # 视觉多模态通道 (对话附件图片识别)
     vision_api_url: str = ""
     vision_api_key: str = ""
     vision_model: str = ""
+    vision_max_tokens: int = 4096
     # mineru 算力网关 (扫描件 PDF 深度解析; 留空则跳过该级)
     mineru_api_url: str = ""
     # 语音转写代理目标 (xuanpu pro-cowork, 容器内网直达)

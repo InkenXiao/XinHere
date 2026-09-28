@@ -43,7 +43,7 @@ def _xj(data, limit: int = 4000) -> str:
     return text if len(text) <= limit else text[:limit] + "…（截断）"
 
 
-# ---------- 联网搜索 (DuckDuckGo 公开端点, 免密钥) ----------
+# ---------- 联网搜索 (Bing 公开 HTML 端点, 免密钥; DuckDuckGo 国内网络不可达) ----------
 _WS_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -71,6 +71,9 @@ def _ws_real_url(url: str) -> str:
     return url or ""
 
 
+_WS_ENDPOINTS = ("https://cn.bing.com/search", "https://www.bing.com/search")
+
+
 def _web_search_impl(query: str, max_results: int = 8) -> str:
     """联网搜索; 严格超时, 任何异常优雅降级, 绝不卡死 Agent 回合"""
     import re as _re
@@ -80,36 +83,41 @@ def _web_search_impl(query: str, max_results: int = 8) -> str:
     q = (query or "").strip()
     if not q:
         return "搜索关键词为空"
-    try:
-        resp = httpx.get(
-            "https://html.duckduckgo.com/html/",
-            params={"q": q},
-            headers={"User-Agent": _WS_UA},
-            timeout=httpx.Timeout(8.0, connect=3.0),
-            follow_redirects=True,
-        )
-        resp.raise_for_status()
-        html = resp.text
-    except Exception:  # noqa: BLE001 - 网络受限/反爬均降级
+    html = ""
+    for base in _WS_ENDPOINTS:
+        try:
+            resp = httpx.get(
+                base,
+                params={"q": q},
+                headers={"User-Agent": _WS_UA},
+                timeout=httpx.Timeout(8.0, connect=5.0),
+                follow_redirects=True,
+            )
+            resp.raise_for_status()
+            html = resp.text
+            break
+        except Exception:  # noqa: BLE001 - 网络受限/反爬均降级
+            continue
+    if not html:
         return "联网搜索暂不可用，请基于已有知识回答"
     items: list[dict] = []
-    for m in _re.finditer(
-        r'<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, _re.S
-    ):
-        title = _ws_clean(m.group(2))
+    for m in _re.finditer(r'<li class="b_algo"[^>]*>(.*?)</li>', html, _re.S):
+        block = m.group(1)
+        a = _re.search(r'<h2[^>]*><a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', block, _re.S)
+        if not a:
+            continue
+        title = _ws_clean(a.group(2))
         if not title:
             continue
-        items.append({"title": title, "url": _ws_real_url(m.group(1)), "snippet": ""})
+        snippet = ""
+        p = _re.search(r'<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>(.*?)</p>', block, _re.S)
+        if p:
+            snippet = _ws_clean(p.group(1))
+        items.append({"title": title, "url": _ws_real_url(a.group(1)), "snippet": snippet[:160]})
         if len(items) >= max_results:
             break
     if not items:
         return "未搜索到相关结果，请基于已有知识回答"
-    snippets = [
-        _ws_clean(x)
-        for x in _re.findall(r'<a[^>]+class="result__snippet"[^>]*>(.*?)</a>', html, _re.S)
-    ]
-    for i, sn in enumerate(snippets[: len(items)]):
-        items[i]["snippet"] = sn[:160]
     lines = [f"{i}. 《{x['title']}》 {x['url']}" + (f"\n   {x['snippet']}" if x['snippet'] else "")
              for i, x in enumerate(items, start=1)]
     return "联网搜索结果（共 %d 条）：\n%s" % (len(items), "\n".join(lines))

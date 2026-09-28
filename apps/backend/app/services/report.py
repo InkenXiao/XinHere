@@ -53,7 +53,8 @@ def generate_async(report_id: str, emit=None) -> None:
             try:
                 outline_text = chat_once(
                     f"为投后管理报告生成大纲（5 节以内，每节一行短标题）。"
-                    f"被投企业：{('、'.join(r.company_ids))}；归属期：{r.period}。只输出大纲行。"
+                    f"被投企业：{('、'.join(r.company_ids))}；归属期：{r.period}。只输出大纲行。",
+                    channel="small",
                 )
                 outline = [ln.strip(" -・0123456789.") for ln in outline_text.splitlines() if ln.strip()][:6] or ["经营概览"]
                 r.outline = outline
@@ -63,7 +64,8 @@ def generate_async(report_id: str, emit=None) -> None:
                 for idx, sec in enumerate(outline):
                     content = chat_once(
                         f"撰写投后管理报告小节「{sec}」。被投企业：{('、'.join(r.company_ids))}；"
-                        f"归属期：{r.period}。200 字以内，正式公文语气。"
+                        f"归属期：{r.period}。200 字以内，正式公文语气。",
+                        channel="small",
                     )
                     parts.append(f"## {sec}\n{content}")
                     r.content = "\n\n".join(parts)

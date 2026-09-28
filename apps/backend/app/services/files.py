@@ -129,6 +129,7 @@ async def _recognize_image(path: Path) -> str:
             headers={"Authorization": f"Bearer {settings.vision_api_key}"},
             json={
                 "model": settings.vision_model,
+                "max_tokens": settings.vision_max_tokens,
                 "messages": [{
                     "role": "user",
                     "content": [

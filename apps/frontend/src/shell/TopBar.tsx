@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
+import ModelPrefsModal from './ModelPrefsModal'
 
 const ROLE_ZH: Record<string, string> = { hq_finance: '本部财务', investee_finance: '被投财务' }
 
@@ -10,6 +11,7 @@ export default function TopBar() {
   const logout = useAuthStore((s) => s.logout)
   const connStatus = useSessionStore((s) => s.connStatus)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [prefsOpen, setPrefsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // 点击外部关闭用户菜单
@@ -46,6 +48,14 @@ export default function TopBar() {
               <button
                 onClick={() => {
                   setMenuOpen(false)
+                  setPrefsOpen(true)
+                }}
+              >
+                个人设置
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false)
                   void logout()
                 }}
               >
@@ -55,6 +65,7 @@ export default function TopBar() {
           )}
         </div>
       </div>
+      <ModelPrefsModal open={prefsOpen} onClose={() => setPrefsOpen(false)} />
     </header>
   )
 }

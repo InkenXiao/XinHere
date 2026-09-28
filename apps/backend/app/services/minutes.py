@@ -44,8 +44,8 @@ _RULES = """内容忠于转写原文, 禁止编造未提及的事实; 转写可�
 语言简洁专业, 中文输出。"""
 
 
-async def _stream(prompt: str) -> AsyncGenerator[str, None]:
-    model = build_model()
+async def _stream(prompt: str, channel: str = "main") -> AsyncGenerator[str, None]:
+    model = build_model(channel)
     async for chunk in model.astream(prompt):
         content = chunk.content
         if isinstance(content, list):
@@ -83,5 +83,6 @@ async def summarize_stream(
             f"{_STAGE_FORMAT_SPEC}\n2. {_RULES}{extra}\n"
             f"会议录音转写文字:\n{transcript[:30000]}"
         )
-    async for delta in _stream(prompt):
+    # 场景分模型: stage 阶段分析 / polish 润色为快任务走轻量通道, final 完整纪要走主推理模型
+    async for delta in _stream(prompt, "main" if mode == "final" else "small"):
         yield delta

@@ -60,29 +60,47 @@ class _EmptyRetryChatOpenAI(ChatOpenAI):
                 return
 
 
-def build_model(channel: str = "main", **overrides) -> ChatOpenAI:
+def build_model(channel: str = "main", *, user_id: str | None = None, **overrides) -> ChatOpenAI:
     """推理型模型：max_tokens 必须 >=4096；reasoning_content 不入历史（langchain 放 additional_kwargs）。
 
-    channel: "main" 标准 / "small" 快速（未配置时回退标准）；其余值一律回退标准。
+    channel: "main" 标准 / "small" 快速 / "coder" 代码生成（未配置时回退标准）；其余值一律回退标准。
+    user_id: 提供时应用该用户的个人模型偏好覆盖（sys_user_model_prefs，空字段回退系统默认）。
     """
+    ch = (channel or "main").strip().lower() or "main"
     url, key, name = settings.main_api_url, settings.main_api_key, settings.main_model
-    if channel == "small" and settings.small_model.strip():
+    mt = settings.main_max_tokens
+    if ch == "small" and settings.small_model.strip():
         url = settings.small_api_url or settings.main_api_url
         key = settings.small_api_key or settings.main_api_key
         name = settings.small_model
+        mt = settings.small_max_tokens or settings.main_max_tokens
+    elif ch == "coder" and settings.coder_model.strip():
+        url = settings.coder_api_url or settings.main_api_url
+        key = settings.coder_api_key or settings.main_api_key
+        name = settings.coder_model
+        mt = settings.coder_max_tokens or settings.main_max_tokens
+    if user_id:
+        from ...services.model_pref import resolve_override
+
+        pref = resolve_override(user_id, ch)
+        if pref:
+            url = pref.get("api_url") or url
+            key = pref.get("api_key") or key
+            name = pref.get("model") or name
+            mt = int(pref.get("max_tokens") or 0) or mt
     return _EmptyRetryChatOpenAI(
         base_url=url,
         api_key=key,
         model=name,
-        max_tokens=max(settings.llm_max_tokens, 4096),
+        max_tokens=max(mt, 4096),
         timeout=120,
         **overrides,
     )
 
 
-def chat_once(prompt: str) -> str:
+def chat_once(prompt: str, channel: str = "main", user_id: str | None = None) -> str:
     """后台一次性生成（报告小节等），同步调用——只在 worker 线程使用。"""
-    msg = build_model().invoke(prompt)
+    msg = build_model(channel, user_id=user_id).invoke(prompt)
     content = msg.content
     if isinstance(content, list):
         content = "".join(p.get("text", "") for p in content if isinstance(p, dict))

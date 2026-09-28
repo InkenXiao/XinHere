@@ -241,6 +241,26 @@ class SysAuthToken(BusinessBase):
     xuanpu_token_exp = Column(DateTime(timezone=True), comment="XuanPu 网关令牌过期时间")
 
 
+class SysUserModelPref(BusinessBase):
+    """用户个人模型偏好表（按模型通道覆盖 .docker.env 默认，空字段回退默认值）。"""
+
+    __tablename__ = "sys_user_model_prefs"
+    __table_args__ = (
+        Index("uq_user_model_pref", "user_id", "channel", unique=True),
+        {"comment": "用户个人模型偏好（main/small/coder/vision 通道级覆盖；未设置的通道走 .docker.env 默认）"},
+    )
+
+    pref_id = Column(String(36), primary_key=True, default=gen_id, comment="偏好 ID（UUID）")
+    user_id = Column(String(36), nullable=False, comment="所属用户 ID（sys_users.user_id）")
+    # 模型通道: main=主推理 / small=轻量快推 / coder=代码生成 / vision=视觉多模态
+    channel = Column(String(16), nullable=False, comment="模型通道：main=主推理 / small=轻量快推 / coder=代码生成 / vision=视觉")
+    api_url = Column(String(512), nullable=False, server_default="", comment="网关地址覆盖（空=用系统默认）")
+    api_key = Column(String(256), nullable=False, server_default="", comment="网关密钥覆盖（空=用系统默认）")
+    model = Column(String(128), nullable=False, server_default="", comment="模型名覆盖（空=用系统默认）")
+    # 0 = 跟随系统默认
+    max_tokens = Column(Integer, nullable=False, server_default="0", comment="单次生成输出上限覆盖（0=用系统默认）")
+
+
 class BizTask(BusinessBase):
     __tablename__ = "biz_tasks"
     __table_args__ = {"comment": "业务任务表（风险填报 / 资金保障 / KPI 填报等任务的总发起单）"}
