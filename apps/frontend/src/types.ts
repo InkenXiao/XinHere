@@ -389,4 +389,12 @@ export interface SendOptions {
   model?: string
   fileNames?: string[]
   skill?: string // 技能市场技能名：本轮对话加载并执行该技能
+  noSkillIntent?: boolean // 跳过技能自动识别（候选确认后重发时置位）
+}
+
+/** 技能自动识别候选（POST /chat 返回 needs_skill 时的确认项） */
+export interface SkillCandidate {
+  sel: string // local:<key> / xuanpu:<name>
+  name: string
+  desc?: string
 }

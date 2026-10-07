@@ -12,13 +12,45 @@ export type Node =
   | { key: string; type: 'steps'; seq: number; turn: number; items: { step: number; status: 'active' | 'done' }[] }
   | {
       key: string
+      type: 'model'
+      seq: number
+      turn: number
+      round: number
+      status: 'running' | 'done'
+      durationMs?: number
+      chars?: number
+    }
+  | {
+      key: string
       type: 'tool'
       seq: number
+      turn: number
       call_id: string
       name: string
       args: Record<string, unknown>
       status: 'running' | 'done' | 'error'
       result?: string
+      durationMs?: number
+    }
+  | {
+      key: string
+      type: 'skill'
+      seq: number
+      turn: number
+      name: string
+      source: 'local' | 'xuanpu'
+      skillKey?: string
+      auto?: boolean // 自动识别命中（非用户手选）
+    }
+  | {
+      key: string
+      type: 'outcome'
+      seq: number
+      turn: number
+      reason: string
+      rounds: number
+      tokens?: number
+      elapsedMs?: number
     }
   | { key: string; type: 'component'; seq: number; base: ComponentBase; state: unknown; def: ComponentDefinition }
   | { key: string; type: 'error'; seq: number; code: string; message: string }
@@ -40,6 +72,7 @@ export const FRAMEWORK_TYPES = new Set([
   'assistant/message',
   'tool/call',
   'tool/result',
+  'skill/start',
   'component/request',
   'component/submit',
   'component/submit-ack',
@@ -57,6 +90,9 @@ export class ConversationAssembler {
   private running = false
   private turn = 0
   private stepsIdx = -1
+  private turnStartedAt = '' // 当前 turn 起始时间（ISO，用于结论块用时）
+  private turnTokens = 0 // 当前 turn 累计 tokens（prompt+completion）
+  private turnModels = 0 // 当前 turn 模型调用轮数
   projections: Record<string, unknown> = {}
 
   constructor(defs: ComponentDefinition[]) {
@@ -71,6 +107,9 @@ export class ConversationAssembler {
     this.running = false
     this.turn = 0
     this.stepsIdx = -1
+    this.turnStartedAt = ''
+    this.turnTokens = 0
+    this.turnModels = 0
     this.projections = {}
   }
 
@@ -109,19 +148,58 @@ export class ConversationAssembler {
       case 'turn/start':
         this.turn = (d.turn as number) ?? this.turn + 1
         this.running = true
+        this.turnStartedAt = evt.time || ''
+        this.turnTokens = 0
+        this.turnModels = 0
         return
       case 'turn/end': {
         this.running = false
         this.flushStream(evt.seq)
         this.markStepsDone()
+        // 结论块（xuanpu 任务收尾仪式感）：状态 + 轮数 + 用时 + Tokens
+        const reason = String(d.reason ?? 'completed')
+        const elapsed =
+          this.turnStartedAt && evt.time
+            ? Math.max(0, Date.parse(evt.time) - Date.parse(this.turnStartedAt))
+            : undefined
+        this.nodes.push({
+          key: `outcome:${evt.seq}`,
+          type: 'outcome',
+          seq: evt.seq,
+          turn: this.turn,
+          reason,
+          rounds: this.turnModels,
+          tokens: this.turnTokens || undefined,
+          elapsedMs: Number.isFinite(elapsed) ? elapsed : undefined,
+        })
         return
       }
       case 'step/start':
         this.pushStep(evt.seq, (d.step as number) ?? 0)
+        // 模型调用轨迹项（执行过程组内）：round 与 step 同号
+        this.turnModels += 1
+        this.nodes.push({
+          key: `model:${evt.seq}`,
+          type: 'model',
+          seq: evt.seq,
+          turn: this.turn,
+          round: (d.step as number) ?? this.turnModels,
+          status: 'running',
+        })
         return
-      case 'step/end':
+      case 'step/end': {
         this.endStep((d.step as number) ?? 0)
+        const round = (d.step as number) ?? 0
+        const target = [...this.nodes]
+          .reverse()
+          .find((n) => n.type === 'model' && n.turn === this.turn && n.round === round)
+        if (target && target.type === 'model') {
+          target.status = 'done'
+          target.durationMs = typeof d.duration_ms === 'number' ? d.duration_ms : undefined
+          target.chars = typeof d.chars === 'number' ? d.chars : undefined
+        }
         return
+      }
       case 'user/message': {
         this.flushStream(evt.seq)
         const content = String(d.content ?? '')
@@ -140,12 +218,14 @@ export class ConversationAssembler {
       }
       case 'assistant/message': {
         this.streaming = null
+        const usage = d.usage as Usage | undefined
+        if (usage) this.turnTokens += (usage.prompt ?? 0) + (usage.completion ?? 0)
         this.nodes.push({
           key: `assistant:${evt.seq}`,
           type: 'assistant',
           seq: evt.seq,
           content: String(d.content ?? ''),
-          usage: d.usage as Usage | undefined,
+          usage,
         })
         return
       }
@@ -154,6 +234,7 @@ export class ConversationAssembler {
           key: `tool:${evt.seq}`,
           type: 'tool',
           seq: evt.seq,
+          turn: this.turn,
           call_id: String(d.call_id ?? ''),
           name: String(d.name ?? ''),
           args: (d.arguments as Record<string, unknown>) ?? {},
@@ -163,12 +244,14 @@ export class ConversationAssembler {
       case 'tool/result': {
         // refs 由后端配对：[call_seq]，前端按 seq 直接落位
         const refs = (d.refs as number[]) ?? []
+        const durationMs = typeof d.duration_ms === 'number' ? d.duration_ms : undefined
         const target = refs.length
           ? this.nodes.find((n) => n.type === 'tool' && n.seq === refs[0])
           : this.nodes.find((n) => n.type === 'tool' && n.call_id === d.call_id)
         if (target && target.type === 'tool') {
           target.status = d.is_error ? 'error' : 'done'
           target.result = String(d.content ?? '')
+          target.durationMs = durationMs
           if (d.outcome === 'unknown') target.result = '（中断恢复：结果未知）'
         } else {
           // 配对缺失也保留痕迹
@@ -176,15 +259,30 @@ export class ConversationAssembler {
             key: `tool:${evt.seq}`,
             type: 'tool',
             seq: evt.seq,
+            turn: this.turn,
             call_id: String(d.call_id ?? ''),
             name: String(d.name ?? ''),
             args: {},
             status: d.is_error ? 'error' : 'done',
             result: String(d.content ?? ''),
+            durationMs,
           })
         }
         return
       }
+      case 'skill/start':
+        // 技能卡（xuanpu 计划卡位置）：本轮将按技能约定执行
+        this.nodes.push({
+          key: `skill:${evt.seq}`,
+          type: 'skill',
+          seq: evt.seq,
+          turn: this.turn,
+          name: String(d.name ?? ''),
+          source: d.source === 'local' ? 'local' : 'xuanpu',
+          skillKey: d.key ? String(d.key) : undefined,
+          auto: d.auto === true,
+        })
+        return
       case 'component/request':
         this.startComponent(evt)
         return

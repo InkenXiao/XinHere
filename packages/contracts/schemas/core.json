@@ -34,7 +34,11 @@
     },
     "StepEnd": {
       "type": "object", "additionalProperties": false,
-      "properties": {"turn": {"type": "integer"}, "step": {"type": "integer"}, "version": {"type": "integer", "const": 1}},
+      "properties": {
+        "turn": {"type": "integer"}, "step": {"type": "integer"},
+        "duration_ms": {"type": "integer"}, "chars": {"type": "integer"},
+        "version": {"type": "integer", "const": 1}
+      },
       "required": ["turn", "step", "version"]
     },
     "UserMessage": {
@@ -79,11 +83,23 @@
       "properties": {
         "call_id": {"type": "string"}, "name": {"type": "string"},
         "content": {"type": "string"}, "is_error": {"type": "boolean"},
+        "duration_ms": {"type": "integer"},
         "outcome": {"type": "string", "enum": ["unknown"]},
         "refs": {"type": "array", "items": {"type": "integer"}},
         "version": {"type": "integer", "const": 1}
       },
       "required": ["call_id", "name", "content", "is_error", "refs", "version"]
+    },
+    "SkillStart": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "source": {"type": "string", "enum": ["local", "xuanpu"]},
+        "key": {"type": "string"},
+        "auto": {"type": "boolean"},
+        "version": {"type": "integer", "const": 1}
+      },
+      "required": ["name", "source", "version"]
     },
     "ComponentRequest": {
       "type": "object", "additionalProperties": false,

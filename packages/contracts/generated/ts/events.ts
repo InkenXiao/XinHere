@@ -57,6 +57,8 @@ export interface StepStart {
 export interface StepEnd {
   turn: number;
   step: number;
+  duration_ms?: number;
+  chars?: number;
   version: 1;
 }
 
@@ -94,8 +96,17 @@ export interface ToolResult {
   name: string;
   content: string;
   is_error: boolean;
+  duration_ms?: number;
   outcome?: "unknown";
   refs: number[];
+  version: 1;
+}
+
+export interface SkillStart {
+  name: string;
+  source: "local" | "xuanpu";
+  key?: string;
+  auto?: boolean;
   version: 1;
 }
 
@@ -118,15 +129,6 @@ export interface ComponentSubmit {
 
 export interface FeedbackRecord {
   text: string;
-  version: 1;
-}
-
-export interface FileRecord {
-  file_id: string;
-  name: string;
-  file_type: "docx" | "pptx";
-  url: string;
-  skill_key: string;
   version: 1;
 }
 

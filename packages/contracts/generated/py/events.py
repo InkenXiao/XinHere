@@ -62,6 +62,8 @@ class StepEnd(BaseModel):
     model_config = ConfigDict(extra='forbid')
     turn: int
     step: int
+    duration_ms: int | None = None
+    chars: int | None = None
     version: Literal[1]
 
 class UserMessage(BaseModel):
@@ -99,8 +101,17 @@ class ToolResult(BaseModel):
     name: str
     content: str
     is_error: bool
+    duration_ms: int | None = None
     outcome: Literal['unknown'] | None = None
     refs: list[int]
+    version: Literal[1]
+
+class SkillStart(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str
+    source: Literal['local', 'xuanpu']
+    key: str | None = None
+    auto: bool | None = None
     version: Literal[1]
 
 class ComponentRequest(BaseModel):
@@ -123,15 +134,6 @@ class ComponentSubmit(BaseModel):
 class FeedbackRecord(BaseModel):
     model_config = ConfigDict(extra='forbid')
     text: str
-    version: Literal[1]
-
-class FileRecord(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    file_id: str
-    name: str
-    file_type: Literal['docx', 'pptx']
-    url: str
-    skill_key: str
     version: Literal[1]
 
 class KpiIndicatorInput(BaseModel):

@@ -1,4 +1,4 @@
-"""技能文件工具（仅文件夹式技能轮次装配）：读技能目录下的参考文件、执行包内脚本、写暂存文件。
+"""技能文件工具（仅文件夹式技能轮次装配）：读技能目录下的参考文件、执行包内脚本、写文件。
 
 SKILL.md 正文会指引模型「bash orchestrator.sh [主题]」「读 steps/s0.md」等，
 普通轮次没有这些工具，技能轮次按 skill_key 动态装配：
@@ -6,7 +6,9 @@ SKILL.md 正文会指引模型「bash orchestrator.sh [主题]」「读 steps/s0
 安全边界：
 - 路径解析锁定 skills/<skill_key>/ 目录内，拒绝绝对路径与 .. 穿越；
 - read_skill_file 只允许文本文件（.md / .json / .txt / .yaml / .yml），输出截断；
-- write_skill_file 只能写技能目录下 .work/ 暂存子目录（不碰 SKILL.md / scripts/ 等技能自有文件）；
+- write_skill_file 支持暂存与交付产物两种写入：.work/ / .research_state/ / reports/ 等
+  运行期产物目录自由写入，技能自带文件（SKILL.md、orchestrator.sh、steps/、scripts/ 等）
+  不可覆盖；单文件 ≤4MB（对齐平台技能包产物上限）；
 - run_skill_script 只允许 .py（限 scripts/ 子目录，当前解释器执行）与 .sh（bash 执行，
   编排类脚本如 orchestrator.sh 位于技能根目录），cwd 固定为技能根目录，超时与输出长度封顶。
 """
@@ -28,9 +30,9 @@ logger = logging.getLogger(__name__)
 # 读取类：允许的文本后缀 / 内容上限
 _READ_SUFFIXES = {".md", ".json", ".txt", ".yaml", ".yml"}
 _READ_CAP = 20000
-# 写入类：.work/ 暂存子目录名与内容上限
-_SCRATCH_DIR = ".work"
-_WRITE_CAP = 20000
+# 写入类：运行期产物目录（自由读写）与单文件字节上限（对齐平台技能包产物上限 4MB）
+_ARTIFACT_DIRS = {".work", ".research_state", "reports"}
+_WRITE_MAX_BYTES = 4 * 1024 * 1024
 # 执行类：子进程超时（秒）与输出上限（PDF 渲染、编排脚本初始化均在时限内）
 _SCRIPT_TIMEOUT = 120
 _STDOUT_CAP = 160000
@@ -55,32 +57,12 @@ def _resolve_in_skill(root: Path, rel: str) -> Path | None:
     return p if p.is_relative_to(root) else None
 
 
-def _resolve_in_scratch(root: Path, rel: str) -> Path | None:
-    """写入路径解析进技能目录的 .work/ 暂存子目录；越界一律 None。
-
-    两种写法等价支持（消除 read 返回路径与 write 入参的不对称，防 .work/.work 嵌套）：
-    - "reports/x.md"：相对 .work/（主体写法）；
-    - ".work/reports/x.md"：相对技能根（模型常从 read/run 的返回路径原样复用）。
-    最终强制落在 .work/ 内，保证模型无法覆盖 SKILL.md / scripts/ 等技能自有文件。
-    """
-    scratch = root / _SCRATCH_DIR
-    if not rel or rel.startswith(("/", "\\")):
-        return None
-    if ".." in PurePosixPath(rel).parts or ".." in Path(rel).parts:
-        return None
-    p = (root / rel).resolve()  # 先按技能根相对解析（兼容 ".work/..." 写法）
-    if not p.is_relative_to(scratch):
-        p = (scratch / rel).resolve()  # 再按 .work/ 相对解析
-    return p if p.is_relative_to(scratch) else None
-
-
 def _list_files(root: Path) -> str:
-    """技能目录内文件清单（相对路径，按名排序，剔除 .work/ 与运行期产物），供工具描述让模型知道有什么可读。"""
-    skip = {_SCRATCH_DIR, ".research_state", "reports"}
+    """技能目录内文件清单（相对路径，按名排序，剔除运行期产物目录），供工具描述让模型知道有什么可读。"""
     files = []
     for p in sorted(root.rglob("*")):
         rel = p.relative_to(root)
-        if p.is_file() and not (set(rel.parts) & skip):
+        if p.is_file() and not (set(rel.parts) & _ARTIFACT_DIRS):
             files.append(rel.as_posix())
     return "、".join(files) if files else "（空目录）"
 
@@ -160,35 +142,38 @@ def build_skill_tools(ctx: ToolCtx, skill_key: str) -> list:
     @tool(
         "write_skill_file",
         description=(
-            f"向当前技能「{skill_key}」写入一个文本文件供脚本引用；文件实际落在 .work/ 暂存子目录"
-            f"（不改动技能自有文件）。path 两种写法等价：\"reports/x.md\"（相对 .work/）或 "
-            f"\".work/reports/x.md\"（相对技能根，与 read/run 返回的路径写法一致），均指向 "
-            f".work/reports/x.md。只允许文本文件（.md/.json/.txt/.yaml/.yml），单次内容超长会拒绝。"
-            f"长文组装：先 write_skill_file 写第一块，再以 append=true 逐块追加（每次 ≤18000 字符），"
-            f"最后用 run_skill_script 处理成稿。"
+            f"向当前技能「{skill_key}」目录写入一个文本文件。两种用途："
+            f"① 暂存中间文件：path 写到 .work/ 子目录（如 .work/outline.md）；"
+            f"② 保存交付产物：按技能指引中的路径写入（如 reports/2026-06-01-主题.md），"
+            f"产物与脚本输出同目录落盘。单次内容上限 4MB，长文可先写第一块再以 append=true 逐块追加。"
+            f"只允许文本文件（.md/.json/.txt/.yaml/.yml）；技能自带文件（SKILL.md、steps/、scripts/ 等）不可覆盖。"
         ),
     )
     def write_skill_file(path: str, content: str, append: bool = False,
                          tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
         with tool_scope(ctx, "write_skill_file",
                         tool_call_id, {"path": path, "content_len": len(content), "append": append}):
-            p = _resolve_in_scratch(root, path)
+            p = _resolve_in_skill(root, path)
             if p is None:
-                return f"路径非法：{path}（只能写入技能目录 .work/ 子目录内，不接受绝对路径或 ..）"
+                return f"路径非法：{path}（只能写技能目录内的相对路径，不接受绝对路径或 ..）"
             if p.suffix.lower() not in _READ_SUFFIXES:
                 return f"文件类型不可写：{p.name}（只支持 {'/'.join(sorted(_READ_SUFFIXES))}）"
-            if len(content) > _WRITE_CAP:
-                return f"内容超长（{len(content)} 字符，上限 {_WRITE_CAP}）：{path}"
+            size = len(content.encode("utf-8"))
+            if size > _WRITE_MAX_BYTES:
+                return f"内容超长（{size} 字节，上限 4MB）：{path}"
+            if p.exists() and p.relative_to(root).parts[0] not in _ARTIFACT_DIRS:
+                return (f"不允许覆盖技能自带文件：{path}"
+                        f"（交付物请写入 {'、'.join(sorted(_ARTIFACT_DIRS))} 等产物目录或新路径）")
             p.parent.mkdir(parents=True, exist_ok=True)
             if append and p.exists():
                 with p.open("a", encoding="utf-8") as f:
                     f.write(content)
                 rel = p.relative_to(root).as_posix()
-                size = p.stat().st_size
-                return (f"已追加 {rel}（本次 {len(content)} 字符，现共 {size} 字节）。"
+                total = p.stat().st_size
+                return (f"已追加 {rel}（本次 {size} 字节，现共 {total} 字节）。"
                         f"在 run_skill_script 中引用该文件请用相对路径 \"{rel}\"。")
             p.write_text(content, encoding="utf-8")
             rel = p.relative_to(root).as_posix()
-            return f"已写入 {rel}（{len(content)} 字符）。在 run_skill_script 中引用该文件请用相对路径 \"{rel}\"。"
+            return f"已写入 {rel}（{size} 字节）。在 run_skill_script 中引用该文件请用相对路径 \"{rel}\"。"
 
     return [read_skill_file, run_skill_script, write_skill_file]

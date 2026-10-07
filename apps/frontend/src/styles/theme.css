@@ -535,6 +535,94 @@ body.mode-cockpit .tc-status.error { color: #dc2626; }
 .tool-card .tc-args { margin-top: 5px; color: var(--ink-30); font-size: 11.5px; word-break: break-all; }
 .tool-card .tc-result { margin-top: 6px; color: var(--ink-70); border-top: 1px dashed var(--glass-bd); padding-top: 6px; }
 
+/* ===== 执行过程折叠组（参照 XuanPu 五段式：脉冲进行中 → 已完成 N 步） ===== */
+.chat-trace { align-self: flex-start; width: 100%; background: var(--glass); border: 1px solid var(--glass-bd);
+  border-radius: 12px; font-size: 12px; overflow: hidden; backdrop-filter: blur(10px); }
+.chat-trace__head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer;
+  color: var(--ink-70); user-select: none; transition: background .15s; }
+.chat-trace__head:hover { background: rgba(127,127,127,.06); color: var(--ink-100); }
+.chat-trace__name { font-weight: 600; color: var(--ink-100); }
+.chat-trace__ico { flex: none; width: 22px; height: 22px; border-radius: 7px; background: var(--accent-soft);
+  color: var(--watch); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+.chat-trace__chev { margin-left: auto; font-size: 10px; color: var(--ink-30); transition: transform .2s; }
+.chat-trace.open .chat-trace__chev { transform: rotate(180deg); }
+.chat-trace__body { display: none; }
+.chat-trace.open .chat-trace__body { display: block; }
+
+/* 状态徽章（run 蓝/ok 绿/err 红/warn 橙，随明暗主题流动） */
+.chat-trace__badge { flex: none; font-size: 10.5px; padding: 1px 8px; border-radius: 9px;
+  background: var(--accent-soft); color: var(--watch); }
+.chat-trace__badge--ok { background: rgba(16,185,129,.15); color: #34D399; }
+.chat-trace__badge--err { background: rgba(239,68,68,.15); color: #F87171; }
+.chat-trace__badge--warn { background: rgba(245,158,11,.15); color: var(--amber-light); }
+.chat-trace__badge--auto { background: rgba(139,92,246,.15); color: #A78BFA; }
+body.mode-cockpit .chat-trace__badge--ok { color: #059669; }
+body.mode-cockpit .chat-trace__badge--err { color: #dc2626; }
+body.mode-cockpit .chat-trace__badge--warn { color: var(--amber-dark); }
+body.mode-cockpit .chat-trace__badge--auto { color: #7C3AED; }
+
+/* 脉冲点（进行中）与结束图标 */
+.chat-pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--watch);
+  animation: pulse 1.6s ease-in-out infinite; }
+.chat-done-ico { flex: none; width: 14px; height: 14px; border-radius: 50%; font-size: 9px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(16,185,129,.15); color: #34D399; }
+.chat-done-ico.warn { background: rgba(245,158,11,.15); color: var(--amber-light); }
+.chat-done-ico.err { background: rgba(239,68,68,.15); color: #F87171; }
+body.mode-cockpit .chat-done-ico { color: #059669; }
+body.mode-cockpit .chat-done-ico.warn { color: var(--amber-dark); }
+body.mode-cockpit .chat-done-ico.err { color: #dc2626; }
+
+/* 组内竖轨时间轴（子步骤透明无边框 + 左侧连线） */
+.chat-process__body { max-height: 320px; overflow-y: auto; padding: 2px 12px 8px; }
+.trace-item { display: flex; gap: 10px; position: relative; padding: 7px 0; }
+.trace-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; }
+.trace-rail .t-ico { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--watch); font-size: 12px; }
+.trace-rail .t-line { flex: 1; width: 1.5px; background: var(--glass-bd); }
+.trace-item:last-child .t-line { display: none; }
+.trace-main { flex: 1; min-width: 0; }
+.trace-main h6 { margin: 3px 0 0; font-size: 12.5px; font-weight: 600; display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap; color: var(--ink-100); }
+.trace-item .t-desc { font-size: 12px; color: var(--ink-50); margin-top: 3px; line-height: 1.6; }
+.trace-item--running .t-ico { animation: trace-glow 1.4s ease-in-out infinite; }
+.trace-item--err .t-ico { background: rgba(239,68,68,.15); color: #F87171; }
+body.mode-cockpit .trace-item--err .t-ico { color: #dc2626; }
+@keyframes trace-glow { 0%, 100% { box-shadow: 0 0 0 rgba(0,0,0,0); } 50% { box-shadow: 0 0 10px var(--glow); } }
+
+/* 入参/结果 JSON 块 */
+.t-json-label { font-size: 11px; color: var(--ink-30); margin: 3px 0 2px; }
+.t-json-toggle { cursor: pointer; user-select: none; }
+.t-json-toggle:hover { color: var(--watch); }
+.t-json { margin: 0; padding: 7px 10px; background: rgba(127,127,127,.10); border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.55;
+  color: var(--ink-50); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+
+/* 技能卡（xuanpu 计划卡形态：左主题色边） */
+.chat-skill { border-left: 3px solid var(--accent); }
+.chat-skill .chat-trace__head { cursor: default; }
+.chat-skill .chat-trace__name { font-weight: 700; }
+.tc-plan__objective { padding: 2px 14px 10px; font-size: 12.5px; color: var(--ink-70); }
+
+/* 结论块（任务收尾仪式感：状态色浅底 + 图标 + 轮数/用时/Tokens） */
+.chat-outcome { align-self: flex-start; width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 12px; font-size: 13px; }
+.chat-outcome__icon { flex: none; font-size: 15px; font-weight: 700; line-height: 1; }
+.chat-outcome__txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.chat-outcome__txt b { font-size: 13px; }
+.chat-outcome__txt span { font-size: 11.5px; opacity: .8; }
+.chat-outcome--ok { background: var(--accent-soft); color: var(--watch); }
+.chat-outcome--warn { background: rgba(245,158,11,.12); color: var(--amber-light); }
+.chat-outcome--err { background: rgba(239,68,68,.12); color: #F87171; }
+body.mode-cockpit .chat-outcome--warn { color: var(--amber-dark); }
+body.mode-cockpit .chat-outcome--err { color: #dc2626; }
+
+/* 呼吸状态行（分身当前动作一句话，常驻消息流底部，回合结束后隐藏） */
+.chat-breath { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--ink-50); padding: 2px 4px; }
+.chat-breath i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--watch);
+  animation: pulse 1.6s ease-in-out infinite; }
+
 /* 结果卡 */
 .result-card { margin-top: 2px; }
 .rc-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
@@ -1022,6 +1110,11 @@ body.mode-cockpit .ov-item .v.ok-v { color: #059669; }
 .cmp-pop-link:hover { color: #f87171; }
 .cmp-pop-ok { border: 1px solid rgba(63,185,214,.5); background: linear-gradient(90deg, rgba(159,211,160,.16), rgba(23,132,188,.20));
   color: var(--ink-100); border-radius: 9px; height: 26px; padding: 0 14px; cursor: pointer; font-size: 12px; }
+.cmp-pop-ok:disabled { opacity: .45; cursor: not-allowed; }
+/* 技能自动识别候选确认（居中遮罩弹窗，复用弹层视觉） */
+.cmp-ask-mask { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center;
+  background: rgba(8,12,18,.45); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.cmp-ask { position: static; width: min(380px, 92vw); }
 /* 知识库树（多选） */
 .cmp-kb-group { padding: 7px 14px 3px; font-size: 11px; color: var(--ink-30); }
 .cmp-kb-leaf { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; font-size: 12.5px;

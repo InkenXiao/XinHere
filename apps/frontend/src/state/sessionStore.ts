@@ -4,7 +4,7 @@ import { api } from '@/transport/api'
 import { streamChat, resumeEvents } from '@/transport/sse'
 import { ConversationAssembler, type AssemblerSnapshot } from '@/registry/ConversationAssembler'
 import { componentDefs } from '@/registry/manifest'
-import type { PlatformEvent, SessionHeader, SessionListItem } from '@/types'
+import type { PlatformEvent, SessionHeader, SessionListItem, SkillCandidate } from '@/types'
 import type { SendOptions } from '@/types'
 import { sleep } from '@/utils'
 import { useUiStore } from './uiStore'
@@ -17,11 +17,13 @@ interface SessionState {
   sending: boolean
   connStatus: 'open' | 'reconnecting' | 'closed'
   asmError: string | null // fail-closed 装配错误
+  skillAsk: { candidates: SkillCandidate[] } | null // 技能自动识别候选待确认
   loadSessions: () => Promise<void>
   openSession: (id: string) => Promise<void>
   newSession: () => Promise<void>
   resetSession: () => void // 「新任务」：回 Xin语初始态（hero 大问数框），不创建会话
   send: (text: string, opts?: SendOptions | string[]) => Promise<void>
+  resolveSkillAsk: (selId: string) => void // 候选确认：'' 表示不使用技能
   cancel: () => Promise<void>
   componentEmit: (componentId: string) => {
     update: (draft: Record<string, unknown>) => Promise<void>
@@ -32,6 +34,7 @@ interface SessionState {
 let assembler = new ConversationAssembler(componentDefs)
 let abortCtl: AbortController | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let lastSend: { text: string; opts: SendOptions } | null = null // 候选确认后按原内容重发
 
 function syncSnap(set: (p: Partial<SessionState>) => void) {
   set({ snap: assembler.snapshot() })
@@ -44,6 +47,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   sending: false,
   connStatus: 'open',
   asmError: null,
+  skillAsk: null,
 
   async loadSessions() {
     const r = await api<{ items: SessionListItem[]; total: number }>('GET', '/sessions?limit=100')
@@ -90,9 +94,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const o = Array.isArray(opts) ? { kbIds: opts } : (opts ?? {})
     const cur = get().current
     if (!cur || get().sending) return
-    set({ sending: true, asmError: null })
+    set({ sending: true, asmError: null, skillAsk: null })
     useUiStore.getState().setExecDone(false)
     abortCtl = new AbortController()
+    lastSend = { text, opts: o }
     const sid = cur.session_id
     let sawEvents = false
     const handlers = {
@@ -109,7 +114,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       },
     }
     try {
-      await streamChat(
+      const r = await streamChat(
         sid,
         {
           message: text,
@@ -118,10 +123,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           model: o.model || undefined,
           file_names: o.fileNames && o.fileNames.length > 0 ? o.fileNames : undefined,
           skill: o.skill || undefined,
+          no_skill_intent: o.noSkillIntent || undefined,
         },
         handlers,
         abortCtl.signal,
       )
+      // 技能自动识别不确定：弹候选确认面板（未进入事件流，不按失败处理）
+      if (r.needsSkill) {
+        set({ skillAsk: { candidates: r.candidates ?? [] } })
+        return
+      }
     } catch (e) {
       if ((e as Error).name === 'AbortError') return
       // 断线：指数退避重连（GET events SSE 续流，after_seq），不清屏
@@ -149,10 +160,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       set({ connStatus: 'open' })
     } finally {
       set({ sending: false, connStatus: 'open' })
-      if (!sawEvents) {
+      if (!sawEvents && !get().skillAsk) {
         useUiStore.getState().toast('未收到回复，请重试', 'err')
       }
     }
+  },
+
+  resolveSkillAsk(selId) {
+    const ask = get().skillAsk
+    set({ skillAsk: null })
+    if (!ask || !lastSend) return
+    void get().send(lastSend.text, {
+      ...lastSend.opts,
+      skill: selId || undefined,
+      noSkillIntent: true,
+    })
   },
 
   async cancel() {

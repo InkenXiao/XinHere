@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from langchain_core.messages import AIMessage, ToolMessage
 
 from ..events.store import EventStore
@@ -14,9 +16,11 @@ class EventTranslator:
         self.turn = turn
         self.step = 0
         self.step_open = False
+        self.step_started_at = 0.0  # 当前模型输出步开始时刻（monotonic，秒）
         self.content = ""
         self.usage: dict | None = None
         self.call_seqs: dict[str, int] = {}
+        self.call_started_at: dict[str, float] = {}  # call_id → 工具调用开始时刻（秒）
 
     # ---- messages 模式：LLM chunk ----
     def handle_chunk(self, chunk, meta: dict) -> None:
@@ -35,6 +39,7 @@ class EventTranslator:
         if not self.step_open:
             self.step += 1
             self.step_open = True
+            self.step_started_at = time.monotonic()
             self.store.append(
                 self.session_id, "step/start", {"turn": self.turn, "step": self.step, "version": 1},
                 turn=self.turn,
@@ -70,6 +75,7 @@ class EventTranslator:
                             turn=self.turn,
                         )
                         self.call_seqs[call_id] = seq
+                        self.call_started_at[call_id] = time.monotonic()
                 elif isinstance(msg, ToolMessage):
                     self._finalize_step()
                     content = msg.content
@@ -77,11 +83,15 @@ class EventTranslator:
                         content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
                     call_id = msg.tool_call_id or ""
                     refs = [self.call_seqs[call_id]] if call_id in self.call_seqs else []
+                    result: dict = {"call_id": call_id, "name": msg.name or "", "content": str(content)[:4000],
+                                    "is_error": msg.status == "error", "refs": refs, "version": 1}
+                    started = self.call_started_at.pop(call_id, None)
+                    if started is not None:
+                        result["duration_ms"] = max(1, round((time.monotonic() - started) * 1000))
                     self.store.append(
                         self.session_id,
                         "tool/result",
-                        {"call_id": call_id, "name": msg.name or "", "content": str(content)[:4000],
-                         "is_error": msg.status == "error", "refs": refs, "version": 1},
+                        result,
                         turn=self.turn,
                     )
 
@@ -98,8 +108,12 @@ class EventTranslator:
                  "usage": self.usage, "source_event_seqs": chunk_seqs, "version": 1},
                 turn=self.turn,
             )
+        # 模型调用行收尾数据：耗时 + 生成字符数（前端「执行过程」时间轴展示）
+        step_end: dict = {"turn": self.turn, "step": self.step, "version": 1}
+        step_end["duration_ms"] = max(1, round((time.monotonic() - self.step_started_at) * 1000))
+        step_end["chars"] = len(self.content)
         self.store.append(
-            self.session_id, "step/end", {"turn": self.turn, "step": self.step, "version": 1},
+            self.session_id, "step/end", step_end,
             turn=self.turn,
         )
         self.step_open = False

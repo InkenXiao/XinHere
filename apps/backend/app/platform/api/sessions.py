@@ -22,6 +22,7 @@ from ...persistence.models import (
 )
 from ...services import files as files_svc
 from ...services import skill_files
+from ...services import skill_intent
 from ...services import xuanpu as xuanpu_svc
 from ...persistence.session import get_db
 from ..agent.component_handlers import HANDLERS, apply_update_draft
@@ -143,10 +144,12 @@ class ChatIn(BaseModel):
     file_names: list[str] | None = None  # 已上传附件的存储名
     # 技能市场技能名（如 deep_research_v3）：本轮对话加载该技能的执行指引
     skill: str | None = None
+    # 跳过技能自动识别（候选确认面板选「不使用技能」重发时置位，避免再次弹层）
+    no_skill_intent: bool = False
 
 
-def _resolve_skill(user: SysUser, skill: str | None) -> tuple[str | None, str, str]:
-    """解析本轮技能选择 → (执行指引, 本地技能 key, 技能来源)。
+def _resolve_skill(user: SysUser, skill: str | None) -> tuple[str | None, str, str, str]:
+    """解析本轮技能选择 → (执行指引, 本地技能 key, 技能来源, 技能名)。
 
     - local:<key>：本地文件夹技能（backend/skills/<key>/SKILL.md 正文即指引）；
     - xuanpu:<name>：技能市场技能（读取上架执行指引；兼容不带前缀的市场技能名）。
@@ -156,13 +159,13 @@ def _resolve_skill(user: SysUser, skill: str | None) -> tuple[str | None, str, s
     """
     s = (skill or "").strip()
     if not s:
-        return None, "", ""
+        return None, "", "", ""
     if s.startswith("local:"):
         key = s[len("local:"):].strip()
         sk = skill_files.get_file_skill(key)
         if not sk:
             raise errors.validation(f"未找到本地技能「{key}」，请确认技能名称")
-        return sk["prompt"], key, "local"
+        return sk["prompt"], key, "local", (sk.get("name") or key)
     if s.startswith("xuanpu:"):
         s = s[len("xuanpu:"):].strip()
     identity = user.display_name or user.username
@@ -174,7 +177,8 @@ def _resolve_skill(user: SysUser, skill: str | None) -> tuple[str | None, str, s
     if not prompt:
         raise errors.validation(f"未找到技能「{s}」的执行指引，请确认技能名称")
     local = skill_files.get_file_skill(s)
-    return prompt[:20000], local["skill_key"] if local else "", "xuanpu"
+    display = (info or {}).get("name") if isinstance(info, dict) else None
+    return prompt[:20000], local["skill_key"] if local else "", "xuanpu", (display or s)
 
 
 @router.post("/{session_id}/chat")
@@ -197,6 +201,20 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         message = f"{message}\n（附件：{('、'.join(file_names))}）"
     request_id = getattr(request.state, "request_id", "")
 
+    # 技能自动识别（对齐 xuanpu 意图分流）：未手选技能时按请求内容匹配；
+    # 不确定时返回候选列表交用户确认，此时尚未落任何事件，前端确认后重发
+    skill_sel = (body.skill or "").strip()
+    skill_auto = False
+    if not skill_sel and not body.no_skill_intent:
+        det = await skill_intent.detect_skill(user, message, file_names)
+        if det["mode"] == "auto":
+            skill_sel = det["sel"]
+            skill_auto = True
+        elif det["mode"] == "candidates":
+            logger.info("chat 技能候选待确认 sid=%s user=%s cands=%s",
+                        session_id, user.username, [c["sel"] for c in det["candidates"]])
+            return {"needs_skill": True, "candidates": det["candidates"], "message": body.message}
+
     q = bridge.subscribe(session_id)
     store.append(session_id, "user/message",
                  {"content": message, "source": "human", "version": 1})
@@ -207,9 +225,10 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         )
     ) + 1
     store.append(session_id, "turn/start", {"turn": turn, "version": 1}, turn=turn)
-    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s files=%s model=%s web=%s skill=%s msg=%.80s",
+    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s files=%s model=%s web=%s skill=%s%s msg=%.80s",
                 session_id, turn, user.username, body.kb_ids, file_names,
-                body.model, body.web_search, body.skill or "-", message)
+                body.model, body.web_search, skill_sel or "-", "（自动识别）" if skill_auto else "",
+                message)
 
     # 组装 LLM 实际输入: 附件深度解析 (图片→视觉模型 / PDF→文本层→mineru) + 联网开关提示
     llm_content = message
@@ -228,9 +247,15 @@ async def chat(session_id: str, body: ChatIn, request: Request,
             logger.warning("附件解析失败 sid=%s: %s", session_id, exc)
     if body.web_search:
         llm_content = f"【联网搜索已开启】可使用 web_search 工具检索互联网公开信息后作答。\n{llm_content}"
-    skill_prompt, skill_key, skill_source = _resolve_skill(user, body.skill)
+    skill_prompt, skill_key, skill_source, skill_name = _resolve_skill(user, skill_sel)
     if skill_prompt:
-        llm_content = f"{llm_content}\n（用户已选择技能，请严格按系统提示词中的技能约定执行）"
+        skill_data = {"name": skill_name or (skill_key or ""), "source": skill_source or "xuanpu",
+                      "key": skill_key, "version": 1}
+        if skill_auto:
+            skill_data["auto"] = True
+        store.append(session_id, "skill/start", skill_data, turn=turn)
+        hint = "系统已根据请求内容自动匹配技能" if skill_auto else "用户已选择技能"
+        llm_content = f"{llm_content}\n（{hint}，请严格按系统提示词中的技能约定执行）"
     executor.start_turn(session_id, user, llm_content, request_id,
                         model_key=body.model, skill_prompt=skill_prompt, skill_key=skill_key,
                         skill_source=skill_source)

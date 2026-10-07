@@ -23,6 +23,7 @@ REGISTRY: dict[str, tuple[type[BaseModel], bool]] = {
     "assistant/message": (ev.AssistantMessage, False),
     "tool/call": (ev.ToolCall, False),
     "tool/result": (ev.ToolResult, False),
+    "skill/start": (ev.SkillStart, False),
     "component/request": (ev.ComponentRequest, False),
     "component/submit": (ev.ComponentSubmit, False),
     "feedback/record": (ev.FeedbackRecord, False),

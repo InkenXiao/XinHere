@@ -2,6 +2,7 @@
 // 工具条：左 = ＋文件 / 知识库(多选) / 联网搜索 / 技能；右 = 模型 / 录音 / 发送|停止
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiUpload } from '@/transport/api'
+import { useSessionStore } from '@/state/sessionStore'
 import type { KbSource, ModelOption, SendOptions } from '@/types'
 
 interface UploadedFile {
@@ -56,6 +57,10 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
   const [skills, setSkills] = useState<SkillItem[] | null>(null)
   const [skillSel, setSkillSel] = useState('') // '' = 未选技能
   const [pop, setPop] = useState<'kb' | 'model' | 'skill' | null>(null)
+  // 技能自动识别候选确认（后端识别不确定时由 store 弹出）
+  const skillAsk = useSessionStore((s) => s.skillAsk)
+  const resolveSkillAsk = useSessionStore((s) => s.resolveSkillAsk)
+  const [askSel, setAskSel] = useState('')
   const [recActive, setRecActive] = useState(false)
   const [recBusy, setRecBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -216,6 +221,11 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
   }
 
   const busy = uploading || recBusy
+
+  // 候选面板弹出时默认选中第一个推荐项
+  useEffect(() => {
+    setAskSel(skillAsk?.candidates[0]?.sel ?? '')
+  }, [skillAsk])
 
   return (
     <div className={`cmp cmp-${variant}`} ref={rootRef}>
@@ -489,6 +499,44 @@ export default function ChatComposer({ variant, disabled, sending, onCancel, onS
             <button className="cmp-pop-ok" onClick={() => setPop(null)}>
               完成
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 技能自动识别候选确认（后端识别不确定时弹出，确认后按原消息重发） */}
+      {skillAsk && (
+        <div className="cmp-ask-mask">
+          <div className="cmp-ask cmp-pop">
+            <div className="cmp-pop-head">
+              <span>选择技能</span>
+              <span className="cmp-pop-sub">根据你的请求，为你推荐以下技能</span>
+            </div>
+            <div className="cmp-pop-list">
+              {skillAsk.candidates.map((c) => (
+                <label
+                  className={`cmp-pop-item ${askSel === c.sel ? 'sel' : ''}`}
+                  key={c.sel}
+                  title={c.desc || c.name}
+                >
+                  <input
+                    type="radio"
+                    name="cmp-ask-skill"
+                    checked={askSel === c.sel}
+                    onChange={() => setAskSel(c.sel)}
+                  />
+                  <span className="cmp-pop-name">⚙ {c.name}</span>
+                  <span className="cmp-pop-tag">{(c.desc || '').slice(0, 40)}</span>
+                </label>
+              ))}
+            </div>
+            <div className="cmp-pop-foot">
+              <button className="cmp-pop-link" onClick={() => resolveSkillAsk('')}>
+                不使用技能，直接发送
+              </button>
+              <button className="cmp-pop-ok" disabled={!askSel} onClick={() => resolveSkillAsk(askSel)}>
+                使用选中技能发送
+              </button>
+            </div>
           </div>
         </div>
       )}

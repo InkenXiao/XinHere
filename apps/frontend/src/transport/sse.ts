@@ -87,7 +87,7 @@ async function readStream(res: Response, handlers: SseHandlers): Promise<void> {
   }
 }
 
-/** POST chat → SSE 流（一次 run） */
+/** POST chat → SSE 流（一次 run）；返回 needs_skill 时为技能候选确认响应（JSON，非事件流） */
 export async function streamChat(
   sessionId: string,
   body: {
@@ -97,13 +97,15 @@ export async function streamChat(
     model?: string
     file_names?: string[]
     skill?: string // 技能市场技能名：本轮对话加载并执行该技能
+    no_skill_intent?: boolean // 跳过技能自动识别
   },
   handlers: SseHandlers,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ needsSkill?: boolean; candidates?: { sel: string; name: string; desc?: string }[] }> {
   if (mockEnabled()) {
     const m = await import('@/mocks/server')
-    return m.mockSse(sessionId, { kind: 'chat', body }, handlers)
+    await m.mockSse(sessionId, { kind: 'chat', body }, handlers)
+    return {}
   }
   const res = await fetch(`${API_BASE}/sessions/${sessionId}/chat`, {
     method: 'POST',
@@ -111,7 +113,15 @@ export async function streamChat(
     body: JSON.stringify(body),
     signal,
   })
+  // 技能候选确认：响应为 JSON（未进入事件流），交由上层弹层确认后重发
+  const ctype = res.headers.get('content-type') || ''
+  if (res.ok && ctype.includes('application/json')) {
+    const j = (await res.json()) as { needs_skill?: boolean; candidates?: { sel: string; name: string; desc?: string }[] }
+    if (j.needs_skill) return { needsSkill: true, candidates: j.candidates ?? [] }
+    return {}
+  }
   await readStream(res, handlers)
+  return {}
 }
 
 /** GET events SSE 形态续流（断线重连：baseline 帧 + after_seq 增量） */
