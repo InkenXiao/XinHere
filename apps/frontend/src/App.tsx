@@ -5,6 +5,8 @@ import { useSessionStore } from '@/state/sessionStore'
 import { startTodoPolling, stopTodoPolling, useTodoStore } from '@/state/todoStore'
 import { startNotificationPolling, stopNotificationPolling } from '@/state/notificationStore'
 import HashPages, { useHashPage } from '@/scms/HashPages'
+import ScmsProvider from '@/scms/ScmsProvider'
+import { FilePreviewDialog } from '@/scms/chat/FilePreviewDialog'
 import '@/scms/scms.css'
 import { useUiStore } from '@/state/uiStore'
 import { runtimeEnv } from '@/config'
@@ -118,8 +120,22 @@ export default function App() {
       <TaskDetailModal />
       <MeetingPage />
       <ToastHost />
+      <KbPreviewHost />
       {/* 开屏双门：点击进入 Xin语 / Xin台 */}
       {!splashDone && <SplashGate onDone={() => setSplashDone(true)} />}
     </>
+  )
+}
+
+
+/** KB 文件预览弹层（scms 移植；SourceList 点击来源文件时打开） */
+function KbPreviewHost() {
+  const file = useUiStore((s) => s.kbFilePreview)
+  const close = useUiStore((s) => s.closeKbFilePreview)
+  if (!file) return null
+  return (
+    <ScmsProvider>
+      <FilePreviewDialog file={file} onClose={close} />
+    </ScmsProvider>
   )
 }

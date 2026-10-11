@@ -15,6 +15,11 @@ interface ToastItem {
   kind: 'info' | 'err'
 }
 
+export interface CiteFocus {
+  citeIndex: number
+  ts: number // 重复点击同一角标也要触发（SourceList 按 ts 判新请求）
+}
+
 interface UiState {
   theme: 'dark'
   mode: 'tower' | 'cockpit' | 'qingshan' // 三模式：Xin语（夜·问答）⇄ Xin台（日·业务）⇄ 青山知识库（青绿山水）
@@ -48,6 +53,13 @@ interface UiState {
   setMeetingOpen: (v: boolean) => void
   setCockpitEditing: (v: boolean) => void
   openExecDetail: (t: TaskRecordItem | null) => void
+  // —— scms 移植：KB 文件预览与引用聚焦 ——
+  kbFilePreview: import('@/scms/chat/FilePreviewDialog').KbFileRef | null
+  openKbFilePreview: (f: import('@/scms/chat/FilePreviewDialog').KbFileRef) => void
+  closeKbFilePreview: () => void
+  citeFocus: CiteFocus | null
+  requestCiteFocus: (citeIndex: number) => void
+  clearCiteFocus: () => void
   toast: (text: string, kind?: 'info' | 'err') => void
   dismissToast: (id: number) => void
 }
@@ -72,6 +84,12 @@ export const useUiStore = create<UiState>((set) => ({
   cockpitEditing: false,
   execDetail: null,
   toasts: [],
+  kbFilePreview: null,
+  openKbFilePreview: (f) => set({ kbFilePreview: f }),
+  closeKbFilePreview: () => set({ kbFilePreview: null }),
+  citeFocus: null,
+  requestCiteFocus: (citeIndex) => set({ citeFocus: { citeIndex, ts: Date.now() } }),
+  clearCiteFocus: () => set({ citeFocus: null }),
   setMode: (v) => {
     set({ mode: v, switching: true })
     setTimeout(() => set({ switching: false }), 1150)
