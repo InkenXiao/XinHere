@@ -10,7 +10,7 @@ import httpx
 
 from .conftest import API, BASE_URL, PASSWORD, Client, login
 
-USERINFO_KEYS = {"user_id", "username", "display_name", "role", "company"}
+USERINFO_KEYS = {"user_id", "username", "display_name", "role", "company", "permissions"}
 
 
 def test_login_hq01_token_and_userinfo():

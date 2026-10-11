@@ -20,7 +20,7 @@ BACKEND_URL = os.environ.get("E2E_BACKEND_URL", "http://127.0.0.1:8100")
 API = "/api/v1"
 DB_DSN = os.environ.get(
     "E2E_DB_DSN",
-    "dbname=xinhere user=dbuser password=Siiit2026 host=localhost port=11000",
+    "dbname=xinhere_dev user=dbuser password=Siiit2026 host=localhost port=11000",
 )
 PASSWORD = "Xin@2026"
 E2E = "[e2e]"
