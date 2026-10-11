@@ -4,6 +4,8 @@ import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { startTodoPolling, stopTodoPolling, useTodoStore } from '@/state/todoStore'
 import { startNotificationPolling, stopNotificationPolling } from '@/state/notificationStore'
+import HashPages, { useHashPage } from '@/scms/HashPages'
+import '@/scms/scms.css'
 import { useUiStore } from '@/state/uiStore'
 import { runtimeEnv } from '@/config'
 import { setToken } from '@/transport/api'
@@ -75,6 +77,9 @@ export default function App() {
       )}
     </section>
   )
+  const hashPage = useHashPage()
+  if (hashPage) return <HashPages page={hashPage} />
+
   if (!token) {
     return (
       <>

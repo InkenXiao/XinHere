@@ -1,0 +1,24 @@
+/* scms 移植组件样式基座：
+   - tailwind v4 theme(仅 :root 变量) + utilities，不含 preflight（避免全局 reset 污染宿主）
+   - 移植组件作用域内的边框基线（补 preflight 缺位的 border 默认值）
+   - A 页面引用的主题变量回退（宿主未定义时兜底） */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+
+.scms-root, .scms-root *, #scms-portal, #scms-portal * {
+  border-style: solid;
+  border-width: 0;
+}
+
+:root {
+  --card-border: #3a4457;
+  --bg-1: #10151f;
+  --bg-2: #161d2b;
+  --bg-3: #1d2637;
+  --tx-1: #e8edf3;
+  --tx-2: #9aa4b2;
+  --tx-3: #6b7684;
+  --ac: #3b82f6;
+}

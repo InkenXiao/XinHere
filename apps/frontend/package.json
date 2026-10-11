@@ -13,6 +13,7 @@
     "antd": "^6.6.5",
     "docx-preview": "^0.4.1",
     "echarts": "^6.1.0",
+    "lucide-react": "^1.55.0",
     "mermaid": "^12.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
