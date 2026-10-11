@@ -24,6 +24,7 @@ from app.persistence.models import CockpitEntry, SysAuthToken, SysUser
 from app.platform.api import auth as auth_api
 from app.platform.api import cockpit as cockpit_api
 from app.platform.api import deps as deps_api
+from app.platform import xuanpu_perm
 from app.platform.api import xuanpu as xuanpu_api
 from app.services import xuanpu as xuanpu_svc
 
@@ -265,7 +266,7 @@ def test_x6_proxy_pass_through(db, monkeypatch):
 # ---------- X7: cockpit seed 幂等 + CRUD 权限/校验 ----------
 
 
-def test_x7_cockpit_seed_and_crud(db):
+def test_x7_cockpit_seed_and_crud(db, monkeypatch):
     n1 = cockpit_api.seed_entries(db)
     db.commit()
     n2 = cockpit_api.seed_entries(db)
@@ -276,11 +277,16 @@ def test_x7_cockpit_seed_and_crud(db):
     if n1:
         assert n1 <= 3
 
-    # require_hq：非本部财务 → 403
+    # require_hq：玄圃统一权限驱动——绑定用户无 finance.manage → 403
+    monkeypatch.setattr(deps_api, "user_permissions", lambda uid: ["chat", "kb.search"])
     with pytest.raises(errors.AppError) as ei:
-        deps_api.require_hq(SimpleNamespace(role="investee_finance"))
+        deps_api.require_hq(SimpleNamespace(role="investee_finance", xuanpu_user_id="1"))
     assert ei.value.status == 403
-    hq = SimpleNamespace(role="hq_finance")
+    monkeypatch.setattr(
+        deps_api, "user_permissions",
+        lambda uid: [xuanpu_perm.PERM_FINANCE_MANAGE],
+    )
+    hq = SimpleNamespace(role="hq_finance", xuanpu_user_id="2")
     assert deps_api.require_hq(hq) is hq
 
     # entry_path 必须以 / 开头
