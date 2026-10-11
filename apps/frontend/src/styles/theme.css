@@ -196,11 +196,52 @@ body.mode-tower .brand-logo.tower { display: block; }
 .user-chip .role-tag { font-size: 10px; padding: 1px 7px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
 body.mode-tower .user-chip .role-tag { color: var(--watch); }
 .user-menu { position: relative; }
-.user-pop { position: absolute; right: 0; top: calc(100% + 8px); min-width: 140px; z-index: 60;
+.user-pop { position: absolute; right: 0; top: calc(100% + 8px); min-width: 176px; z-index: 60;
   background: var(--card-bg); border: 1px solid var(--glass-bd); border-radius: 12px; overflow: hidden;
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: var(--shadow); }
 .user-pop button { display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: 13px; color: var(--muted); }
 .user-pop button:hover { background: var(--glass); color: var(--text); }
+/* 用户菜单：页面编辑开关行（驾驶舱 + 有维护权限） */
+.user-pop .pop-switch { display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding: 11px 14px 10px; font-size: 13px; color: var(--text); }
+.user-pop .pop-switch + button { border-top: 1px solid var(--glass-bd); }
+/* .sw 系列用 .user-pop 前缀压过上方 .user-pop button（width:100%/padding）的通用规则 */
+.user-pop .sw { position: relative; width: 36px; height: 20px; padding: 0; border-radius: 999px;
+  border: none; cursor: pointer; flex: none; background: rgba(125, 135, 145, .4); transition: background .18s; }
+.user-pop .sw i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .18s; }
+.user-pop .sw:hover { background: rgba(125, 135, 145, .55); }
+.user-pop .sw:focus-visible { outline: 2px solid var(--fr-accent, #1784bc); outline-offset: 2px; }
+.user-pop .sw.on { background: var(--fr-accent, #1784bc); }
+.user-pop .sw.on:hover { background: var(--fr-accent, #1784bc); filter: brightness(1.08); }
+.user-pop .sw.on i { transform: translateX(16px); }
+
+/* ===== 顶栏 XuanPu 消息铃铛（数字分身/AI 任务通知） ===== */
+.msg-bell { position: relative; }
+.bell-btn { position: relative; display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 8px; border: none; background: transparent; color: var(--muted); cursor: pointer;
+  transition: background .15s, color .15s; }
+.bell-btn:hover { background: var(--glass); color: var(--text); }
+.bell-badge { position: absolute; top: 1px; right: 0; min-width: 15px; height: 15px; padding: 0 4px;
+  display: grid; place-items: center; border-radius: 999px; background: #ef4444; color: #fff;
+  font-size: 9.5px; font-weight: 600; line-height: 1; box-shadow: 0 2px 6px -1px rgba(220, 38, 38, .6); }
+.msg-pop { position: absolute; right: 0; top: calc(100% + 8px); width: 300px; z-index: 60;
+  background: var(--card-bg); border: 1px solid var(--glass-bd); border-radius: 12px; overflow: hidden;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: var(--shadow); }
+.msg-pop-hd { padding: 10px 14px 8px; font-size: 12px; font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--glass-bd); }
+.msg-empty { padding: 22px 0; text-align: center; font-size: 12.5px; color: var(--muted); }
+.msg-item { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left;
+  padding: 10px 14px; border: none; background: none; cursor: default; border-bottom: 1px solid var(--glass-bd); }
+.msg-item:last-child { border-bottom: none; }
+.msg-item.link { cursor: pointer; }
+.msg-item.link:hover { background: var(--glass); }
+.msg-title { font-size: 13px; color: var(--text); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.msg-item.link .msg-title::after { content: ' ↗'; color: var(--muted); font-size: 11px; }
+.msg-body { font-size: 12px; color: var(--muted); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.msg-time { font-size: 10.5px; color: var(--muted); opacity: .7; margin-top: 2px; }
 
 /* ===== 模式切换：页面顶部中间 V 形图标（左杆=Xin语 / 右杆=Xin台，当前模式点亮，点击返回开屏页）；
    鼠标移上去展开左右双卡，彻底离开联合范围才收合；卡内为顶部横排标语 + 中心竖排大字 ===== */
@@ -421,6 +462,56 @@ body.mode-cockpit .cp-wrap { opacity: 1; transform: none; }
 .cp-card:hover { background: linear-gradient(90deg, #9FD3A0 0%, #1784BC 100%); border-color: transparent;
   box-shadow: 0 14px 36px -14px rgba(23,132,188,.45), 0 0 0 1px rgba(255,255,255,.18) inset; transform: translateY(-2px); }
 .cp-card.kind-task, .cp-card.kind-meeting { cursor: default; }
+/* 业务图谱卡: 力导向小图 (节点点击展开邻域) */
+.cp-card.kind-graph { cursor: default; grid-column: span 2; }
+.cp-card.kind-graph .gc-center { font-size: 12px; font-weight: 500; color: rgba(20,30,40,.55); }
+.cp-card.kind-graph .gc-canvas { border-radius: 10px; overflow: hidden; background: rgba(255,255,255,.45); border: 1px solid rgba(20,30,40,.06); }
+.cp-card.kind-graph .gc-canvas svg { display: block; width: 100%; height: auto; }
+.cp-card.kind-graph .gc-node { cursor: pointer; }
+.cp-card.kind-graph .gc-node circle { fill: #4E9FD4; stroke: #fff; stroke-width: 1.5; transition: fill .15s; }
+.cp-card.kind-graph .gc-node:hover circle { fill: #1784BC; }
+.cp-card.kind-graph .gc-node text { font-size: 9.5px; fill: rgba(20,30,40,.72); text-anchor: middle; pointer-events: none; }
+.cp-card.kind-graph .meta .go { cursor: pointer; }
+/* 卡片副标题：名称下方一行功能描述 */
+.cp-sub { font-size: 12px; color: rgba(20, 30, 40, .52); line-height: 1.5; margin: 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cp-card:hover .cp-sub { color: rgba(255, 255, 255, .92); }
+/* 占位卡（功能建设中）与置灰（二期） */
+.cp-card.kind-placeholder .ph-hint { font-size: 11.5px; color: rgba(20, 30, 40, .45); letter-spacing: .04em; }
+.cp-card.kind-placeholder:hover { background: rgba(255, 255, 255, .36); border-color: rgba(20, 30, 40, .07); box-shadow: 0 4px 20px -8px rgba(20,30,40,.10); transform: none; }
+.cp-card.kind-placeholder:hover h3 { color: var(--ink-1); }
+.cp-card.soon { opacity: .48; filter: grayscale(.55); cursor: not-allowed; }
+.cp-card.soon h3 { color: rgba(20, 30, 40, .55); }
+.cp-card.soon .cp-sub, .cp-card.soon .ph-hint { color: rgba(20, 30, 40, .42); }
+/* 预留空卡：虚线框 */
+.cp-card.kind-reserved { border-style: dashed; border-color: rgba(20, 30, 40, .16); background: transparent;
+  box-shadow: none; cursor: default; align-items: center; justify-content: center; }
+.cp-card.kind-reserved h3 { color: rgba(20, 30, 40, .35); font-weight: 500; }
+.cp-card.kind-reserved .ph-hint { font-size: 11.5px; color: rgba(20, 30, 40, .30); }
+.cp-card.kind-reserved:hover { background: transparent; border-color: rgba(20, 30, 40, .16); box-shadow: none; transform: none; }
+.cp-card.kind-reserved:hover h3 { color: rgba(20, 30, 40, .35); }
+/* 驾驶舱编辑模式（仅本部财务）：工具条 + 删除钮 + 添加卡 */
+.cp-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 14px; }
+.cp-edit-hint { font-size: 12px; color: rgba(20, 30, 40, .55); }
+.cp-cell { position: relative; }
+.cp-cell:has(> .cp-card.kind-graph) { grid-column: span 2; } /* 图谱卡跨两列（编辑模式外层包裹后由 cell 承担） */
+.cp-cell .cp-del { position: absolute; top: -9px; right: -9px; z-index: 6; width: 24px; height: 24px;
+  display: grid; place-items: center; border-radius: 50%; border: none; cursor: pointer;
+  background: #ef4444; color: #fff; font-size: 15px; line-height: 1; box-shadow: 0 3px 10px -2px rgba(220,38,38,.55);
+  transition: transform .15s, background .15s; }
+.cp-cell .cp-del:hover { transform: scale(1.12); background: #dc2626; }
+/* 编辑模式拖拽排序：拖拽中的卡半透明，悬停目标卡虚线高亮，可拖拽时抓手光标 */
+.cp-wrap.editing .cp-cell { cursor: grab; }
+.cp-wrap.editing .cp-cell:active { cursor: grabbing; }
+.cp-cell.dragging { opacity: .4; }
+.cp-cell.drag-over { outline: 2px dashed var(--cockpit); outline-offset: 3px; border-radius: 14px; }
+.cp-wrap.editing .cp-card:not(.kind-add) { pointer-events: none; } /* 编辑模式禁用卡片业务交互（添加卡/删除钮不受影响） */
+.cp-card.kind-add { border-style: dashed; border-color: rgba(23, 132, 188, .45); background: transparent;
+  box-shadow: none; cursor: pointer; align-items: center; justify-content: center; font: inherit; text-align: center; }
+.cp-card.kind-add h3 { color: var(--cockpit); font-weight: 500; }
+.cp-card.kind-add .ph-hint { font-size: 11.5px; color: rgba(20, 30, 40, .35); }
+.cp-card.kind-add:hover { background: rgba(23, 132, 188, .08); border-color: var(--cockpit); box-shadow: none; transform: none; }
+.cp-card.kind-add:hover h3 { color: var(--cockpit); }
 .cp-card h3 { font-family: var(--font-han); font-size: 15.5px; font-weight: 700; letter-spacing: .04em; color: var(--ink-1); line-height: 1.35; }
 .cp-card:hover h3 { color: #fff; }
 .cp-card .meta { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: auto; }

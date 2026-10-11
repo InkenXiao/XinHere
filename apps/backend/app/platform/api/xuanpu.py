@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.parse import quote
 
 import httpx
@@ -38,6 +39,26 @@ def agents(user: SysUser = Depends(current_user), db: Session = Depends(get_db))
         return {"items": xuanpu_svc.list_agents(identity, xuanpu_token=xtoken)}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"XuanPu 平台不可达：{exc}")
+
+
+@router.get("/ontology/graph")
+def ontology_graph(kb_name: str = "业务本体库", center: str = "", limit: int = 60,
+                   user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """业务图谱卡数据: 经网关本体工具透传 rag 图谱 (先按库名定位, 再邻域查询)"""
+    identity, xtoken = _mcp_ctx(db, user)
+    try:
+        types = xuanpu_svc.call_tool("xuanpu_ontology_types", {}, identity, xuanpu_token=xtoken)
+        kb_id = next((int(i["kb_id"]) for i in types.get("items") or []
+                      if i.get("kb_name") == (kb_name or "业务本体库") and i.get("kb_id")), 0)
+        if not kb_id:
+            return {"nodes": [], "edges": [], "note": "业务本体库尚未创建"}
+        return xuanpu_svc.call_tool(
+            "xuanpu_ontology_graph",
+            {"kb_id": kb_id, "center": center or "", "depth": 2,
+             "limit": max(10, min(int(limit or 60), 100))},
+            identity, timeout=60.0, xuanpu_token=xtoken)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"业务图谱获取失败：{str(exc)[:150]}")
 
 
 class AgentChatIn(BaseModel):
@@ -253,3 +274,56 @@ def open_card(body: CardOpenIn, user: SysUser = Depends(current_user),
     if url.startswith("/"):
         return _sso_launch(user, url)
     return {"url": url, "first_login": False}
+
+
+# ---------- XuanPu 消息（数字分身/AI 任务通知） ----------
+
+
+@router.get("/messages")
+def messages(after_id: int = 0, user: SysUser = Depends(current_user),
+             db: Session = Depends(get_db)):
+    """拉取当前用户的 XuanPu 消息（按水位增量；首次传 0 只取最新）"""
+    identity, xtoken = _mcp_ctx(db, user)
+    try:
+        return xuanpu_svc.rtm_messages(after_id, identity, xuanpu_token=xtoken)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"XuanPu 消息拉取失败：{exc}")
+
+
+# ---------- XuanPu 链接通用免登打开 ----------
+
+# 与 sso-server /sso/launch 的 to 白名单一致
+_LAUNCH_PREFIXES = ("/pro/", "/rag/", "/mcp/", "/data/")
+
+
+def _normalize_xuanpu_path(url: str) -> str:
+    """消息/报告链接 → XuanPu 站内路径：http 绝对地址取 path+query；view:页面键 → /pro/
+    （XuanPu 前端为 SPA 站内切换，无深链，落地门户首页）。统一兜底为可免登的白名单路径。"""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if url.startswith("view:"):
+        return "/pro/"
+    if url.startswith("/"):
+        path = url
+    else:
+        m = re.match(r"^https?://[^/]+(/.*)$", url)
+        path = m.group(1) if m else "/pro/"
+    # 站内路径不在 launch 白名单前缀内（如 /api/task-runs 报告原始路径）→ 落地门户首页经导航到达
+    if not path.startswith(_LAUNCH_PREFIXES):
+        return "/pro/"
+    return path
+
+
+class OpenIn(BaseModel):
+    url: str  # XuanPu 消息/报告链接：http(s) 绝对地址 / view:页面键 / 站内路径
+
+
+@router.post("/open")
+def open_link(body: OpenIn, user: SysUser = Depends(current_user),
+              db: Session = Depends(get_db)):
+    """XuanPu 消息与 AI 文档链接免登打开：规范化为站内路径后换一次性 ticket"""
+    path = _normalize_xuanpu_path(body.url)
+    if not path:
+        raise errors.validation("无法识别的链接")
+    return _sso_launch(user, path)

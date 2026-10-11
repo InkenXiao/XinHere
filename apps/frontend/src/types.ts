@@ -6,6 +6,8 @@ export interface UserInfo {
   display_name: string
   role: 'hq_finance' | 'investee_finance'
   company: string | null
+  /** 生效权限码清单（统一权限；本地账号为全量） */
+  permissions?: string[]
 }
 
 export interface SessionHeader {
@@ -320,11 +322,13 @@ export interface CockpitCardItem {
   key: string
   group_key: string
   name: string
-  kind: 'link' | 'task' | 'meeting'
+  subtitle?: string
+  kind: 'link' | 'task' | 'meeting' | 'placeholder' | 'graph'
   link_url?: string | null
   skill_id?: number | null
   skill_name?: string | null
   icon?: string | null
+  soon?: boolean
   sort: number
   enabled: boolean
 }

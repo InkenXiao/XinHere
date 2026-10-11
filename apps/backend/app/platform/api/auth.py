@@ -18,6 +18,7 @@ from ...core.config import settings
 from ...core.context import AuditCtx, set_ctx
 from ...persistence.models import SysAuthToken, SysUser
 from ...persistence.session import get_db
+from ..xuanpu_perm import resolve_xinhere_role
 from .deps import current_user, user_view
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -65,7 +66,11 @@ def _cleanup_states(now: float) -> None:
 def _bind_xuanpu_user(
     db: Session, xuanpu_user_id: str, user_code: str, user_name: str, is_admin: bool
 ) -> SysUser:
-    """JIT 建号 / 幂等绑定：优先按 XuanPu 绑定查，其次按登录账号名对齐已有本地账号。"""
+    """JIT 建号 / 幂等绑定 + 角色同步（按 XuanPu 统一权限判定，服务间 API）。
+
+    角色以 XuanPu 权限为准每次登录刷新：xinhere.manage→本部财务 / xinhere.use→被投财务 /
+    均无→拒绝进入（403）；is_admin 仅作 XuanPu 权限服务不可用时的降级值。
+    """
     user = db.scalars(select(SysUser).where(SysUser.xuanpu_user_id == xuanpu_user_id)).first()
     if user is None and user_code:
         user = db.scalars(select(SysUser).where(SysUser.username == user_code)).first()
@@ -82,10 +87,17 @@ def _bind_xuanpu_user(
         db.add(user)
         db.flush()
     else:
-        # 已有账号：同步最新姓名与绑定，不动本地角色（避免覆盖管理员配置）
+        # 已有账号：同步最新姓名与绑定；角色由下方统一权限判定刷新
         user.display_name = user_name
         user.xuanpu_user_id = xuanpu_user_id
         user.auth_source = "sso"
+    role = resolve_xinhere_role(
+        xuanpu_user_id, fallback="hq_finance" if is_admin else "investee_finance"
+    )
+    if role is None:
+        raise errors.forbidden("未开通 XinHere 使用权限，请联系管理员在统一权限管理中授权")
+    user.role = role
+    db.flush()
     return user
 
 

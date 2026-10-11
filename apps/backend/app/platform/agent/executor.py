@@ -19,6 +19,7 @@ from ...persistence.models import (
     SysUser,
 )
 from ...persistence.session import SessionLocal
+from .. import xuanpu_perm
 from ..events.store import store
 from .event_translator import EventTranslator
 from .llm import build_model
@@ -48,6 +49,7 @@ class RunHandle:
     turn: int
     user_id: str
     request_id: str
+    xuanpu_user_id: str | None = None  # 统一身份绑定（权限拉取用；本地账号为空=全权限）
     model_key: str = ""  # 模型通道（run 期重建图/resume 时保持一致）
     skill_prompt: str | None = None  # 技能执行指引（本轮对话注入系统提示词尾部）
     skill_key: str = ""  # 本地文件夹技能 key（本轮动态装配包内文件/脚本工具）
@@ -181,6 +183,7 @@ class AgentExecutor:
                 )
             )
         handle = RunHandle(session_id=session_id, turn=turn, user_id=user.user_id, request_id=request_id,
+                           xuanpu_user_id=user.xuanpu_user_id,
                            model_key=model_key, skill_prompt=skill_prompt, skill_key=skill_key,
                            skill_source=skill_source)
         with self._lock:
@@ -245,6 +248,7 @@ class AgentExecutor:
         tool_ctx = ToolCtx(
             user_id=handle.user_id, session_id=sid, request_id=handle.request_id,
             turn=handle.turn, emit=emit,
+            extra={"perms": xuanpu_perm.user_permissions(handle.xuanpu_user_id)},
         )
         translator = EventTranslator(store, sid, handle.turn)
         try:

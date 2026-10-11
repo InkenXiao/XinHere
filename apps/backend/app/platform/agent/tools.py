@@ -9,7 +9,26 @@ from ...services import kb as kb_svc
 from ...services import todo as todo_svc
 from ...services import xuanpu as xuanpu_svc
 from ...services.common import list_companies
+from ..xuanpu_perm import (
+    PERM_AGENT_BRIDGE,
+    PERM_CHAT,
+    PERM_COCKPIT_MANAGE,
+    PERM_DATA_QUERY,
+    PERM_KB_SEARCH,
+    PERM_SKILL_RUN,
+    PERM_USE,
+)
 from .tool_base import ToolCtx, tool_scope
+
+
+def _deny_msg(code: str, feature: str) -> str:
+    return f"当前用户未开通「{feature}」权限（{code}），请联系管理员在统一权限管理中授权后再试。"
+
+
+def _has_perm(ctx: ToolCtx, code: str) -> bool:
+    """问答工具执行时访问控制：权限清单由 executor 按用户注入 ctx.extra['perms']"""
+    perms = (ctx.extra or {}).get("perms")
+    return code in perms if isinstance(perms, list) else True
 
 
 def _xuanpu_identity(db, user_id: str) -> str:
@@ -132,6 +151,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         kb_id: str | None = None,
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
+        if not _has_perm(ctx, PERM_KB_SEARCH):
+            return _deny_msg(PERM_KB_SEARCH, "知识检索")
         with tool_scope(ctx, "search_knowledge", tool_call_id, {"query": query, "kb_id": kb_id}):
             try:
                 hits = kb_svc.search(query, kb_id)
@@ -157,6 +178,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"assignee_username": assignee_username, "title": title, "content": content, "due": due}
+        if not _has_perm(ctx, PERM_CHAT):
+            return _deny_msg(PERM_CHAT, "AI对话")
         with tool_scope(ctx, "dispatch_generic_task", tool_call_id, args) as db:
             from sqlalchemy import select
 
@@ -176,6 +199,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
 
     @tool("query_task_stats", description="查询任务执行统计（进行中任务、近 7 天完成、完成率、逾期）。")
     def query_task_stats(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        if not _has_perm(ctx, PERM_CHAT):
+            return _deny_msg(PERM_CHAT, "AI对话")
         with tool_scope(ctx, "query_task_stats", tool_call_id, {}) as db:
             s = dashboard_svc.summary(db)
         o = s["overview"]
@@ -191,6 +216,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         message: str,
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_chat", tool_call_id, {"agent": agent, "message": message}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
@@ -214,6 +241,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         owner: str = "",
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_todos", tool_call_id, {"owner": owner}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
@@ -241,6 +270,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
     ) -> str:
         args = {"name": name, "owner": owner, "week_start": week_start,
                 "priority": priority, "remark": remark}
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_create_todo", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
@@ -255,6 +286,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
 
     @tool("xuanpu_dashboard", description="获取 XuanPu 平台数据看板概览：激活项目、进度任务、BUG 统计、需求统计。")
     def xuanpu_dashboard_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_dashboard", tool_call_id, {}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
             try:
@@ -282,6 +315,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         category: str = "",
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
+        if not _has_perm(ctx, PERM_SKILL_RUN):
+            return _deny_msg(PERM_SKILL_RUN, "技能执行")
         with tool_scope(ctx, "xuanpu_skills", tool_call_id, {"category": category}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -302,6 +337,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"skill": skill, "input_data": input_data}
+        if not _has_perm(ctx, PERM_SKILL_RUN):
+            return _deny_msg(PERM_SKILL_RUN, "技能执行")
         with tool_scope(ctx, "xuanpu_skill_run", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -316,6 +353,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"skill": skill}
+        if not _has_perm(ctx, PERM_SKILL_RUN):
+            return _deny_msg(PERM_SKILL_RUN, "技能执行")
         with tool_scope(ctx, "xuanpu_skill_info", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -340,6 +379,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         if not isinstance(parsed, list):
             parsed = [parsed]
         args = {"skill": skill, "script": script}
+        if not _has_perm(ctx, PERM_SKILL_RUN):
+            return _deny_msg(PERM_SKILL_RUN, "技能执行")
         with tool_scope(ctx, "xuanpu_skill_script", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -350,6 +391,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
 
     @tool("xuanpu_tools", description="列出 XuanPu 平台可调用的平台工具（原子能力，仅「使用中」状态），含参数 Schema。")
     def xuanpu_tools_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        if not _has_perm(ctx, PERM_SKILL_RUN):
+            return _deny_msg(PERM_SKILL_RUN, "技能执行")
         with tool_scope(ctx, "xuanpu_tools", tool_call_id, {}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -370,6 +413,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"tool": tool, "arguments": arguments}
+        if not _has_perm(ctx, PERM_SKILL_RUN):
+            return _deny_msg(PERM_SKILL_RUN, "技能执行")
         with tool_scope(ctx, "xuanpu_tool_run", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -380,6 +425,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
 
     @tool("xuanpu_mcp_servers", description="列出用户在 XuanPu 平台注册的 MCP 服务及各服务工具清单（含参数 Schema）。")
     def xuanpu_mcp_servers_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_mcp_servers", tool_call_id, {}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -403,6 +450,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"server": server, "tool": tool, "arguments": arguments}
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_mcp_call", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -413,6 +462,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
 
     @tool("xuanpu_im_channels", description="列出用户在 XuanPu 平台配置的 IM 通道（飞书/企微/钉钉/邮箱等），含是否双向。")
     def xuanpu_im_channels_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_im_channels", tool_call_id, {}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -435,6 +486,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"message": message, "channel": channel}
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_im_send", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -459,6 +512,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         channel: str = "",
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_im_messages", tool_call_id, {"channel": channel}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -489,6 +544,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
     ) -> str:
         args = {"title": title, "fields": fields, "assignees": assignees,
                 "deadline": deadline, "description": description}
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_fill_create", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -502,6 +559,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
 
     @tool("xuanpu_fill_my", description="查询当前用户在 XuanPu 平台的填报任务（含待填与已提交，待填含已存草稿）。")
     def xuanpu_fill_my_tool(tool_call_id: Annotated[str, InjectedToolCallId] = "") -> str:
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_fill_my", tool_call_id, {}) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -529,6 +588,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"assignment_id": assignment_id, "data": data}
+        if not _has_perm(ctx, PERM_AGENT_BRIDGE):
+            return _deny_msg(PERM_AGENT_BRIDGE, "XuanPu协作")
         with tool_scope(ctx, "xuanpu_fill_submit", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -544,6 +605,8 @@ def build_common_tools(ctx: ToolCtx) -> list:
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
         args = {"query": query, "sources": sources}
+        if not _has_perm(ctx, PERM_KB_SEARCH):
+            return _deny_msg(PERM_KB_SEARCH, "知识检索")
         with tool_scope(ctx, "xuanpu_kb_search", tool_call_id, args) as db:
             identity, xtoken = _xuanpu_auth(db, ctx.user_id)
         try:
@@ -552,11 +615,102 @@ def build_common_tools(ctx: ToolCtx) -> list:
             return f"XuanPu 知识检索失败：{_fail_msg(exc)}"
         return _xj(data)
 
+    # ---------- 数据问数（XuanPu 数据网关，只读；先查目录再执行） ----------
+
+    @tool("xuanpu_data_catalog", description="查询经营数据集目录（财务/考核/投后/部门等固化指标集），按名执行须先经此查到数据集 name 与参数。支持 domain（fin/perf/dept/invest 等可选）与 keyword 关键词过滤。")
+    def xuanpu_data_catalog_tool(
+        domain: str = "",
+        keyword: str = "",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"domain": domain, "keyword": keyword}
+        if not _has_perm(ctx, PERM_DATA_QUERY):
+            return _deny_msg(PERM_DATA_QUERY, "AI问数")
+        with tool_scope(ctx, "xuanpu_data_catalog", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.data_sql_catalog(domain, keyword, identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"数据集目录查询失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_data_query", description="按名执行经营数据集取数（问数首选）。name 来自 xuanpu_data_catalog；params 为数据集声明参数的 JSON 对象字符串（如 {\"year\": 2026}），无参传 {}。")
+    def xuanpu_data_query_tool(
+        name: str,
+        params: str = "{}",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"name": name, "params": params}
+        if not _has_perm(ctx, PERM_DATA_QUERY):
+            return _deny_msg(PERM_DATA_QUERY, "AI问数")
+        with tool_scope(ctx, "xuanpu_data_query", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            import json as _json
+            pv = _json.loads(params) if params and params.strip() else {}
+            data = xuanpu_svc.data_sql_run(name, pv, user_name=identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"数据查询失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_data_sql", description="对经营数据库执行自定义只读 SQL（仅 SELECT/WITH，服务端只读护栏）。db_alias 默认 scms；目录数据集不满足需求时使用，表结构不明时先小范围探查（LIMIT）。")
+    def xuanpu_data_sql_tool(
+        sql: str,
+        db_alias: str = "scms",
+        params: str = "{}",
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"sql": sql, "db_alias": db_alias, "params": params}
+        if not _has_perm(ctx, PERM_DATA_QUERY):
+            return _deny_msg(PERM_DATA_QUERY, "AI问数")
+        with tool_scope(ctx, "xuanpu_data_sql", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            import json as _json
+            pv = _json.loads(params) if params and params.strip() else {}
+            data = xuanpu_svc.data_sql_query(db_alias, sql, pv, identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"SQL 查询失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_data_overview", description="读取经营数据总览看板。domain 可选 group（集团）/fin（财务指标）/perf（经营者考核）/dept（部门考核）/invest（投后管理），year 可选年份（如 2026）。")
+    def xuanpu_data_overview_tool(
+        domain: str,
+        year: int = 0,
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"domain": domain, "year": year}
+        if not _has_perm(ctx, PERM_DATA_QUERY):
+            return _deny_msg(PERM_DATA_QUERY, "AI问数")
+        with tool_scope(ctx, "xuanpu_data_overview", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.data_overview(domain, year or None, identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"数据总览查询失败：{_fail_msg(exc)}"
+        return _xj(data)
+
+    @tool("xuanpu_messages", description="拉取当前用户的 XuanPu 消息（数字分身任务进度、AI 任务完成通知等）。返回最近消息与水位 last_id，再次调用传 after_id=last_id 增量拉取；首次传 0。")
+    def xuanpu_messages_tool(
+        after_id: int = 0,
+        tool_call_id: Annotated[str, InjectedToolCallId] = "",
+    ) -> str:
+        args = {"after_id": after_id}
+        with tool_scope(ctx, "xuanpu_messages", tool_call_id, args) as db:
+            identity, xtoken = _xuanpu_auth(db, ctx.user_id)
+        try:
+            data = xuanpu_svc.rtm_messages(after_id, identity, xuanpu_token=xtoken)
+        except Exception as exc:
+            return f"XuanPu 消息拉取失败：{_fail_msg(exc)}"
+        return _xj(data)
+
     @tool("web_search", description="联网搜索互联网公开信息（新闻/公开资料），query 为搜索词。用户开启联网搜索且需要最新外部信息时使用。")
     def web_search_tool(
         query: str,
         tool_call_id: Annotated[str, InjectedToolCallId] = "",
     ) -> str:
+        if not _has_perm(ctx, PERM_CHAT):
+            return _deny_msg(PERM_CHAT, "AI对话")
         with tool_scope(ctx, "web_search", tool_call_id, {"query": query}):
             return _web_search_impl(query)
 
@@ -571,4 +725,7 @@ def build_common_tools(ctx: ToolCtx) -> list:
             xuanpu_im_messages_tool,
             xuanpu_fill_create_tool, xuanpu_fill_my_tool,
             xuanpu_fill_submit_tool, xuanpu_kb_search_tool,
+            xuanpu_data_catalog_tool, xuanpu_data_query_tool,
+            xuanpu_data_sql_tool, xuanpu_data_overview_tool,
+            xuanpu_messages_tool,
             web_search_tool]

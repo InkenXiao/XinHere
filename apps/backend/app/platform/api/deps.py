@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from ...core import errors
 from ...persistence.models import SysAuthToken, SysUser
 from ...persistence.session import get_db
+from ..xuanpu_perm import PERM_FINANCE_MANAGE, user_permissions
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -21,6 +22,7 @@ def user_view(u: SysUser) -> dict:
         "display_name": u.display_name,
         "role": u.role,
         "company": u.company,
+        "permissions": user_permissions(u.xuanpu_user_id),
     }
 
 
@@ -41,6 +43,16 @@ def current_user(
 
 
 def require_hq(user: SysUser = Depends(current_user)) -> SysUser:
-    if user.role != "hq_finance":
-        raise errors.forbidden("仅本部财务可执行")
-    return user
+    """财务管理工作台门禁（XuanPu 统一权限驱动；本地账号全权限）"""
+    return require_perm(PERM_FINANCE_MANAGE)(user)
+
+
+def require_perm(code: str):
+    """按 XuanPu 统一权限点校验（60s 缓存；未绑定统一身份的本地账号放行）"""
+
+    def _dep(user: SysUser = Depends(current_user)) -> SysUser:
+        if code not in user_permissions(user.xuanpu_user_id):
+            raise errors.forbidden("未开通该功能权限，请联系管理员在统一权限管理中授权")
+        return user
+
+    return _dep

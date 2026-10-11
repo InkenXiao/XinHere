@@ -212,6 +212,76 @@ def kb_search(query: str, user_name: str, sources: str = "", top_k: int = 5,
                      {"query": query, "sources": sources or "", "top_k": top_k},
                      user_name, xuanpu_token=xuanpu_token)
 
+
+# ---------- XuanPu 消息（数字分身/AI 任务通知，按水位增量拉取） ----------
+
+def rtm_messages(after_id: int, user_name: str,
+                 xuanpu_token: str | None = None) -> dict:
+    return call_tool("xuanpu_rtm_messages", {"after_id": int(after_id or 0)},
+                     user_name, timeout=30.0, xuanpu_token=xuanpu_token)
+
+
+# ---------- 数据网关（data-cowork MCP 子挂载，AI 问数只读通道；鉴权与平台网关同款双轨） ----------
+
+def _data_call(tool_name: str, arguments: dict, user_name: str,
+               timeout: float = 60.0, xuanpu_token: str | None = None) -> dict:
+    if xuanpu_token:
+        headers = {"Authorization": f"Bearer {xuanpu_token}"}
+    else:
+        headers = {"X-User-Name": quote(user_name or "", safe="")}
+    client = McpClient(settings.data_mcp_url, timeout=timeout, headers=headers, verify=False)
+    text = client.call(tool_name, arguments)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {"raw": text}
+
+
+def data_sql_catalog(domain: str = "", keyword: str = "", user_name: str = "",
+                     xuanpu_token: str | None = None) -> dict:
+    """固化 SQL 数据集目录（按域/关键词过滤），问数首选入口"""
+    return _data_call("xuanpu_sql_catalog",
+                      {"domain": domain or "", "keyword": keyword or ""},
+                      user_name, xuanpu_token=xuanpu_token)
+
+
+def data_sql_run(name: str, params: dict | None = None, db_alias: str = "",
+                 user_name: str = "", xuanpu_token: str | None = None) -> dict:
+    """按名执行固化 SQL 数据集（只读）"""
+    return _data_call("xuanpu_sql_run",
+                      {"name": name, "params": params or {}, "db_alias": db_alias or ""},
+                      user_name, xuanpu_token=xuanpu_token)
+
+
+def data_sql_query(db_alias: str, sql: str, params: dict | None = None,
+                   user_name: str = "", xuanpu_token: str | None = None) -> dict:
+    """自定义只读 SQL 查询（仅 SELECT/WITH，护栏在 XuanPu 数据网关侧）"""
+    return _data_call("xuanpu_sql_query",
+                      {"db_alias": db_alias, "sql": sql, "params": params or {}},
+                      user_name, timeout=120.0, xuanpu_token=xuanpu_token)
+
+
+# 域总览工具名 → 数据网关工具映射（xinhere 侧统一 domain 入参）
+_DATA_OVERVIEW_TOOLS: dict[str, str] = {
+    "group": "xuanpu_group_overview",      # 集团总览
+    "fin": "xuanpu_fin_overview",          # 财务指标
+    "perf": "xuanpu_perf_assessment",      # 经营者考核
+    "dept": "xuanpu_dept_assessment",      # 部门考核
+    "invest": "xuanpu_invest_overview",    # 投后管理
+}
+
+
+def data_overview(domain: str, year: int | None = None, user_name: str = "",
+                  xuanpu_token: str | None = None) -> dict:
+    tool = _DATA_OVERVIEW_TOOLS.get(domain)
+    if tool is None:
+        raise ValueError(f"未知数据域：{domain}（可选 {'/'.join(_DATA_OVERVIEW_TOOLS)}）")
+    args: dict = {}
+    if year:
+        args["year"] = int(year)
+    return _data_call(tool, args, user_name, timeout=120.0, xuanpu_token=xuanpu_token)
+
+
 def meeting_create(user_name: str, xuanpu_token: str | None = None,
                    title: str = "", meet_date: str = "", meet_time: str = "",
                    place: str = "", host: str = "", attendees: str = "",

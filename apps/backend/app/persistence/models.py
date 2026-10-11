@@ -162,11 +162,13 @@ class CockpitCard(Base):
     key = Column(Text, nullable=False, unique=True, comment="卡片标识（唯一，如 minutes）")
     group_key = Column(Text, nullable=False, comment="所属分组标识（cockpit_groups.key）")  # 所属分组 cockpit_groups.key
     name = Column(Text, nullable=False, comment="卡片名称（如 实时纪要）")
-    kind = Column(String(16), nullable=False, default="task", comment="卡片类型：link=页面跳转 / task=技能任务 / meeting=实时会议")  # link / task / meeting
+    subtitle = Column(Text, nullable=False, default="", server_default="", comment="副标题/功能描述（卡片名称下方一行）")
+    kind = Column(String(16), nullable=False, default="task", comment="卡片类型：link=页面跳转 / task=技能任务 / meeting=实时会议 / placeholder=功能占位")  # link / task / meeting / placeholder
     link_url = Column(Text, comment="跳转地址（/ 开头为 XuanPu 站内免登路径，否则外链）")  # link 卡跳转地址：/ 开头为 XuanPu 站内路径（走免登），否则外链
     skill_id = Column(Integer, comment="绑定的 XuanPu 技能 ID（可空，按名称回退匹配）")  # task 卡绑定的 XuanPu 技能 id（可空，按名称回退匹配）
     skill_name = Column(Text, comment="绑定的技能名称（ID 未配置时回退匹配用）")  # task 卡绑定的技能名（回退匹配用）
     icon = Column(Text, comment="图标标识")
+    soon = Column(Boolean, nullable=False, default=False, server_default="false", comment="置灰占位（二期/规划中，不可点击）")
     sort = Column(Integer, nullable=False, default=0, server_default="0", comment="排序值（升序）")
     enabled = Column(Boolean, nullable=False, default=True, server_default="true", comment="是否启用")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), comment="创建时间")

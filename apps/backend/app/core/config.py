@@ -41,10 +41,15 @@ class Settings(BaseSettings):
     mineru_api_url: str = ""
     # 语音转写代理目标 (xuanpu pro-cowork, 容器内网直达)
     xuanpu_api_url: str = "http://xuanpu:8091"
+    # XuanPu 统一权限判定端点 (服务间 API, X-Internal-Token 鉴权; 空=SSO 登录回落旧 is_admin 逻辑)
+    xuanpu_perm_url: str = ""
+    xuanpu_perm_token: str = ""
 
     kb_mcp_url: str = "https://localhost:8093/mcp"
     # XuanPu 平台 MCP 网关（mcp-cowork 8094 子挂载；经 ai_network 内 nginx TLS 入口）
     xuanpu_mcp_url: str = "https://nginx:8094/xuanpu/mcp"
+    # XuanPu 数据网关（data-cowork 8079 子挂载；AI 问数只读通道，经 nginx 8090 /data 前缀）
+    data_mcp_url: str = "https://nginx:8090/data/xuanpu/mcp"
 
     # ---------- 统一身份登录 SSO (XuanPu sso-server :8095) ----------
     # 授权入口走浏览器可达的 nginx https; token/ticket 接口走容器内网直达

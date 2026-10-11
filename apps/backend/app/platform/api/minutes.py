@@ -12,7 +12,8 @@ from ...persistence.models import PlatformOperationLog, SysUser
 from ...persistence.session import get_db
 from ...services import minutes as minutes_svc
 from ...services import xuanpu as xuanpu_svc
-from .deps import current_user
+from .deps import require_perm
+from ..xuanpu_perm import PERM_MEETING
 from .media import _identity
 
 router = APIRouter(prefix="/minutes", tags=["minutes"])
@@ -25,7 +26,7 @@ class SummarizeIn(BaseModel):
 
 
 @router.post("/summarize")
-async def summarize(body: SummarizeIn, user: SysUser = Depends(current_user)):
+async def summarize(body: SummarizeIn, user: SysUser = Depends(require_perm(PERM_MEETING))):
     mode = body.mode if body.mode in ("stage", "final", "polish") else "final"
 
     async def gen():
@@ -50,7 +51,7 @@ class SaveIn(BaseModel):
 
 
 @router.post("/save")
-def save(body: SaveIn, user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+def save(body: SaveIn, user: SysUser = Depends(require_perm(PERM_MEETING)), db: Session = Depends(get_db)):
     if not body.content.strip():
         raise errors.validation("纪要内容不能为空")
     title = body.title.strip() or f"实时纪要 {date.today():%Y-%m-%d}"

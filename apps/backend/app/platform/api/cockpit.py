@@ -18,7 +18,8 @@ from ...persistence.models import (
     SysUser,
 )
 from ...persistence.session import get_db
-from .deps import current_user, require_hq
+from .deps import current_user, require_hq, require_perm
+from ..xuanpu_perm import PERM_COCKPIT_MANAGE
 
 router = APIRouter(prefix="/cockpit", tags=["cockpit"])
 
@@ -30,34 +31,84 @@ SEED_ENTRIES = [
 ]
 
 # 分组卡片 seed：kind=link 页面跳转（link_url 可配）/ task 技能任务卡 / meeting 实时会议卡
+# / placeholder 功能占位卡（soon=True 置灰「二期建设中」）
 SEED_GROUPS = [
-    {"key": "workbench", "name": "AI工作台", "sort": 10},
-    {"key": "skill", "name": "AI技能", "sort": 20},
-    {"key": "system", "name": "业务系统", "sort": 30},
+    {"key": "agent", "name": "智能体应用", "sort": 10},
+    {"key": "research", "name": "AI 促研", "sort": 20},
+    {"key": "tools", "name": "AI 工具", "sort": 30},
+    {"key": "system", "name": "业务系统", "sort": 40},
 ]
 
 SEED_CARDS = [
-    {"key": "minutes", "group_key": "workbench", "name": "实时纪要",
-     "kind": "meeting", "sort": 10},
-    {"key": "docgen", "group_key": "workbench", "name": "文档生成",
+    # ---- 智能体应用 ----
+    {"key": "fin-dashboard", "group_key": "agent", "name": "财务风险看板",
+     "subtitle": "财务指标风险分析驾驶舱", "kind": "link", "link_url": "/data/fin_dashboard.html", "sort": 5},
+    {"key": "perf-dashboard", "group_key": "agent", "name": "经营者考核看板",
+     "subtitle": "经营者考核驾驶舱", "kind": "link", "link_url": "/data/perf_dashboard.html", "sort": 8},
+    {"key": "fin-ai", "group_key": "agent", "name": "财务指标深度分析",
+     "subtitle": "AI 逐户研判 · 自动生成报告", "kind": "task", "skill_name": "fin-deep-analysis", "sort": 10},
+    {"key": "perf-ai", "group_key": "agent", "name": "经营者考核深度分析",
+     "subtitle": "AI 全景研判 · 自动生成报告", "kind": "task", "skill_name": "perf-deep-analysis", "sort": 12},
+    {"key": "qa", "group_key": "agent", "name": "智能问答",
+     "subtitle": "政策解读 · 科研知识问答 · 文献推荐", "kind": "task", "skill_name": "deep_research_v3", "sort": 20},
+    {"key": "ontology-graph", "group_key": "agent", "name": "业务图谱",
+     "subtitle": "业务本体关系图 · 点击节点展开邻域", "kind": "graph", "sort": 22},
+    {"key": "data-apply", "group_key": "agent", "name": "数据申请",
+     "subtitle": "数据安全边界 · 数据授权查阅 · 使用申请", "kind": "placeholder", "sort": 25},
+    {"key": "ai-prelim", "group_key": "agent", "name": "AI 预审助手",
+     "subtitle": "申报指南核对 · 参考文献时效性分析 · 伦理审查提示", "kind": "placeholder", "sort": 28},
+    {"key": "talent-mgmt", "group_key": "agent", "name": "人才管理助手",
+     "subtitle": "项目进度辅助 · 智能选人 · 人才发现", "kind": "placeholder", "soon": True, "sort": 30},
+    {"key": "fill", "group_key": "agent", "name": "信息填报",
+     "subtitle": "风险填报 · 资金保障 · 指标考核", "kind": "task", "skill_name": "信息填报", "sort": 40},
+    {"key": "risk-report", "group_key": "agent", "name": "财务风险报告",
+     "subtitle": "财务风险 AI 报告生成", "kind": "task", "skill_name": "财务风险报告", "sort": 42},
+    {"key": "post-invest-report", "group_key": "agent", "name": "投后管理报告",
+     "subtitle": "投后管理 AI 报告生成", "kind": "task", "skill_name": "投后管理报告", "sort": 44},
+    {"key": "fixed-income", "group_key": "agent", "name": "固收Skill",
+     "subtitle": "固收投研分析", "kind": "task", "skill_name": "固收Skill", "sort": 46},
+    {"key": "docgen", "group_key": "agent", "name": "文档生成",
+     "subtitle": "公文与报告文档生成",
      "kind": "link",
-     "link_url": "http://192.168.1.161:8003/workbench?redirect=http://192.168.1.161:9096/login",
-     "sort": 20},
-    {"key": "fill", "group_key": "workbench", "name": "信息填报",
-     "kind": "task", "skill_name": "信息填报", "sort": 30},
-    {"key": "risk-report", "group_key": "skill", "name": "财务风险报告",
-     "kind": "task", "skill_name": "财务风险报告", "sort": 10},
-    {"key": "post-invest-report", "group_key": "skill", "name": "投后管理报告",
-     "kind": "task", "skill_name": "投后管理报告", "sort": 20},
-    {"key": "fixed-income", "group_key": "skill", "name": "固收Skill",
-     "kind": "task", "skill_name": "固收Skill", "sort": 30},
+     "link_url": "http://192.168.1.161:8003/workbench?redirect=http://192.168.1.161:9096/login", "sort": 48},
+    # ---- AI 促研 ----
+    {"key": "proj-apply", "group_key": "research", "name": "项目申报",
+     "subtitle": "智能匹配 · 材料AI质控 · 时间节点控制", "kind": "placeholder", "sort": 10},
+    {"key": "proj-process", "group_key": "research", "name": "过程管理",
+     "subtitle": "进度填报 · 中期检查 · 变更与终止办理", "kind": "placeholder", "sort": 20},
+    {"key": "proj-close", "group_key": "research", "name": "结题验收",
+     "subtitle": "任务书核对 · 阶段目标比对 · 指标完成检查", "kind": "placeholder", "sort": 30},
+    {"key": "proj-output", "group_key": "research", "name": "科研成果",
+     "subtitle": "内外部成果统一登记 · 期刊分类识别 · 统计导出", "kind": "placeholder", "sort": 40},
+    {"key": "talent-profile", "group_key": "research", "name": "人才档案",
+     "subtitle": "综合科研/医疗/教学评价 · 跨学科团队匹配", "kind": "placeholder", "sort": 50},
+    # ---- AI 工具 ----
+    {"key": "minutes", "group_key": "tools", "name": "实时纪要",
+     "subtitle": "实时转写 · 自动生成纪要 · 会议录音管理", "kind": "meeting", "sort": 10},
+    {"key": "lit-assistant", "group_key": "tools", "name": "文献助手",
+     "subtitle": "文献检索 · 快速阅读 · 多篇比较 · 问答", "kind": "placeholder", "soon": True, "sort": 20},
+    {"key": "med-trans", "group_key": "tools", "name": "医学翻译",
+     "subtitle": "中文摘要/文章 · 医学专业英文翻译", "kind": "placeholder", "soon": True, "sort": 30},
+    {"key": "stat-guide", "group_key": "tools", "name": "统计指导",
+     "subtitle": "统计方法选择 · 样本量计算 · 软件操作指导", "kind": "placeholder", "soon": True, "sort": 40},
+    # ---- 业务系统 ----
+    {"key": "med-platform", "group_key": "system", "name": "医疗数据中台",
+     "subtitle": "区外账号隔离 · 医疗数据对接边界控制", "kind": "placeholder", "sort": 10},
+    {"key": "pm-system", "group_key": "system", "name": "项目管理系统",
+     "subtitle": "项目过程管理 · 进度跟踪", "kind": "placeholder", "sort": 20},
+    {"key": "oa", "group_key": "system", "name": "OA 办公系统",
+     "subtitle": "公文流转 · 审批签章对接", "kind": "placeholder", "sort": 30},
+    {"key": "ext-research", "group_key": "system", "name": "外部科研平台",
+     "subtitle": "市级/国家级/学协会课题立项登记入口", "kind": "placeholder", "sort": 40},
     {"key": "ops", "group_key": "system", "name": "运营管理系统",
-     "kind": "link", "link_url": "http://192.168.1.161:9096/dashboard/AnnualEvaluation/index",
-     "sort": 10},
+     "subtitle": "年度考核 · 运营管理",
+     "kind": "link", "link_url": "http://192.168.1.161:9096/dashboard/AnnualEvaluation/index", "sort": 50},
     {"key": "qingshan-kb", "group_key": "system", "name": "青山知识库",
-     "kind": "link", "link_url": "/rag/", "sort": 20},
+     "subtitle": "知识中心文档与知识库", "kind": "link", "link_url": "/rag/", "sort": 52},
     {"key": "tide-cowork", "group_key": "system", "name": "TIDE CoWork",
-     "kind": "link", "link_url": "/mcp/", "sort": 30},
+     "subtitle": "智能协作工作台", "kind": "link", "link_url": "/mcp/", "sort": 54},
+    {"key": "reserved-slot", "group_key": "system", "name": "敬请期待",
+     "subtitle": "", "kind": "placeholder", "sort": 90},
 ]
 
 
@@ -182,11 +233,13 @@ def _card_view(c: CockpitCard) -> dict:
         "key": c.key,
         "group_key": c.group_key,
         "name": c.name,
-        "kind": c.kind,  # link / task / meeting
+        "subtitle": c.subtitle or "",
+        "kind": c.kind,  # link / task / meeting / placeholder
         "link_url": c.link_url,
         "skill_id": c.skill_id,
         "skill_name": c.skill_name,
         "icon": c.icon,
+        "soon": bool(c.soon),
         "sort": c.sort,
         "enabled": c.enabled,
     }
@@ -269,11 +322,13 @@ class CardIn(BaseModel):
     key: str
     group_key: str
     name: str
-    kind: str = "task"  # link / task / meeting
+    subtitle: str = ""
+    kind: str = "task"  # link / task / meeting / placeholder
     link_url: str | None = None
     skill_id: int | None = None
     skill_name: str | None = None
     icon: str = ""
+    soon: bool = False
     sort: int = 0
     enabled: bool = True
 
@@ -281,32 +336,34 @@ class CardIn(BaseModel):
 class CardPatch(BaseModel):
     group_key: str | None = None
     name: str | None = None
+    subtitle: str | None = None
     kind: str | None = None
     link_url: str | None = None
     skill_id: int | None = None
     skill_name: str | None = None
     icon: str | None = None
+    soon: bool | None = None
     sort: int | None = None
     enabled: bool | None = None
 
 
 def _check_card(body: CardIn | CardPatch) -> None:
-    if body.kind is not None and body.kind not in ("link", "task", "meeting"):
-        raise errors.validation("卡片类型须为 link / task / meeting")
+    if body.kind is not None and body.kind not in ("link", "task", "meeting", "placeholder"):
+        raise errors.validation("卡片类型须为 link / task / meeting / placeholder")
     if body.kind == "link" and not (body.link_url or "").strip():
         raise errors.validation("跳转卡片须配置跳转地址")
 
 
 @router.post("/cards", status_code=201)
-def create_card(body: CardIn, user: SysUser = Depends(require_hq),
+def create_card(body: CardIn, user: SysUser = Depends(require_perm(PERM_COCKPIT_MANAGE)),
                 db: Session = Depends(get_db)):
     _check_card(body)
     if db.scalars(select(CockpitCard).where(CockpitCard.key == body.key)).first():
         raise errors.validation("卡片标识已存在")
     card = CockpitCard(
-        key=body.key, group_key=body.group_key, name=body.name, kind=body.kind,
-        link_url=body.link_url, skill_id=body.skill_id, skill_name=body.skill_name,
-        icon=body.icon, sort=body.sort, enabled=body.enabled,
+        key=body.key, group_key=body.group_key, name=body.name, subtitle=body.subtitle,
+        kind=body.kind, link_url=body.link_url, skill_id=body.skill_id, skill_name=body.skill_name,
+        icon=body.icon, soon=body.soon, sort=body.sort, enabled=body.enabled,
     )
     db.add(card)
     db.flush()
@@ -314,7 +371,8 @@ def create_card(body: CardIn, user: SysUser = Depends(require_hq),
 
 
 @router.patch("/cards/{card_id}")
-def update_card(card_id: int, body: CardPatch, user: SysUser = Depends(require_hq),
+def update_card(card_id: int, body: CardPatch,
+                user: SysUser = Depends(require_perm(PERM_COCKPIT_MANAGE)),
                 db: Session = Depends(get_db)):
     card = db.get(CockpitCard, card_id)
     if card is None:
@@ -323,8 +381,8 @@ def update_card(card_id: int, body: CardPatch, user: SysUser = Depends(require_h
     kind = body.kind or card.kind
     if kind == "link" and not (body.link_url or card.link_url or "").strip():
         raise errors.validation("跳转卡片须配置跳转地址")
-    for field in ("group_key", "name", "kind", "link_url", "skill_id",
-                  "skill_name", "icon", "sort", "enabled"):
+    for field in ("group_key", "name", "subtitle", "kind", "link_url", "skill_id",
+                  "skill_name", "icon", "soon", "sort", "enabled"):
         val = getattr(body, field)
         if val is not None:
             setattr(card, field, val)
@@ -333,7 +391,7 @@ def update_card(card_id: int, body: CardPatch, user: SysUser = Depends(require_h
 
 
 @router.delete("/cards/{card_id}")
-def delete_card(card_id: int, user: SysUser = Depends(require_hq),
+def delete_card(card_id: int, user: SysUser = Depends(require_perm(PERM_COCKPIT_MANAGE)),
                 db: Session = Depends(get_db)):
     card = db.get(CockpitCard, card_id)
     if card is None:

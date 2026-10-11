@@ -30,6 +30,7 @@ interface UiState {
   sceneTarget: SceneTarget | null // 待办「去填报/去审批」打开的场景组件
   fillTarget: { assignmentId: number; templateId: number } | null // 待办「去填报」打开的 XuanPu 填报弹窗
   meetingOpen: boolean // 实时会议页开关（录音由 meetingStore 持有，关闭页面不影响后台运行）
+  cockpitEditing: boolean // 驾驶舱页面编辑开关（TopBar 用户菜单 ⇄ CockpitHome 共享；仅本部财务）
   execDetail: TaskRecordItem | null // 历史任务「执行记录」详情弹窗目标
   toasts: ToastItem[]
   setMode: (v: 'tower' | 'cockpit' | 'qingshan') => void
@@ -45,6 +46,7 @@ interface UiState {
   openScene: (t: SceneTarget | null) => void
   openFill: (t: { assignmentId: number; templateId: number } | null) => void
   setMeetingOpen: (v: boolean) => void
+  setCockpitEditing: (v: boolean) => void
   openExecDetail: (t: TaskRecordItem | null) => void
   toast: (text: string, kind?: 'info' | 'err') => void
   dismissToast: (id: number) => void
@@ -67,6 +69,7 @@ export const useUiStore = create<UiState>((set) => ({
   sceneTarget: null,
   fillTarget: null,
   meetingOpen: false,
+  cockpitEditing: false,
   execDetail: null,
   toasts: [],
   setMode: (v) => {
@@ -95,6 +98,7 @@ export const useUiStore = create<UiState>((set) => ({
   openScene: (t) => set({ sceneTarget: t }),
   openFill: (t) => set({ fillTarget: t }),
   setMeetingOpen: (v) => set({ meetingOpen: v }),
+  setCockpitEditing: (v) => set({ cockpitEditing: v }),
   openExecDetail: (t) => set({ execDetail: t }),
   toast: (text, kind = 'info') => {
     const id = ++toastSeq
