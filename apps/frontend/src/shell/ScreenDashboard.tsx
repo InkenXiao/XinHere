@@ -3,6 +3,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/transport/api'
 import type { MetricsOverview } from '@/types'
 import { TODO_STATUS_ZH } from '@/utils'
+import { useUiStore } from '@/state/uiStore'
+import ScmsProvider from '@/scms/ScmsProvider'
+import { ReviewModal } from '@/scms/modules/dynamic-template/components/ReviewModal'
+import { DataAnalyticsModal } from '@/scms/modules/dynamic-template/components/DataAnalyticsModal'
+import type { TodoItem as ScmsTodoItem } from '@/scms/types'
 
 /** token 用量展示：万 / 亿缩写 */
 function fmtTokens(n: number): string {
@@ -53,29 +58,82 @@ interface BoardSummaryItem {
 }
 
 function BoardSummaryCard() {
+  const toast = useUiStore((s) => s.toast)
   const [items, setItems] = useState<BoardSummaryItem[]>([])
-  useEffect(() => {
+  const [reviewTodo, setReviewTodo] = useState<ScmsTodoItem | null>(null)
+  const [analyticsTask, setAnalyticsTask] = useState<string | null>(null)
+  const load = () => {
     api<{ items: BoardSummaryItem[] }>('GET', '/tasks/board-summary')
       .then((r) => setItems(r.items.slice(0, 6)))
       .catch(() => {})
-  }, [])
+  }
+  useEffect(load, [load])
   if (!items.length) return null
+
+  /** 点击任务卡：找该任务下待我处理的提交/确认待办 → 打开审核弹窗 */
+  const openReview = async (it: BoardSummaryItem) => {
+    try {
+      const r = await api<{ items: ScmsTodoItem[] }>('GET', '/todos?box=dispatcher')
+      const target = (r.items ?? []).find(
+        (x) => x.task_id === it.task_id && x.status === 'submitted',
+      )
+      if (!target) {
+        toast('该任务暂无待审核的提交')
+        return
+      }
+      setReviewTodo(target)
+    } catch {
+      toast('待办加载失败，请稍后再试', 'err')
+    }
+  }
+
   return (
     <div className="dash-card span-12">
       <h3>我派发的进行中任务</h3>
       <div className="ov-row">
         {items.map((it) => (
-          <div key={it.task_id} className="bs-chip" title={`${it.title}（${it.period ?? '不限期'}）`}>
+          <div
+            key={it.task_id}
+            className="bs-chip"
+            title={`${it.title}（${it.period ?? '不限期'}）— 点击审核`}
+            onClick={() => void openReview(it)}
+          >
             <span className="bs-title">{it.title}</span>
             <span className="bs-nums">
               {it.pending_review > 0 && <i className="warn-v">待审 {it.pending_review}</i>}
               {it.pending_confirm > 0 && <i className="warn-v">待确认 {it.pending_confirm}</i>}
               {it.pending_feedback > 0 && <i>待反馈 {it.pending_feedback}</i>}
               {it.done > 0 && <i className="ok-v">完成 {it.done}</i>}
+              <i
+                className="bs-ana"
+                title="填报数据分析"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setAnalyticsTask(it.task_id)
+                }}
+              >
+                分析
+              </i>
             </span>
           </div>
         ))}
       </div>
+      {reviewTodo && (
+        <ScmsProvider>
+          <ReviewModal
+            todo={reviewTodo}
+            onClose={() => {
+              setReviewTodo(null)
+              load()
+            }}
+          />
+        </ScmsProvider>
+      )}
+      {analyticsTask && (
+        <ScmsProvider>
+          <DataAnalyticsModal taskId={analyticsTask} onClose={() => setAnalyticsTask(null)} />
+        </ScmsProvider>
+      )}
     </div>
   )
 }

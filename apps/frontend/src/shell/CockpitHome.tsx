@@ -11,6 +11,8 @@ import { useMeetingStore } from '@/state/meetingStore'
 import { useTaskRunStore } from '@/state/taskRunStore'
 import GraphCard from './GraphCard'
 import CockpitCardModal from './CockpitCardModal'
+import ScmsProvider from '@/scms/ScmsProvider'
+import { TemplateCreateModal } from '@/scms/modules/dynamic-template/components/TemplateCreateModal'
 import type { CockpitCardGroup, CockpitCardItem } from '@/types'
 
 function fmtDur(sec: number) {
@@ -165,6 +167,7 @@ export default function CockpitHome() {
   const [addGroup, setAddGroup] = useState<string | null>(null) // 编辑模式：待添加卡片的分组
   const [dragKey, setDragKey] = useState<string | null>(null) // 编辑模式：拖拽排序中的卡片
   const [overKey, setOverKey] = useState<string | null>(null) // 编辑模式：拖拽悬停目标卡
+  const [tplOpen, setTplOpen] = useState(false) // 信息填报：Excel 模板创建与派发
 
   const loadCards = () => {
     api<{ items: CockpitCardGroup[] }>('GET', '/cockpit/cards')
@@ -236,6 +239,18 @@ export default function CockpitHome() {
 
   return (
     <div className={`cp-wrap${editing ? ' editing' : ''}`}>
+      <button
+        className="cp-fill-entry"
+        onClick={() => setTplOpen(true)}
+        title="上传 Excel 生成填报模板并派发"
+      >
+        信息填报
+      </button>
+      {tplOpen && (
+        <ScmsProvider>
+          <TemplateCreateModal onClose={() => setTplOpen(false)} />
+        </ScmsProvider>
+      )}
       <section>
         {editing && (
           <div className="cp-toolbar">

@@ -56,6 +56,12 @@ export interface TodoItem {
   due: string | null
   created_at: string
   updated_at: string
+  // scms 任务内核扩展字段（后端已随 todo_view 下发）
+  dynamic_template_id?: string | null
+  template_key?: string | null
+  review_required?: boolean
+  submitted_at?: string | null
+  return_reason?: string | null
 }
 
 export interface DashboardSummary {

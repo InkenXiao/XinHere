@@ -33,6 +33,9 @@ interface TodoState {
   naConfirm: (todoId: string) => Promise<void>
   naReject: (todoId: string, comment?: string) => Promise<void>
   complete: (todoId: string) => Promise<void>
+  review: (todoId: string, approve: boolean, comment?: string) => Promise<unknown>
+  box: 'assignee' | 'dispatcher'
+  setBox: (b: 'assignee' | 'dispatcher') => void
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -42,12 +45,13 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   xpFills: [],
   ignored: loadIgnored(),
   loading: false,
+  box: 'assignee',
 
   async load() {
     set({ loading: true })
     try {
       // 仅拉取需要我办理的待办
-      const r = await api<{ items: TodoItem[] }>('GET', '/todos?box=assignee')
+      const r = await api<{ items: TodoItem[] }>('GET', `/todos?box=${get().box}`)
       set({ items: r.items })
     } finally {
       set({ loading: false })
@@ -89,6 +93,21 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   async complete(todoId) {
     await api('POST', `/todos/${todoId}/complete`)
     await get().load()
+  },
+
+  async review(todoId: string, approve: boolean, comment?: string) {
+    // 两段式审核（scms 任务内核）：通过→completed / 退回→returned；响应可能带 next_review
+    const r = await api<{ next_review?: unknown }>('POST', `/todos/${todoId}/review`, {
+      approve,
+      comment: comment ?? null,
+    })
+    await get().load()
+    return r
+  },
+
+  setBox(b) {
+    set({ box: b })
+    void get().load()
   },
 }))
 

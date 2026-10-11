@@ -4,6 +4,8 @@ import { useTodoStore } from '@/state/todoStore'
 import { useUiStore } from '@/state/uiStore'
 import type { TodoItem } from '@/types'
 import { SCENE_ZH, TODO_STATUS_ZH, fmtTime } from '@/utils'
+import { FillModal } from '@/scms/modules/dynamic-template/components/FillModal'
+import type { TodoItem as ScmsTodoItem } from '@/scms/types'
 
 const KIND_ZH: Record<TodoItem['kind'], string> = {
   action: '任务',
@@ -25,6 +27,8 @@ export default function TodoPanel() {
   // 内联回复框：记录展开项与模式
   const [reply, setReply] = useState<{ id: string; mode: 'feedback' | 'na' } | null>(null)
   const [replyText, setReplyText] = useState('')
+  // 动态模板待办（dynamic_template_id 非空）→ iframe HTML 填报弹窗
+  const [fillTodo, setFillTodo] = useState<TodoItem | null>(null)
 
   const list = items.filter((t) => !ignored.has(t.todo_id))
 
@@ -43,12 +47,17 @@ export default function TodoPanel() {
     if (t.kind === 'action') {
       return (
         <div className="td-actions">
-          {t.scene !== 'generic' && (
+          {t.scene !== 'generic' && !t.dynamic_template_id && (
             <button
               className="primary"
               onClick={() => openScene({ scene: t.scene, ref: { ...t.ref, todo_id: t.todo_id }, title: t.title, mode: 'fill' })}
             >
               去填报
+            </button>
+          )}
+          {!!t.dynamic_template_id && (
+            <button className="primary" onClick={() => setFillTodo(t)}>
+              填报
             </button>
           )}
           <button onClick={() => setReply({ id: t.todo_id, mode: 'feedback' })}>反馈</button>
@@ -95,6 +104,7 @@ export default function TodoPanel() {
   }
 
   return (
+    <>
     <div className="todo-list">
       {list.length === 0 && xpFills.length === 0 && <div className="todo-empty">暂无待办</div>}
       {/* 平台填报待办（来源：XuanPu） */}
@@ -157,6 +167,11 @@ export default function TodoPanel() {
           )}
         </div>
       ))}
-    </div>
+      </div>
+      {fillTodo && (
+        <FillModal todo={fillTodo as unknown as ScmsTodoItem} onClose={() => setFillTodo(null)} />
+      )}
+    </>
   )
 }
+
