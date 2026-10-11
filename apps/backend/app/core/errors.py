@@ -32,6 +32,10 @@ def run_busy() -> AppError:
     return AppError("RUN_BUSY", "会话已有进行中的任务", 409)
 
 
+def run_waiting() -> AppError:
+    return AppError("RUN_WAITING", "会话有未处理的确认卡，请先完成卡片操作", 409)
+
+
 def interrupt_mismatch() -> AppError:
     return AppError("INTERRUPT_MISMATCH", "interrupt_id 与当前待处理中断不匹配", 409)
 

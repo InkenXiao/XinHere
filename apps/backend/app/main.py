@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from .core import config_check
+from .platform.daemons import daemon_states
 from .core.config import settings
 from .core.context import AuditCtx, reset_ctx, set_ctx
 from .core.errors import AppError
@@ -19,6 +20,7 @@ from .persistence.models import SysAuthToken, SysUser
 from .persistence.session import SessionLocal
 from .platform.agent.executor import executor
 from .platform.api import (
+    artifacts,
     auth,
     cash,
     cockpit,
@@ -39,6 +41,7 @@ from .platform.api import (
     minutes as minutes,
     metrics as metrics,
     model_prefs as model_prefs,
+    notifications,
 )
 from .platform.plugins.loader import discover
 
@@ -151,7 +154,7 @@ def healthz():
     return {
         "ok": True,
         "config_check": {"ok": cc["ok"], "problems": cc["problems"], "warnings": cc["warnings"]},
-        "daemons": {},
+        "daemons": daemon_states.snapshot(),
     }
 
 
@@ -161,7 +164,7 @@ for r in (
     cash.router, kpi.router, reports.router, kb.router, plugins.router,
     xuanpu.router, cockpit.router, tasks.router, hero.router,
     models_router.router, media.router, minutes.router, skills.router,
-    metrics.router, model_prefs.router,
+    metrics.router, model_prefs.router, artifacts.router, notifications.router,
 ):
     app.include_router(r, prefix=API)
 

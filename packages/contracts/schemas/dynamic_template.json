@@ -1,0 +1,496 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "dynamic_template.json",
+  "title": "动态填报模板事件族/数据表 payload",
+  "$defs": {
+    "DynamicTemplateVisibility": {
+      "type": "string",
+      "enum": [
+        "system",
+        "private"
+      ]
+    },
+    "DynamicTemplateStatus": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "disabled"
+      ]
+    },
+    "DynamicFillDataStatus": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "submitted"
+      ]
+    },
+    "ParseFieldDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "text",
+            "textarea",
+            "number",
+            "date",
+            "select",
+            "table"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_col": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "width": {
+          "type": "number",
+          "minimum": 60,
+          "maximum": 420
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "type",
+        "required"
+      ]
+    },
+    "TemplateTab": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "source_file_name": {
+          "type": "string"
+        },
+        "field_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sample_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "presentation": {
+          "type": "string",
+          "enum": [
+            "form",
+            "grid"
+          ]
+        },
+        "repeatable": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "source_file_name",
+        "field_keys"
+      ]
+    },
+    "DynamicFillPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "html": {
+          "type": "string"
+        },
+        "tabs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateTab"
+          }
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ParseFieldDef"
+          }
+        },
+        "initial": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "template_id",
+        "name",
+        "html"
+      ]
+    },
+    "DynamicFillSaveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": { "type": "string" },
+        "data": { "type": "object", "additionalProperties": true }
+      },
+      "required": ["todo_id", "data"]
+    },
+    "DynamicFillDraftResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": { "type": "string" },
+        "status": { "type": "string", "const": "draft" },
+        "saved_at": { "type": "string" }
+      },
+      "required": ["todo_id", "status", "saved_at"]
+    },
+    "ParseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sheet_name": {
+          "type": "string"
+        },
+        "tabs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateTab"
+          }
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ParseFieldDef"
+          }
+        },
+        "sample_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "presentation": {
+          "type": "string",
+          "enum": [
+            "form",
+            "grid"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "header_row": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "sheet_name",
+        "columns"
+      ]
+    },
+    "DynamicTemplateCreateReq": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/DynamicTemplateVisibility"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "name",
+        "visibility"
+      ]
+    },
+    "DynamicTemplateItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tabs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateTab"
+          }
+        },
+        "template_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "source_file_name": {
+          "type": "string"
+        },
+        "source_artifact_id": {
+          "type": "string"
+        },
+        "visibility": {
+          "$ref": "#/$defs/DynamicTemplateVisibility"
+        },
+        "owner_id": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/DynamicTemplateStatus"
+        },
+        "parse_result": {
+          "$ref": "#/$defs/ParseResult"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "template_id",
+        "name",
+        "visibility",
+        "owner_id",
+        "status",
+        "parse_result",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "DynamicFillDataItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fill_id": {
+          "type": "string"
+        },
+        "todo_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "template_id": {
+          "type": "string"
+        },
+        "data_json": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "submitted_by": {
+          "type": "string"
+        },
+        "submitted_at": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/DynamicFillDataStatus"
+        }
+      },
+      "required": [
+        "fill_id",
+        "todo_id",
+        "template_id",
+        "data_json",
+        "status"
+      ]
+    },
+    "DynamicFillSubmitReq": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": {
+          "type": "string"
+        },
+        "data_json": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "todo_id",
+        "data_json"
+      ]
+    },
+    "TaskAnalyticsField": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "filled": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        },
+        "number_total": {
+          "type": "number"
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "type",
+        "filled",
+        "total",
+        "number_total",
+        "options"
+      ]
+    },
+    "TaskAnalyticsRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": {
+          "type": "string"
+        },
+        "assignee_id": {
+          "type": "string"
+        },
+        "assignee_name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "submitted_at": {
+          "type": "string"
+        },
+        "filled_fields": {
+          "type": "integer"
+        },
+        "field_total": {
+          "type": "integer"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "company": {
+          "type": "string",
+          "description": "公司维度（row_company：ref.company → 任务锚点 → 办理人绑定企业）"
+        }
+      },
+      "required": [
+        "todo_id",
+        "assignee_id",
+        "assignee_name",
+        "status",
+        "filled_fields",
+        "field_total",
+        "data"
+      ]
+    },
+    "TaskAnalytics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tabs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateTab"
+          }
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "task_title": {
+          "type": "string"
+        },
+        "template_name": {
+          "type": "string"
+        },
+        "total": {
+          "type": "integer"
+        },
+        "submitted": {
+          "type": "integer"
+        },
+        "completed": {
+          "type": "integer"
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskAnalyticsRecord"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskAnalyticsField"
+          }
+        }
+      },
+      "required": [
+        "task_id",
+        "task_title",
+        "template_name",
+        "total",
+        "submitted",
+        "completed",
+        "records",
+        "fields"
+      ]
+    }
+  }
+}

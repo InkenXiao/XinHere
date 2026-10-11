@@ -5,7 +5,11 @@ import uuid as _uuid
 from typing import Any
 
 # 脱敏瀑布：secret 字段值拒绝写入日志 detail
-SENSITIVE_KEYS = {"password", "password_hash", "token", "secret", "api_key", "apikey", "key", "authorization"}
+# embedding/samples/vec：生物特征数据（PIPL），任何表的同名列都不得进审计
+SENSITIVE_KEYS = {
+    "password", "password_hash", "token", "secret", "api_key", "apikey", "key",
+    "authorization", "embedding", "samples", "vec",
+}
 
 
 def scrub(value: Any, depth: int = 0) -> Any:

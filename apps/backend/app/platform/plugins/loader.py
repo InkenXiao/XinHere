@@ -82,10 +82,33 @@ def plugin_set_locked() -> tuple[list[dict], str]:
     return items, digest
 
 
+def agent_plugins() -> list[dict]:
+    """声明 agent_tools=true 的插件：工具进对话图 + agent_prompt 进系统提示词。
+    未声明的插件（如演示期 risk-warning）保持不装配，平台行为不变。"""
+    return [p for p in discover() if p["manifest"].get("agent_tools")]
+
+
 def plugin_tools(ctx: ToolCtx) -> list:
     tools: list = []
-    for p in discover():
+    for p in agent_plugins():
         make = getattr(p["module"], "make_tools", None)
         if make:
             tools.extend(make(ctx))
     return tools
+
+
+def plugin_agent_prompt() -> str:
+    """拼接 agent_tools 插件的路由规则提示词（无插件返回空串，SYSTEM_PROMPT 原样）。"""
+    parts = [str(p["manifest"].get("agent_prompt") or "").strip() for p in agent_plugins()]
+    parts = [x for x in parts if x]
+    return ("\n" + "\n".join(parts) + "\n") if parts else ""
+
+
+def plugin_routers() -> list:
+    """插件自带 REST：backend 暴露非空 router 才挂载（空占位 router 跳过）。"""
+    out = []
+    for p in discover():
+        r = getattr(p["module"], "router", None)
+        if r is not None and getattr(r, "routes", None):
+            out.append(r)
+    return out

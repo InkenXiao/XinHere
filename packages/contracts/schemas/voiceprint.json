@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "voiceprint.json",
+  "title": "声纹识别（说话人实名）接口结构",
+  "$defs": {
+    "BiometricConsentOut": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "consent_given": {
+          "type": "boolean"
+        },
+        "protocol_version": {
+          "type": "string"
+        },
+        "agreed_at": {
+          "type": ["string", "null"],
+          "description": "同意时间 ISO 字符串；未同意时为 null"
+        }
+      },
+      "required": [
+        "consent_given",
+        "protocol_version"
+      ]
+    },
+    "BiometricConsentIn": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "protocol_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocol_version"
+      ]
+    },
+    "VoiceprintStatusOut": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enrolled": {
+          "type": "boolean"
+        },
+        "sample_seconds": {
+          "type": "number"
+        },
+        "min_seconds": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "enrolled",
+        "sample_seconds",
+        "min_seconds"
+      ]
+    },
+    "MediaTranscribeOut": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "text": {
+          "type": "string"
+        },
+        "voiceprint_enrolled": {
+          "type": "boolean",
+          "description": "本次采样刚好使用户声纹注册完成（此前从未注册）"
+        },
+        "voiceprint_active": {
+          "type": "boolean",
+          "description": "声纹已注册（含以往注册）；未注册时前端展示采样进度"
+        },
+        "voiceprint_seconds": {
+          "type": "number",
+          "description": "采样累积总秒数（未采上为 0，持续为 0 说明采样故障可察觉）"
+        },
+        "voiceprint_min_seconds": {
+          "type": "number",
+          "description": "注册目标秒数"
+        },
+        "voiceprint_consented": {
+          "type": "boolean",
+          "description": "是否已同意声纹采集（未同意不采样，前端给一次性轻提示）"
+        }
+      },
+      "required": [
+        "ok",
+        "text"
+      ]
+    }
+  }
+}

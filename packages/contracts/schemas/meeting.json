@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "meeting.json",
+  "title": "会议纪要事件族与数据结构",
+  "$defs": {
+    "MeetingStatus": {
+      "type": "string",
+      "enum": [
+        "recording",
+        "paused",
+        "ended",
+        "processing",
+        "completed",
+        "error"
+      ]
+    },
+    "MeetingActionItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": "string"
+        },
+        "assignee_id": {
+          "type": "string"
+        },
+        "assignee_name": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "dispatched_at": {
+          "type": "string"
+        },
+        "due": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ]
+    },
+    "MeetingInsightDimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "insights": {
+          "type": "string"
+        },
+        "sentiment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "score",
+        "insights"
+      ]
+    },
+    "MeetingAnalysisResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "overall": {
+          "type": "string"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MeetingInsightDimension"
+          }
+        },
+        "action_items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MeetingActionItem"
+          }
+        },
+        "key_topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "overall"
+      ]
+    },
+    "MeetingSegmentItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "segment_id": {
+          "type": "string"
+        },
+        "meeting_id": {
+          "type": "string"
+        },
+        "seq_num": {
+          "type": "integer"
+        },
+        "start_time": {
+          "type": "number"
+        },
+        "end_time": {
+          "type": "number"
+        },
+        "duration": {
+          "type": "number"
+        },
+        "transcript": {
+          "type": "string"
+        },
+        "speaker_id": {
+          "type": "string"
+        },
+        "speaker_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "segment_id",
+        "meeting_id",
+        "seq_num",
+        "transcript"
+      ]
+    },
+    "MeetingListItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "meeting_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/MeetingStatus"
+        },
+        "started_at": {
+          "type": "string"
+        },
+        "duration_seconds": {
+          "type": "integer"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "action_item_count": {
+          "type": "integer"
+        },
+        "end_reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "meeting_id",
+        "title",
+        "status",
+        "started_at",
+        "duration_seconds"
+      ]
+    }
+  }
+}

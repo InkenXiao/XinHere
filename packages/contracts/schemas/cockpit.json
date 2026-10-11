@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "cockpit.json",
+  "title": "驾驶舱/Xin台 卡片配置（REST 响应模型，配置与授权解耦）",
+  "$defs": {
+    "CockpitCardView": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "key": {"type": "string"},
+        "group_key": {"type": "string"},
+        "name": {"type": "string"},
+        "description": {"type": "string", "description": "卡片说明文字（通用展示属性）"},
+        "pending": {"type": "boolean", "description": "占位态：true=渲染为「敬请期待」禁用卡"},
+        "action": {"type": "string", "enum": ["sso_scms", "sso_kb", "xuanpu_link", "xuanpu_skill", "skill_prompt", "modal", "feature", "skills"],
+          "description": "点击行为类型（与前端渲染分支一一对应）"},
+        "params": {"type": "object", "additionalProperties": true,
+          "description": "行为参数（按 action 约定键，后端透传）：sso_scms={redirect} / xuanpu_link={url} / xuanpu_skill={skill_id,skill_name} / skill_prompt={skill} / modal={modal} / feature={feature} / skills={skill}"},
+        "icon": {"type": "string"},
+        "sort": {"type": "integer"}
+      },
+      "required": ["id", "key", "group_key", "name", "action", "params", "sort"]
+    },
+    "CockpitGroupView": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "key": {"type": "string"},
+        "name": {"type": "string"},
+        "sort": {"type": "integer"},
+        "cards": {"type": "array", "items": {"$ref": "#/$defs/CockpitCardView"}}
+      },
+      "required": ["id", "key", "name", "sort", "cards"]
+    },
+    "CockpitAdminCardView": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "key": {"type": "string"},
+        "group_key": {"type": "string"},
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "pending": {"type": "boolean"},
+        "action": {"type": "string", "enum": ["sso_scms", "sso_kb", "xuanpu_link", "xuanpu_skill", "skill_prompt", "modal", "feature", "skills"]},
+        "params": {"type": "object", "additionalProperties": true},
+        "icon": {"type": "string"},
+        "sort": {"type": "integer"},
+        "enabled": {"type": "boolean"},
+        "perm_key": {"type": "string"}
+      },
+      "required": ["id", "key", "group_key", "name", "action", "params", "sort", "enabled"]
+    },
+    "CockpitAdminGroupView": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "key": {"type": "string"},
+        "surface": {"type": "string"},
+        "name": {"type": "string"},
+        "sort": {"type": "integer"},
+        "enabled": {"type": "boolean"},
+        "cards": {"type": "array", "items": {"$ref": "#/$defs/CockpitAdminCardView"}}
+      },
+      "required": ["id", "key", "surface", "name", "sort", "enabled", "cards"]
+    }
+  }
+}

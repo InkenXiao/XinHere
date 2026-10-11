@@ -34,6 +34,52 @@ class CashFormSubmit(BaseModel):
     summary: str
     version: Literal[1]
 
+class CockpitCardView(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: int
+    key: str
+    group_key: str
+    name: str
+    description: str | None = None
+    pending: bool | None = None
+    action: Literal['sso_scms', 'sso_kb', 'xuanpu_link', 'xuanpu_skill', 'skill_prompt', 'modal', 'feature', 'skills']
+    params: dict[str, Any]
+    icon: str | None = None
+    sort: int
+
+class CockpitGroupView(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: int
+    key: str
+    name: str
+    sort: int
+    cards: list[CockpitCardView]
+
+class CockpitAdminCardView(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: int
+    key: str
+    group_key: str
+    name: str
+    description: str | None = None
+    pending: bool | None = None
+    action: Literal['sso_scms', 'sso_kb', 'xuanpu_link', 'xuanpu_skill', 'skill_prompt', 'modal', 'feature', 'skills']
+    params: dict[str, Any]
+    icon: str | None = None
+    sort: int
+    enabled: bool
+    perm_key: str | None = None
+
+class CockpitAdminGroupView(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: int
+    key: str
+    surface: str
+    name: str
+    sort: int
+    enabled: bool
+    cards: list[CockpitAdminCardView]
+
 Lamp = Literal['r', 'y', 'g']
 
 class Usage(BaseModel):
@@ -62,21 +108,85 @@ class StepEnd(BaseModel):
     model_config = ConfigDict(extra='forbid')
     turn: int
     step: int
+    version: Literal[1]
     duration_ms: int | None = None
     chars: int | None = None
-    version: Literal[1]
 
 class UserMessage(BaseModel):
     model_config = ConfigDict(extra='forbid')
     content: str
     source: Literal['human', 'inject']
-    version: Literal[1]
+    version: Literal[1, 2, 3]
+    attachments: list[AttachmentMeta] | None = None
+    skill: UserMessageSkill | None = None
+
+class UserMessageSkill(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    key: str
+    title: str
+    desc: str | None = None
+
+class AttachmentMeta(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str
+    name: str
+    mime: str
+    size: int
+    status: Literal['ok', 'failed', 'image']
 
 class AssistantChunk(BaseModel):
     model_config = ConfigDict(extra='forbid')
     turn: int
     step: int
     delta: str
+    thinking_delta: str | None = None
+    deferred: bool | None = None
+    version: Literal[1]
+
+class ToolProgress(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    call_id: str
+    name: str
+    phase: Literal['running', 'waiting_upstream', 'streaming_partial', 'sources_ready']
+    message: str | None = None
+    sources: SourcesPayload | None = None
+    elapsed_ms: int
+    version: Literal[1]
+
+class SourceCitation(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    file_id: int | None = None
+    file_name: str | None = None
+    preview_url: str | None = None
+    download_url: str | None = None
+
+class SourceWebResult(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    title: str | None = None
+    url: str | None = None
+    snippet: str | None = None
+
+class CitationChunk(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    file_id: int | None = None
+    file_name: str | None = None
+    chunk_index: int | None = None
+    cite_index: int | None = None
+    chunk_text: str | None = None
+    score: float | None = None
+
+class SourcesPayload(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    citations: list[SourceCitation] | None = None
+    web_results: list[SourceWebResult] | None = None
+    citation_chunks: list[CitationChunk] | None = None
+    route: str | None = None
+    web_ok: bool | None = None
+
+class ErrorPayload(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    code: str
+    message: str
     version: Literal[1]
 
 class AssistantMessage(BaseModel):
@@ -84,6 +194,7 @@ class AssistantMessage(BaseModel):
     turn: int
     step: int
     content: str
+    thinking: str | None = None
     usage: Usage | None = None
     source_event_seqs: list[int]
     version: Literal[1]
@@ -93,6 +204,7 @@ class ToolCall(BaseModel):
     call_id: str
     name: str
     arguments: dict[str, Any]
+    display_name: str | None = None
     version: Literal[1]
 
 class ToolResult(BaseModel):
@@ -101,18 +213,13 @@ class ToolResult(BaseModel):
     name: str
     content: str
     is_error: bool
-    duration_ms: int | None = None
+    content_truncated: bool | None = None
+    elapsed_ms: int | None = None
     outcome: Literal['unknown'] | None = None
     refs: list[int]
+    display_name: str | None = None
     version: Literal[1]
-
-class SkillStart(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    name: str
-    source: Literal['local', 'xuanpu']
-    key: str | None = None
-    auto: bool | None = None
-    version: Literal[1]
+    duration_ms: int | None = None
 
 class ComponentRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -135,6 +242,240 @@ class FeedbackRecord(BaseModel):
     model_config = ConfigDict(extra='forbid')
     text: str
     version: Literal[1]
+
+class FileRecord(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    file_id: str
+    name: str
+    file_type: Literal['docx', 'pptx']
+    url: str
+    skill_key: str
+    version: Literal[1]
+
+class ChartEchartsCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    chart_type: Literal['bar', 'line', 'pie']
+    title: str
+    option: dict[str, Any]
+    version: Literal[1]
+
+class HtmlReportCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    report_id: str | None = None
+    title: str
+    html: str | None = None
+    storage_key: str | None = None
+    version: Literal[1, 2]
+
+class ReportParamsChosen(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    company: str
+    company_id: int
+    period: str
+    version: Literal[1]
+
+class ReportSessionBound(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    kind: Literal['word', 'ppt']
+    status: Literal['generating', 'done', 'restored']
+    session_key: str
+    user_id: Any | None = None
+    version: Literal[1]
+
+class ReportEmbedCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    report_type: Literal['annual', 'fin_risk']
+    title: str
+    company_id: int
+    company_name: str
+    period: str
+    url: str
+    tenant_id: Any | None = None
+    user_id: Any | None = None
+    mode: Literal['form', 'embed'] | None = None
+    companies: list[dict[str, Any]] | None = None
+    embed_base: str | None = None
+    template_id: str | None = None
+    version: Literal[1]
+
+class ReportJumpCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    report_type: Literal['post', 'fin_risk']
+    title: str
+    period: str
+    companies: list[str]
+    draft_companies: list[str] | None = None
+    jump_base: str
+    version: Literal[1]
+
+class IndicatorAuditCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    company: str
+    year: int
+    rules: list[dict[str, Any]]
+    version: Literal[1]
+
+class IndicatorViewCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    company: str
+    year: int
+    category: str
+    indicator_name: str
+    fields: list[dict[str, Any]]
+    version: Literal[1]
+
+class MilestoneStatsCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    card_id: str
+    year: int
+    category: str
+    companies: list[dict[str, Any]]
+    version: Literal[1]
+
+class SkillStart(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str
+    source: Literal['local', 'xuanpu']
+    key: str | None = None
+    auto: bool | None = None
+    version: Literal[1]
+
+DynamicTemplateVisibility = Literal['system', 'private']
+
+DynamicTemplateStatus = Literal['draft', 'active', 'disabled']
+
+DynamicFillDataStatus = Literal['draft', 'submitted']
+
+class ParseFieldDef(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    key: str
+    label: str
+    type: Literal['text', 'textarea', 'number', 'date', 'select', 'table']
+    required: bool
+    options: list[str] | None = None
+    source_col: int | None = None
+    width: float | None = None
+
+class TemplateTab(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str
+    name: str
+    source_file_name: str
+    field_keys: list[str]
+    sample_rows: list[dict[str, Any]] | None = None
+    presentation: Literal['form', 'grid'] | None = None
+    repeatable: bool | None = None
+    title: str | None = None
+    metadata: list[str] | None = None
+
+class DynamicFillPage(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    template_id: str
+    name: str
+    html: str
+    tabs: list[TemplateTab] | None = None
+    columns: list[ParseFieldDef] | None = None
+    initial: dict[str, Any] | None = None
+
+class DynamicFillSaveRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    todo_id: str
+    data: dict[str, Any]
+
+class DynamicFillDraftResult(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    todo_id: str
+    status: Literal['draft']
+    saved_at: str
+
+class ParseResult(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    sheet_name: str
+    tabs: list[TemplateTab] | None = None
+    columns: list[ParseFieldDef]
+    sample_rows: list[dict[str, Any]] | None = None
+    presentation: Literal['form', 'grid'] | None = None
+    title: str | None = None
+    metadata: list[str] | None = None
+    header_row: int | None = None
+
+class DynamicTemplateCreateReq(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    artifact_id: str
+    name: str
+    visibility: DynamicTemplateVisibility
+
+class DynamicTemplateItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    tabs: list[TemplateTab] | None = None
+    template_id: str
+    name: str
+    source_file_name: str | None = None
+    source_artifact_id: str | None = None
+    visibility: DynamicTemplateVisibility
+    owner_id: str
+    status: DynamicTemplateStatus
+    parse_result: ParseResult
+    created_at: str
+    updated_at: str
+
+class DynamicFillDataItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    fill_id: str
+    todo_id: str
+    task_id: str | None = None
+    template_id: str
+    data_json: dict[str, Any]
+    submitted_by: str | None = None
+    submitted_at: str | None = None
+    status: DynamicFillDataStatus
+
+class DynamicFillSubmitReq(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    todo_id: str
+    data_json: dict[str, Any]
+
+class TaskAnalyticsField(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    key: str
+    label: str
+    type: str
+    filled: int
+    total: int
+    number_total: float
+    options: dict[str, Any]
+
+class TaskAnalyticsRecord(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    todo_id: str
+    assignee_id: str
+    assignee_name: str
+    status: str
+    submitted_at: str | None = None
+    filled_fields: int
+    field_total: int
+    data: dict[str, Any]
+    company: str | None = None
+
+class TaskAnalytics(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    tabs: list[TemplateTab] | None = None
+    task_id: str
+    task_title: str
+    template_name: str
+    total: int
+    submitted: int
+    completed: int
+    records: list[TaskAnalyticsRecord]
+    fields: list[TaskAnalyticsField]
 
 class KpiIndicatorInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -202,6 +543,57 @@ class KpiReview(BaseModel):
     approve: bool
     comment: str | None = None
     version: Literal[1]
+
+MeetingStatus = Literal['recording', 'paused', 'ended', 'processing', 'completed', 'error']
+
+class MeetingActionItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    title: str
+    assignee: str | None = None
+    assignee_id: str | None = None
+    assignee_name: str | None = None
+    task_id: str | None = None
+    dispatched_at: str | None = None
+    due: str | None = None
+    status: str | None = None
+    priority: str | None = None
+
+class MeetingInsightDimension(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str
+    score: float
+    insights: str
+    sentiment: str | None = None
+
+class MeetingAnalysisResult(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    overall: str
+    dimensions: list[MeetingInsightDimension] | None = None
+    action_items: list[MeetingActionItem] | None = None
+    key_topics: list[str] | None = None
+
+class MeetingSegmentItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    segment_id: str
+    meeting_id: str
+    seq_num: int
+    start_time: float | None = None
+    end_time: float | None = None
+    duration: float | None = None
+    transcript: str
+    speaker_id: str | None = None
+    speaker_name: str | None = None
+
+class MeetingListItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    meeting_id: str
+    title: str
+    status: MeetingStatus
+    started_at: str
+    duration_seconds: int
+    summary: str | None = None
+    action_item_count: int | None = None
+    end_reason: str | None = None
 
 class PitReportStart(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -275,4 +667,98 @@ class RiskReview(BaseModel):
     approve: bool
     comment: str | None = None
     version: Literal[1]
+
+class TaskBoardStats(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    approve: int
+    confirm: int
+    feedback: int
+    done: int
+
+class TaskBoardSummaryItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    task_id: str
+    title: str
+    period: str | None = None
+    scene: str
+    status: Literal['open', 'ended']
+    due: str | None = None
+    dispatcher_name: str
+    created_at: str
+    total: int
+    stats: TaskBoardStats
+    last_activity_at: str | None = None
+
+class TaskBoardRow(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    todo_id: str
+    assignee_id: str
+    assignee_name: str
+    company: str | None = None
+    title: str
+    status: str
+    remind_count: int
+    last_reminded_at: str | None = None
+    submitted_at: str | None = None
+    returned_at: str | None = None
+    completed_at: str | None = None
+    completion_text: str | None = None
+    return_reason: str | None = None
+    due: str | None = None
+    created_at: str | None = None
+    lamp_agg: dict[str, Any] | None = None
+
+class NotificationItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    notification_id: str
+    category: Literal['todo_remind', 'todo_submitted', 'todo_completed', 'todo_returned']
+    title: str
+    body: str
+    todo_id: str
+    task_id: str
+    actor_id: str
+    actor_name: str
+    is_read: bool
+    created_at: str
+
+class NotificationList(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    items: list[NotificationItem]
+    unread_count: int
+
+class TaskArtifactItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    artifact_id: str
+    todo_id: str
+    company: str | None = None
+    assignee_name: str
+    file_name: str
+    size: int
+    created_at: str
+
+class BiometricConsentOut(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    consent_given: bool
+    protocol_version: str
+    agreed_at: Any | None = None
+
+class BiometricConsentIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    protocol_version: str
+
+class VoiceprintStatusOut(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    enrolled: bool
+    sample_seconds: float
+    min_seconds: float
+
+class MediaTranscribeOut(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    ok: bool
+    text: str
+    voiceprint_enrolled: bool | None = None
+    voiceprint_active: bool | None = None
+    voiceprint_seconds: float | None = None
+    voiceprint_min_seconds: float | None = None
+    voiceprint_consented: bool | None = None
 

@@ -208,6 +208,17 @@ class EventStore:
                 )
             )
 
+    def existing_tool_call_ids(self, session_id: str) -> set[str]:
+        """会话已落库的 tool/call call_id 集（崩溃恢复后的历史重放去重用）。"""
+        sid = uuidlib.UUID(session_id)
+        with SessionLocal() as db:
+            rows = db.execute(
+                select(PlatformSessionEvent.data).where(
+                    PlatformSessionEvent.session_id == sid, PlatformSessionEvent.type == "tool/call"
+                )
+            ).scalars()
+            return {str((r or {}).get("call_id") or "") for r in rows} - {""}
+
     def _publish(self, session_id: str, seq: int, type_: str, t: datetime, payload: dict) -> None:
         bridge.publish(
             session_id,

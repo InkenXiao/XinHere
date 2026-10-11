@@ -30,6 +30,52 @@ export interface CashFormSubmit {
   version: 1;
 }
 
+export interface CockpitCardView {
+  id: number;
+  key: string;
+  group_key: string;
+  name: string;
+  description?: string;
+  pending?: boolean;
+  action: "sso_scms" | "sso_kb" | "xuanpu_link" | "xuanpu_skill" | "skill_prompt" | "modal" | "feature" | "skills";
+  params: Record<string, unknown>;
+  icon?: string;
+  sort: number;
+}
+
+export interface CockpitGroupView {
+  id: number;
+  key: string;
+  name: string;
+  sort: number;
+  cards: CockpitCardView[];
+}
+
+export interface CockpitAdminCardView {
+  id: number;
+  key: string;
+  group_key: string;
+  name: string;
+  description?: string;
+  pending?: boolean;
+  action: "sso_scms" | "sso_kb" | "xuanpu_link" | "xuanpu_skill" | "skill_prompt" | "modal" | "feature" | "skills";
+  params: Record<string, unknown>;
+  icon?: string;
+  sort: number;
+  enabled: boolean;
+  perm_key?: string;
+}
+
+export interface CockpitAdminGroupView {
+  id: number;
+  key: string;
+  surface: string;
+  name: string;
+  sort: number;
+  enabled: boolean;
+  cards: CockpitAdminCardView[];
+}
+
 export type Lamp = "r" | "y" | "g";
 
 export interface Usage {
@@ -57,21 +103,85 @@ export interface StepStart {
 export interface StepEnd {
   turn: number;
   step: number;
+  version: 1;
   duration_ms?: number;
   chars?: number;
-  version: 1;
 }
 
 export interface UserMessage {
   content: string;
   source: "human" | "inject";
-  version: 1;
+  version: 1 | 2 | 3;
+  attachments?: AttachmentMeta[];
+  skill?: UserMessageSkill;
+}
+
+export interface UserMessageSkill {
+  key: string;
+  title: string;
+  desc?: string;
+}
+
+export interface AttachmentMeta {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  status: "ok" | "failed" | "image";
 }
 
 export interface AssistantChunk {
   turn: number;
   step: number;
   delta: string;
+  thinking_delta?: string;
+  deferred?: boolean;
+  version: 1;
+}
+
+export interface ToolProgress {
+  call_id: string;
+  name: string;
+  phase: "running" | "waiting_upstream" | "streaming_partial" | "sources_ready";
+  message?: string;
+  sources?: SourcesPayload;
+  elapsed_ms: number;
+  version: 1;
+}
+
+export interface SourceCitation {
+  file_id?: number;
+  file_name?: string;
+  preview_url?: string;
+  download_url?: string;
+}
+
+export interface SourceWebResult {
+  title?: string;
+  url?: string;
+  snippet?: string;
+}
+
+export interface CitationChunk {
+  file_id?: number;
+  file_name?: string;
+  chunk_index?: number;
+  cite_index?: number;
+  chunk_text?: string;
+  score?: number;
+}
+
+export interface SourcesPayload {
+  citations?: SourceCitation[];
+  web_results?: SourceWebResult[];
+  citation_chunks?: CitationChunk[];
+  route?: string;
+  web_ok?: boolean;
+}
+
+export interface ErrorPayload {
+  code: string;
+  message: string;
   version: 1;
 }
 
@@ -79,6 +189,7 @@ export interface AssistantMessage {
   turn: number;
   step: number;
   content: string;
+  thinking?: string;
   usage?: Usage;
   source_event_seqs: number[];
   version: 1;
@@ -88,6 +199,7 @@ export interface ToolCall {
   call_id: string;
   name: string;
   arguments: Record<string, unknown>;
+  display_name?: string;
   version: 1;
 }
 
@@ -96,18 +208,13 @@ export interface ToolResult {
   name: string;
   content: string;
   is_error: boolean;
-  duration_ms?: number;
+  content_truncated?: boolean;
+  elapsed_ms?: number;
   outcome?: "unknown";
   refs: number[];
+  display_name?: string;
   version: 1;
-}
-
-export interface SkillStart {
-  name: string;
-  source: "local" | "xuanpu";
-  key?: string;
-  auto?: boolean;
-  version: 1;
+  duration_ms?: number;
 }
 
 export interface ComponentRequest {
@@ -130,6 +237,240 @@ export interface ComponentSubmit {
 export interface FeedbackRecord {
   text: string;
   version: 1;
+}
+
+export interface FileRecord {
+  file_id: string;
+  name: string;
+  file_type: "docx" | "pptx";
+  url: string;
+  skill_key: string;
+  version: 1;
+}
+
+export interface ChartEchartsCard {
+  card_id: string;
+  chart_type: "bar" | "line" | "pie";
+  title: string;
+  option: Record<string, unknown>;
+  version: 1;
+}
+
+export interface HtmlReportCard {
+  card_id: string;
+  report_id?: string;
+  title: string;
+  html?: string;
+  storage_key?: string;
+  version: 1 | 2;
+}
+
+export interface ReportParamsChosen {
+  card_id: string;
+  company: string;
+  company_id: number;
+  period: string;
+  version: 1;
+}
+
+export interface ReportSessionBound {
+  card_id: string;
+  kind: "word" | "ppt";
+  status: "generating" | "done" | "restored";
+  session_key: string;
+  user_id?: unknown;
+  version: 1;
+}
+
+export interface ReportEmbedCard {
+  card_id: string;
+  report_type: "annual" | "fin_risk";
+  title: string;
+  company_id: number;
+  company_name: string;
+  period: string;
+  url: string;
+  tenant_id?: unknown;
+  user_id?: unknown;
+  mode?: "form" | "embed";
+  companies?: Record<string, unknown>[];
+  embed_base?: string;
+  template_id?: string;
+  version: 1;
+}
+
+export interface ReportJumpCard {
+  card_id: string;
+  report_type: "post" | "fin_risk";
+  title: string;
+  period: string;
+  companies: string[];
+  draft_companies?: string[];
+  jump_base: string;
+  version: 1;
+}
+
+export interface IndicatorAuditCard {
+  card_id: string;
+  company: string;
+  year: number;
+  rules: Record<string, unknown>[];
+  version: 1;
+}
+
+export interface IndicatorViewCard {
+  card_id: string;
+  company: string;
+  year: number;
+  category: string;
+  indicator_name: string;
+  fields: Record<string, unknown>[];
+  version: 1;
+}
+
+export interface MilestoneStatsCard {
+  card_id: string;
+  year: number;
+  category: string;
+  companies: Record<string, unknown>[];
+  version: 1;
+}
+
+export interface SkillStart {
+  name: string;
+  source: "local" | "xuanpu";
+  key?: string;
+  auto?: boolean;
+  version: 1;
+}
+
+export type DynamicTemplateVisibility = "system" | "private";
+
+export type DynamicTemplateStatus = "draft" | "active" | "disabled";
+
+export type DynamicFillDataStatus = "draft" | "submitted";
+
+export interface ParseFieldDef {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "number" | "date" | "select" | "table";
+  required: boolean;
+  options?: string[];
+  source_col?: number;
+  width?: number;
+}
+
+export interface TemplateTab {
+  id: string;
+  name: string;
+  source_file_name: string;
+  field_keys: string[];
+  sample_rows?: Record<string, unknown>[];
+  presentation?: "form" | "grid";
+  repeatable?: boolean;
+  title?: string;
+  metadata?: string[];
+}
+
+export interface DynamicFillPage {
+  template_id: string;
+  name: string;
+  html: string;
+  tabs?: TemplateTab[];
+  columns?: ParseFieldDef[];
+  initial?: Record<string, unknown>;
+}
+
+export interface DynamicFillSaveRequest {
+  todo_id: string;
+  data: Record<string, unknown>;
+}
+
+export interface DynamicFillDraftResult {
+  todo_id: string;
+  status: "draft";
+  saved_at: string;
+}
+
+export interface ParseResult {
+  sheet_name: string;
+  tabs?: TemplateTab[];
+  columns: ParseFieldDef[];
+  sample_rows?: Record<string, unknown>[];
+  presentation?: "form" | "grid";
+  title?: string;
+  metadata?: string[];
+  header_row?: number;
+}
+
+export interface DynamicTemplateCreateReq {
+  artifact_id: string;
+  name: string;
+  visibility: DynamicTemplateVisibility;
+}
+
+export interface DynamicTemplateItem {
+  tabs?: TemplateTab[];
+  template_id: string;
+  name: string;
+  source_file_name?: string;
+  source_artifact_id?: string;
+  visibility: DynamicTemplateVisibility;
+  owner_id: string;
+  status: DynamicTemplateStatus;
+  parse_result: ParseResult;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DynamicFillDataItem {
+  fill_id: string;
+  todo_id: string;
+  task_id?: string;
+  template_id: string;
+  data_json: Record<string, unknown>;
+  submitted_by?: string;
+  submitted_at?: string;
+  status: DynamicFillDataStatus;
+}
+
+export interface DynamicFillSubmitReq {
+  todo_id: string;
+  data_json: Record<string, unknown>;
+}
+
+export interface TaskAnalyticsField {
+  key: string;
+  label: string;
+  type: string;
+  filled: number;
+  total: number;
+  number_total: number;
+  options: Record<string, unknown>;
+}
+
+export interface TaskAnalyticsRecord {
+  todo_id: string;
+  assignee_id: string;
+  assignee_name: string;
+  status: string;
+  submitted_at?: string;
+  filled_fields: number;
+  field_total: number;
+  data: Record<string, unknown>;
+  company?: string;
+}
+
+export interface TaskAnalytics {
+  tabs?: TemplateTab[];
+  task_id: string;
+  task_title: string;
+  template_name: string;
+  total: number;
+  submitted: number;
+  completed: number;
+  records: TaskAnalyticsRecord[];
+  fields: TaskAnalyticsField[];
 }
 
 export interface KpiIndicatorInput {
@@ -197,6 +538,57 @@ export interface KpiReview {
   approve: boolean;
   comment?: string;
   version: 1;
+}
+
+export type MeetingStatus = "recording" | "paused" | "ended" | "processing" | "completed" | "error";
+
+export interface MeetingActionItem {
+  title: string;
+  assignee?: string;
+  assignee_id?: string;
+  assignee_name?: string;
+  task_id?: string;
+  dispatched_at?: string;
+  due?: string;
+  status?: string;
+  priority?: string;
+}
+
+export interface MeetingInsightDimension {
+  name: string;
+  score: number;
+  insights: string;
+  sentiment?: string;
+}
+
+export interface MeetingAnalysisResult {
+  overall: string;
+  dimensions?: MeetingInsightDimension[];
+  action_items?: MeetingActionItem[];
+  key_topics?: string[];
+}
+
+export interface MeetingSegmentItem {
+  segment_id: string;
+  meeting_id: string;
+  seq_num: number;
+  start_time?: number;
+  end_time?: number;
+  duration?: number;
+  transcript: string;
+  speaker_id?: string;
+  speaker_name?: string;
+}
+
+export interface MeetingListItem {
+  meeting_id: string;
+  title: string;
+  status: MeetingStatus;
+  started_at: string;
+  duration_seconds: number;
+  summary?: string;
+  action_item_count?: number;
+  end_reason?: string;
 }
 
 export interface PitReportStart {
@@ -270,5 +662,99 @@ export interface RiskReview {
   approve: boolean;
   comment?: string;
   version: 1;
+}
+
+export interface TaskBoardStats {
+  approve: number;
+  confirm: number;
+  feedback: number;
+  done: number;
+}
+
+export interface TaskBoardSummaryItem {
+  task_id: string;
+  title: string;
+  period?: string;
+  scene: string;
+  status: "open" | "ended";
+  due?: string;
+  dispatcher_name: string;
+  created_at: string;
+  total: number;
+  stats: TaskBoardStats;
+  last_activity_at?: string;
+}
+
+export interface TaskBoardRow {
+  todo_id: string;
+  assignee_id: string;
+  assignee_name: string;
+  company?: string;
+  title: string;
+  status: string;
+  remind_count: number;
+  last_reminded_at?: string;
+  submitted_at?: string;
+  returned_at?: string;
+  completed_at?: string;
+  completion_text?: string;
+  return_reason?: string;
+  due?: string;
+  created_at?: string;
+  lamp_agg?: Record<string, unknown>;
+}
+
+export interface NotificationItem {
+  notification_id: string;
+  category: "todo_remind" | "todo_submitted" | "todo_completed" | "todo_returned";
+  title: string;
+  body: string;
+  todo_id: string;
+  task_id: string;
+  actor_id: string;
+  actor_name: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationList {
+  items: NotificationItem[];
+  unread_count: number;
+}
+
+export interface TaskArtifactItem {
+  artifact_id: string;
+  todo_id: string;
+  company?: string;
+  assignee_name: string;
+  file_name: string;
+  size: number;
+  created_at: string;
+}
+
+export interface BiometricConsentOut {
+  consent_given: boolean;
+  protocol_version: string;
+  agreed_at?: unknown;
+}
+
+export interface BiometricConsentIn {
+  protocol_version: string;
+}
+
+export interface VoiceprintStatusOut {
+  enrolled: boolean;
+  sample_seconds: number;
+  min_seconds: number;
+}
+
+export interface MediaTranscribeOut {
+  ok: boolean;
+  text: string;
+  voiceprint_enrolled?: boolean;
+  voiceprint_active?: boolean;
+  voiceprint_seconds?: number;
+  voiceprint_min_seconds?: number;
+  voiceprint_consented?: boolean;
 }
 

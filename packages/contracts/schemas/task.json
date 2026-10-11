@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "task.json",
+  "title": "任务看板聚合视图（REST 响应模型）",
+  "$defs": {
+    "TaskBoardStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approve": {
+          "type": "integer",
+          "description": "待审批 = submitted + feedback_submitted"
+        },
+        "confirm": {
+          "type": "integer",
+          "description": "待确认 = na_pending"
+        },
+        "feedback": {
+          "type": "integer",
+          "description": "待反馈 = pending + returned"
+        },
+        "done": {
+          "type": "integer",
+          "description": "已完成 = completed + na_closed"
+        }
+      },
+      "required": [
+        "approve",
+        "confirm",
+        "feedback",
+        "done"
+      ]
+    },
+    "TaskBoardSummaryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "open",
+            "ended"
+          ]
+        },
+        "due": {
+          "type": "string"
+        },
+        "dispatcher_name": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "total": {
+          "type": "integer"
+        },
+        "stats": {
+          "$ref": "#/$defs/TaskBoardStats"
+        },
+        "last_activity_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "title",
+        "scene",
+        "status",
+        "dispatcher_name",
+        "created_at",
+        "total",
+        "stats"
+      ]
+    },
+    "TaskBoardRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "todo_id": {
+          "type": "string"
+        },
+        "assignee_id": {
+          "type": "string"
+        },
+        "assignee_name": {
+          "type": "string"
+        },
+        "company": {
+          "type": "string",
+          "description": "公司维度：ref.company → spawn_meta.anchor.company → SysUser.company"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "remind_count": {
+          "type": "integer"
+        },
+        "last_reminded_at": {
+          "type": "string"
+        },
+        "submitted_at": {
+          "type": "string"
+        },
+        "returned_at": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string"
+        },
+        "completion_text": {
+          "type": "string"
+        },
+        "return_reason": {
+          "type": "string"
+        },
+        "due": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "lamp_agg": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "灯色聚合 {r,y,g}，submit 时物化"
+        }
+      },
+      "required": [
+        "todo_id",
+        "assignee_id",
+        "assignee_name",
+        "title",
+        "status",
+        "remind_count"
+      ]
+    },
+    "NotificationItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notification_id": { "type": "string" },
+        "category": { "type": "string", "enum": ["todo_remind", "todo_submitted", "todo_completed", "todo_returned"] },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "todo_id": { "type": "string" },
+        "task_id": { "type": "string" },
+        "actor_id": { "type": "string" },
+        "actor_name": { "type": "string" },
+        "is_read": { "type": "boolean" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["notification_id", "category", "title", "body", "todo_id", "task_id", "actor_id", "actor_name", "is_read", "created_at"]
+    },
+    "NotificationList": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": { "type": "array", "items": { "$ref": "#/$defs/NotificationItem" } },
+        "unread_count": { "type": "integer" }
+      },
+      "required": ["items", "unread_count"]
+    },
+    "TaskArtifactItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "type": "string"
+        },
+        "todo_id": {
+          "type": "string"
+        },
+        "company": {
+          "type": "string"
+        },
+        "assignee_name": {
+          "type": "string"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "created_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "todo_id",
+        "assignee_name",
+        "file_name",
+        "size",
+        "created_at"
+      ]
+    }
+  }
+}

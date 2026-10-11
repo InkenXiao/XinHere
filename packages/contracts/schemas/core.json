@@ -3,130 +3,1150 @@
   "$id": "core.json",
   "title": "核心框架事件 payload",
   "$defs": {
-    "Lamp": {"type": "string", "enum": ["r", "y", "g"]},
+    "Lamp": {
+      "type": "string",
+      "enum": [
+        "r",
+        "y",
+        "g"
+      ]
+    },
     "Usage": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "prompt": {"type": "integer"},
-        "completion": {"type": "integer"}
+        "prompt": {
+          "type": "integer"
+        },
+        "completion": {
+          "type": "integer"
+        }
       },
-      "required": ["prompt", "completion"]
+      "required": [
+        "prompt",
+        "completion"
+      ]
     },
     "TurnStart": {
-      "type": "object", "additionalProperties": false,
-      "properties": {"turn": {"type": "integer"}, "version": {"type": "integer", "const": 1}},
-      "required": ["turn", "version"]
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "turn": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "turn",
+        "version"
+      ]
     },
     "TurnEnd": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "turn": {"type": "integer"},
-        "reason": {"type": "string", "enum": ["completed", "blocked", "aborted", "error", "max_tokens", "crashed"]},
-        "version": {"type": "integer", "const": 1}
+        "turn": {
+          "type": "integer"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "blocked",
+            "aborted",
+            "error",
+            "max_tokens",
+            "crashed"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
       },
-      "required": ["turn", "reason", "version"]
+      "required": [
+        "turn",
+        "reason",
+        "version"
+      ]
     },
     "StepStart": {
-      "type": "object", "additionalProperties": false,
-      "properties": {"turn": {"type": "integer"}, "step": {"type": "integer"}, "version": {"type": "integer", "const": 1}},
-      "required": ["turn", "step", "version"]
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "turn": {
+          "type": "integer"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "turn",
+        "step",
+        "version"
+      ]
     },
     "StepEnd": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "turn": {"type": "integer"}, "step": {"type": "integer"},
-        "duration_ms": {"type": "integer"}, "chars": {"type": "integer"},
-        "version": {"type": "integer", "const": 1}
+        "turn": {
+          "type": "integer"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        },
+        "duration_ms": {
+          "type": "integer"
+        },
+        "chars": {
+          "type": "integer"
+        }
       },
-      "required": ["turn", "step", "version"]
+      "required": [
+        "turn",
+        "step",
+        "version"
+      ]
     },
     "UserMessage": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "content": {"type": "string"},
-        "source": {"type": "string", "enum": ["human", "inject"]},
-        "version": {"type": "integer", "const": 1}
+        "content": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "human",
+            "inject"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "enum": [
+            1,
+            2,
+            3
+          ]
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttachmentMeta"
+          }
+        },
+        "skill": {
+          "$ref": "#/$defs/UserMessageSkill"
+        }
       },
-      "required": ["content", "source", "version"]
+      "required": [
+        "content",
+        "source",
+        "version"
+      ]
+    },
+    "UserMessageSkill": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "desc": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "title"
+      ]
+    },
+    "AttachmentMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "mime": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "failed",
+            "image"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "mime",
+        "size",
+        "status"
+      ]
     },
     "AssistantChunk": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "turn": {"type": "integer"}, "step": {"type": "integer"},
-        "delta": {"type": "string"}, "version": {"type": "integer", "const": 1}
+        "turn": {
+          "type": "integer"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "delta": {
+          "type": "string"
+        },
+        "thinking_delta": {
+          "type": "string",
+          "description": "模型思考内容增量（reasoning_content）；旧事件无此字段，回放兼容"
+        },
+        "deferred": {
+          "type": "boolean",
+          "description": "技能轮次延迟正文：实时预览，最终以 assistant/message 固化内容为准，评论段会被撤回"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
       },
-      "required": ["turn", "step", "delta", "version"]
+      "required": [
+        "turn",
+        "step",
+        "delta",
+        "version"
+      ]
+    },
+    "ToolProgress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "call_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "running",
+            "waiting_upstream",
+            "streaming_partial",
+            "sources_ready"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "sources": {
+          "$ref": "#/$defs/SourcesPayload",
+          "description": "phase=sources_ready 时携带：问数即时溯源（文档引用/命中片段/联网结果），供流式期间渲染"
+        },
+        "elapsed_ms": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "call_id",
+        "name",
+        "phase",
+        "elapsed_ms",
+        "version"
+      ]
+    },
+    "SourceCitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file_id": {
+          "type": "integer"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "preview_url": {
+          "type": "string"
+        },
+        "download_url": {
+          "type": "string"
+        }
+      }
+    },
+    "SourceWebResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "snippet": {
+          "type": "string"
+        }
+      }
+    },
+    "CitationChunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file_id": {
+          "type": "integer"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "chunk_index": {
+          "type": "integer"
+        },
+        "cite_index": {
+          "type": "integer",
+          "description": "正文角标 [n] 中的 n，用于点击定位命中片段"
+        },
+        "chunk_text": {
+          "type": "string",
+          "description": "命中片段全文/摘录（CoWork 通道为 snippet，400 字内）；正文角标 [n] 点击展示 citeIndex==n 的这条"
+        },
+        "score": {
+          "type": "number"
+        }
+      }
+    },
+    "SourcesPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceCitation"
+          }
+        },
+        "web_results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceWebResult"
+          }
+        },
+        "citation_chunks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CitationChunk"
+          }
+        },
+        "route": {
+          "type": "string"
+        },
+        "web_ok": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ErrorPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "version"
+      ]
     },
     "AssistantMessage": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "turn": {"type": "integer"}, "step": {"type": "integer"},
-        "content": {"type": "string"},
-        "usage": {"$ref": "#/$defs/Usage"},
-        "source_event_seqs": {"type": "array", "items": {"type": "integer"}},
-        "version": {"type": "integer", "const": 1}
+        "turn": {
+          "type": "integer"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "content": {
+          "type": "string"
+        },
+        "thinking": {
+          "type": "string",
+          "description": "模型思考内容全文（reasoning_content 累积）；旧事件无此字段，回放兼容"
+        },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        },
+        "source_event_seqs": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
       },
-      "required": ["turn", "step", "content", "source_event_seqs", "version"]
+      "required": [
+        "turn",
+        "step",
+        "content",
+        "source_event_seqs",
+        "version"
+      ]
     },
     "ToolCall": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "call_id": {"type": "string"}, "name": {"type": "string"},
-        "arguments": {"type": "object"},
-        "version": {"type": "integer", "const": 1}
+        "call_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "object"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "工具中文展示名（可缺省，前端回落自身字典）"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
       },
-      "required": ["call_id", "name", "arguments", "version"]
+      "required": [
+        "call_id",
+        "name",
+        "arguments",
+        "version"
+      ]
     },
     "ToolResult": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "call_id": {"type": "string"}, "name": {"type": "string"},
-        "content": {"type": "string"}, "is_error": {"type": "boolean"},
-        "duration_ms": {"type": "integer"},
-        "outcome": {"type": "string", "enum": ["unknown"]},
-        "refs": {"type": "array", "items": {"type": "integer"}},
-        "version": {"type": "integer", "const": 1}
+        "call_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "is_error": {
+          "type": "boolean"
+        },
+        "content_truncated": {
+          "type": "boolean",
+          "description": "content 因长度上限被截断"
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "description": "工具执行耗时（毫秒）"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "unknown"
+          ]
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "display_name": {
+          "type": "string",
+          "description": "工具中文展示名（可缺省，前端回落自身字典）"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        },
+        "duration_ms": {
+          "type": "integer"
+        }
       },
-      "required": ["call_id", "name", "content", "is_error", "refs", "version"]
-    },
-    "SkillStart": {
-      "type": "object", "additionalProperties": false,
-      "properties": {
-        "name": {"type": "string"},
-        "source": {"type": "string", "enum": ["local", "xuanpu"]},
-        "key": {"type": "string"},
-        "auto": {"type": "boolean"},
-        "version": {"type": "integer", "const": 1}
-      },
-      "required": ["name", "source", "version"]
+      "required": [
+        "call_id",
+        "name",
+        "content",
+        "is_error",
+        "refs",
+        "version"
+      ]
     },
     "ComponentRequest": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "component_id": {"type": "string"}, "kind": {"type": "string"},
-        "kind_version": {"type": "integer"},
-        "props": {"type": "object"},
-        "interrupt_id": {"type": "string"},
-        "version": {"type": "integer", "const": 1}
+        "component_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "kind_version": {
+          "type": "integer"
+        },
+        "props": {
+          "type": "object"
+        },
+        "interrupt_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
       },
-      "required": ["component_id", "kind", "kind_version", "props", "interrupt_id", "version"]
+      "required": [
+        "component_id",
+        "kind",
+        "kind_version",
+        "props",
+        "interrupt_id",
+        "version"
+      ]
     },
     "ComponentSubmit": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "component_id": {"type": "string"},
-        "action": {"type": "string", "enum": ["submit", "cancelled"]},
-        "values": {"type": "object"},
-        "summary": {"type": "string"},
-        "version": {"type": "integer", "const": 1}
+        "component_id": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "submit",
+            "cancelled"
+          ]
+        },
+        "values": {
+          "type": "object"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
       },
-      "required": ["component_id", "action", "summary", "version"]
+      "required": [
+        "component_id",
+        "action",
+        "summary",
+        "version"
+      ]
     },
     "FeedbackRecord": {
-      "type": "object", "additionalProperties": false,
-      "properties": {"text": {"type": "string"}, "version": {"type": "integer", "const": 1}},
-      "required": ["text", "version"]
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "text",
+        "version"
+      ]
+    },
+    "FileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "file_type": {
+          "type": "string",
+          "enum": [
+            "docx",
+            "pptx"
+          ]
+        },
+        "url": {
+          "type": "string"
+        },
+        "skill_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "file_id",
+        "name",
+        "file_type",
+        "url",
+        "skill_key",
+        "version"
+      ]
+    },
+    "ChartEchartsCard": {
+      "type": "object",
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "chart_type": {
+          "type": "string",
+          "enum": [
+            "bar",
+            "line",
+            "pie"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "option": {
+          "type": "object"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "chart_type",
+        "title",
+        "option",
+        "version"
+      ]
+    },
+    "HtmlReportCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "report_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "html": {
+          "type": "string"
+        },
+        "storage_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "enum": [
+            1,
+            2
+          ]
+        }
+      },
+      "required": [
+        "card_id",
+        "title",
+        "version"
+      ]
+    },
+    "ReportParamsChosen": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "company": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "period": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "company",
+        "company_id",
+        "period",
+        "version"
+      ]
+    },
+    "ReportSessionBound": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "word",
+            "ppt"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "generating",
+            "done",
+            "restored"
+          ]
+        },
+        "session_key": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "kind",
+        "status",
+        "session_key",
+        "version"
+      ]
+    },
+    "ReportEmbedCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "report_type": {
+          "type": "string",
+          "enum": [
+            "annual",
+            "fin_risk"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "company_name": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "tenant_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "form",
+            "embed"
+          ]
+        },
+        "companies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "company_id": {
+                "type": "integer"
+              },
+              "short_name": {
+                "type": "string"
+              },
+              "org_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "company_id",
+              "short_name",
+              "org_name"
+            ]
+          }
+        },
+        "embed_base": {
+          "type": "string"
+        },
+        "template_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "report_type",
+        "title",
+        "company_id",
+        "company_name",
+        "period",
+        "url",
+        "version"
+      ]
+    },
+    "ReportJumpCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "report_type": {
+          "type": "string",
+          "enum": [
+            "post",
+            "fin_risk"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "companies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "draft_companies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jump_base": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "report_type",
+        "title",
+        "period",
+        "companies",
+        "jump_base",
+        "version"
+      ]
+    },
+    "IndicatorAuditCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "company": {
+          "type": "string"
+        },
+        "year": {
+          "type": "integer"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule_id": {
+                "type": "string"
+              },
+              "indicator_name": {
+                "type": "string"
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "milestone_name": {
+                      "type": "string"
+                    },
+                    "due_date": {
+                      "type": "string"
+                    },
+                    "proof": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "audit_status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "milestone_name",
+                    "due_date",
+                    "proof",
+                    "status",
+                    "audit_status"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "rule_id",
+              "indicator_name",
+              "rows"
+            ]
+          }
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "company",
+        "year",
+        "rules",
+        "version"
+      ]
+    },
+    "IndicatorViewCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "company": {
+          "type": "string"
+        },
+        "year": {
+          "type": "integer"
+        },
+        "category": {
+          "type": "string"
+        },
+        "indicator_name": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ]
+          }
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "company",
+        "year",
+        "category",
+        "indicator_name",
+        "fields",
+        "version"
+      ]
+    },
+    "MilestoneStatsCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "type": "string"
+        },
+        "year": {
+          "type": "integer"
+        },
+        "category": {
+          "type": "string"
+        },
+        "companies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "indicator_count": {
+                "type": "integer"
+              },
+              "milestone_count": {
+                "type": "integer"
+              },
+              "unfinished": {
+                "type": "integer"
+              },
+              "progress": {
+                "type": "string"
+              },
+              "red": {
+                "type": "integer"
+              },
+              "yellow": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "indicator_count",
+              "milestone_count",
+              "unfinished",
+              "progress",
+              "red",
+              "yellow"
+            ]
+          }
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "card_id",
+        "year",
+        "category",
+        "companies",
+        "version"
+      ]
+    },
+    "SkillStart": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "local",
+            "xuanpu"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "auto": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "version"
+      ]
     }
   }
 }
