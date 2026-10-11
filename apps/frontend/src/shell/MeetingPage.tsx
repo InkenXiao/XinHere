@@ -1,8 +1,9 @@
 // 实时会议页：录音控制 + 增量转写 + 阶段/最终纪要 + 润色/拷贝/保存
 // 关闭页面仅收起 UI，录音由 meetingStore 持有后台继续
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useUiStore } from '@/state/uiStore'
 import { useMeetingStore } from '@/state/meetingStore'
+import MeetingHistoryModal from './MeetingHistoryModal'
 
 function fmtDur(sec: number) {
   const m = Math.floor(sec / 60)
@@ -17,6 +18,7 @@ function fmtLine(sec: number) {
 }
 
 export default function MeetingPage() {
+  const [historyOpen, setHistoryOpen] = useState(false)
   const open = useUiStore((s) => s.meetingOpen)
   const setMeetingOpen = useUiStore((s) => s.setMeetingOpen)
   const recording = useMeetingStore((s) => s.recording)
@@ -56,9 +58,14 @@ export default function MeetingPage() {
       <div className="mt-panel mt-panel--wide">
         <header className="mt-head">
           <h2>实时会议</h2>
-          <button className="btn-ghost" onClick={() => setMeetingOpen(false)}>
-            {recording ? '收起（录音继续）' : '收起'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-ghost" onClick={() => setHistoryOpen(true)}>
+              历史会议
+            </button>
+            <button className="btn-ghost" onClick={() => setMeetingOpen(false)}>
+              {recording ? '收起（录音继续）' : '收起'}
+            </button>
+          </div>
         </header>
 
         <div className={`mt-stage ${recording ? 'on' : ''}`}>
@@ -169,6 +176,7 @@ export default function MeetingPage() {
           )}
         </footer>
       </div>
+          {historyOpen && <MeetingHistoryModal onClose={() => setHistoryOpen(false)} />}
     </section>
   )
 }
