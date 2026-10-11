@@ -4,6 +4,7 @@ import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { useUiStore } from '@/state/uiStore'
 import ModelPrefsModal from './ModelPrefsModal'
+import ChangePasswordModal, { scmsAuthAvailable } from './ChangePasswordModal'
 import XuanpuMsgBell from './XuanpuMsgBell'
 
 const ROLE_ZH: Record<string, string> = { hq_finance: '本部财务', investee_finance: '被投财务' }
@@ -16,10 +17,16 @@ export default function TopBar() {
   const cockpitEditing = useUiStore((s) => s.cockpitEditing)
   const setCockpitEditing = useUiStore((s) => s.setCockpitEditing)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [pwdOpen, setPwdOpen] = useState(false)
+  const [canChangePwd, setCanChangePwd] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // 点击外部关闭用户菜单
+  useEffect(() => {
+    void scmsAuthAvailable().then(setCanChangePwd)
+  }, [])
+
   useEffect(() => {
     if (!menuOpen) return
     const onDown = (e: MouseEvent) => {
@@ -74,6 +81,16 @@ export default function TopBar() {
               >
                 个人设置
               </button>
+              {canChangePwd && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setPwdOpen(true)
+                  }}
+                >
+                  修改密码
+                </button>
+              )}
               <button
                 onClick={() => {
                   setMenuOpen(false)
@@ -87,6 +104,7 @@ export default function TopBar() {
         </div>
       </div>
       <ModelPrefsModal open={prefsOpen} onClose={() => setPrefsOpen(false)} />
+      <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
     </header>
   )
 }

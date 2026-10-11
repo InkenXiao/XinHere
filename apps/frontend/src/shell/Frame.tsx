@@ -4,6 +4,8 @@ import { useTodoStore } from '@/state/todoStore'
 import { useUiStore } from '@/state/uiStore'
 import TaskList from './TaskList'
 import TodoPanel from './TodoPanel'
+import NotificationPanel from './NotificationPanel'
+import { useNotificationStore } from '@/state/notificationStore'
 import ScreenDashboard from './ScreenDashboard'
 
 /* 模式切换：页面顶部中间品牌标识（瞭望塔页=xin-watchtower / 驾驶舱页=xin-cockpit），点击返回开屏页；
@@ -161,15 +163,31 @@ export function HistoryDrawer() {
 /* 框架二 · 待办竖条（悬停展开 / pin 固定常驻展开） */
 export function TodoRail() {
   const count = useTodoStore((s) => s.items.filter((t) => !s.ignored.has(t.todo_id)).length)
+  const unread = useNotificationStore((s) => s.unreadCount)
+  const [railTab, setRailTab] = useState<'todos' | 'notifications'>('todos')
   const todoPinned = useUiStore((s) => s.todoPinned)
   const toggleTodoPin = useUiStore((s) => s.toggleTodoPin)
   return (
-    <aside className={`r-rail ${todoPinned ? 'open' : ''}`} aria-label={`待我处理，${count} 项`}>
+    <aside className={`r-rail ${todoPinned ? 'open' : ''}`} aria-label={`待我处理 ${count} 项，未读消息 ${unread} 条`}>
       <span className="r-liquid-shine" aria-hidden="true" />
-      <span className="badge">{count}</span>
-      <span className="label">待&nbsp;我&nbsp;处&nbsp;理</span>
+      <span className={`badge ${unread > 0 && railTab === 'notifications' ? 'msg' : ''}`}>
+        {railTab === 'todos' ? count : unread}
+      </span>
+      <span className="label">{railTab === 'todos' ? '待 我 处 理' : '消 息 中 心'}</span>
       <div className="r-pop" onClick={(e) => e.stopPropagation()}>
         <div className="r-pop-head">
+          <div className="r-tabs">
+            <button type="button" className={`r-tab ${railTab === 'todos' ? 'on' : ''}`} onClick={() => setRailTab('todos')}>
+              待办{count > 0 ? ` ${count}` : ''}
+            </button>
+            <button
+              type="button"
+              className={`r-tab ${railTab === 'notifications' ? 'on' : ''}`}
+              onClick={() => setRailTab('notifications')}
+            >
+              消息{unread > 0 ? ` ${unread}` : ''}
+            </button>
+          </div>
           <button
             type="button"
             className={`h-pin ${todoPinned ? 'on' : ''}`}
@@ -179,7 +197,7 @@ export function TodoRail() {
             <PinIcon pinned={todoPinned} />
           </button>
         </div>
-        <TodoPanel />
+        {railTab === 'todos' ? <TodoPanel /> : <NotificationPanel />}
       </div>
     </aside>
   )

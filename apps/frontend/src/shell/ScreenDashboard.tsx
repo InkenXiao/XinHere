@@ -41,10 +41,50 @@ export default function ScreenDashboard() {
 
 type TaskBoardData = MetricsOverview['task_board'] | undefined
 
+interface BoardSummaryItem {
+  task_id: string
+  title: string
+  scene: string
+  period: string | null
+  pending_review: number
+  pending_confirm: number
+  pending_feedback: number
+  done: number
+}
+
+function BoardSummaryCard() {
+  const [items, setItems] = useState<BoardSummaryItem[]>([])
+  useEffect(() => {
+    api<{ items: BoardSummaryItem[] }>('GET', '/tasks/board-summary')
+      .then((r) => setItems(r.items.slice(0, 6)))
+      .catch(() => {})
+  }, [])
+  if (!items.length) return null
+  return (
+    <div className="dash-card span-12">
+      <h3>我派发的进行中任务</h3>
+      <div className="ov-row">
+        {items.map((it) => (
+          <div key={it.task_id} className="bs-chip" title={`${it.title}（${it.period ?? '不限期'}）`}>
+            <span className="bs-title">{it.title}</span>
+            <span className="bs-nums">
+              {it.pending_review > 0 && <i className="warn-v">待审 {it.pending_review}</i>}
+              {it.pending_confirm > 0 && <i className="warn-v">待确认 {it.pending_confirm}</i>}
+              {it.pending_feedback > 0 && <i>待反馈 {it.pending_feedback}</i>}
+              {it.done > 0 && <i className="ok-v">完成 {it.done}</i>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function TaskBoard({ tb }: { tb: TaskBoardData }) {
   const maxFunnel = Math.max(1, ...(tb?.assigned_funnel.map((x) => x.count) ?? [1]))
   return (
     <div className="dash-grid">
+      <BoardSummaryCard />
       <div className="dash-card span-6">
         <h3>派发给我的</h3>
         <ProgressRow done={tb?.assigned.done ?? 0} total={tb?.assigned.total ?? 0} />

@@ -284,3 +284,64 @@ def sso_ticket(
     return RedirectResponse(
         f"{settings.frontend_url}/?sso_token={quote(token, safe='')}", status_code=302
     )
+
+
+# ---------------- scms 移植：改密代理（仅 SCMS_AUTH_BASE 配置时可用） ----------------
+
+class ChangePasswordIn(BaseModel):
+    old_password: str
+    new_password: str
+
+
+_PWD_PATTERN = __import__("re").compile(
+    r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9])[A-Za-z\d^A-Za-z0-9]{8,16}$"
+)
+
+
+@router.post("/change-password")
+def change_password(body: ChangePasswordIn, request: Request,
+                    user: SysUser = Depends(current_user)):
+    """改密代理：转 SCMS 个人中心改密（PUT update-password，校验旧密码）。
+
+    仅玄圃 SSO 体系下：SCMS_AUTH_BASE 未配置返回 501（前端隐藏入口）；
+    凭证走 SCMS 服务账号（用户级透传在 SSO 体系不可用）。
+    """
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    if not settings.scms_auth_base or not (settings.scms_login_username and settings.scms_login_password):
+        raise errors.AppError("NOT_IMPLEMENTED", "未接入企业账号体系，暂不支持在线改密", 501)
+    if not body.old_password or not body.new_password:
+        raise errors.validation("请输入旧密码和新密码")
+    if not _PWD_PATTERN.match(body.new_password):
+        raise errors.validation("密码必须是8到16位，且包含英文字母、数字和特殊字符")
+
+    from ..agent.tools_scms import _service_token
+
+    token = _service_token()
+    req = urllib.request.Request(
+        f"{settings.scms_auth_base.rstrip('/')}/admin-api/system/user/profile/update-password",
+        data=_json.dumps({"oldPassword": body.old_password,
+                          "newPassword": body.new_password}).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "X-SCMS-Access-Token": token,
+            **({"tenant-id": settings.scms_tenant_name} if settings.scms_tenant_name else {}),
+        },
+        method="PUT",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            wrapped = _json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        try:
+            msg = _json.loads(exc.read().decode()).get("msg", "")
+        except Exception:
+            msg = ""
+        raise errors.AppError("UPSTREAM_ERROR", msg or "改密失败，请稍后再试", 502)
+    if wrapped.get("code") not in (0, 200):
+        raise errors.AppError("UPSTREAM_ERROR", wrapped.get("msg") or "改密失败", 502)
+    logger.info("SCMS 改密完成 user=%s", user.username)
+    return {"ok": True}

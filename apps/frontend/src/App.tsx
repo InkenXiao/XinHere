@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/state/authStore'
 import { useSessionStore } from '@/state/sessionStore'
 import { startTodoPolling, stopTodoPolling, useTodoStore } from '@/state/todoStore'
+import { startNotificationPolling, stopNotificationPolling } from '@/state/notificationStore'
 import { useUiStore } from '@/state/uiStore'
 import { runtimeEnv } from '@/config'
 import { setToken } from '@/transport/api'
@@ -45,9 +46,11 @@ export default function App() {
   useEffect(() => {
     if (!token) return
     startTodoPolling()
+    startNotificationPolling()
     void useSessionStore.getState().loadSessions()
     void useTodoStore.getState().load()
     return () => stopTodoPolling()
+    stopNotificationPolling()
   }, [token])
 
   // 模式/抽屉状态同步到 body class，驱动全局配色与抽屉开合
