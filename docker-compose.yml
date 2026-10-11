@@ -24,6 +24,7 @@ services:
       - ./apps/backend/alembic.ini:/app/apps/backend/alembic.ini
       - ./plugins:/app/plugins
       - ./packages/contracts:/app/packages/contracts
+      # 本地存储回退目录（MinIO 未配置时附件/交付物/报告落此；宿主路径挂载=容器重建不丢数据）
       - ./apps/backend/data:/app/apps/backend/data
       # 文件夹式技能（SKILL.md + 脚本；运行期写入 .research_state/ 与 reports/，需可写）
       - ./apps/backend/skills:/app/apps/backend/skills
