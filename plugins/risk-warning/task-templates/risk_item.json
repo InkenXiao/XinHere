@@ -1,0 +1,21 @@
+{
+  "template_key": "risk_item",
+  "name": "风险应对项",
+  "version": 1,
+  "scene": "generic",
+  "related_system": "风险预警",
+  "review_required": true,
+  "period_rule": "natural_month",
+  "creator_roles": ["hq_finance", "company_operator"],
+  "title_rule": "{anchor_company} · 风险应对项进展",
+  "sub_rule": "归属期：{period} · 待填报",
+  "form": {
+    "fields": [
+      { "k": "item_name", "label": "应对事项", "type": "text", "required": true },
+      { "k": "progress", "label": "进展说明", "type": "textarea", "required": true },
+      { "k": "status", "label": "完成情况", "type": "select", "required": true, "options": ["未开始", "进行中", "已完成", "已滞后"] },
+      { "k": "evidence", "label": "佐证说明", "type": "textarea", "required": false }
+    ]
+  },
+  "lamp_mode": "none"
+}

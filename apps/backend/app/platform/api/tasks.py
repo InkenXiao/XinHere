@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -262,3 +262,144 @@ def delete_task(record_id: str, user: SysUser = Depends(current_user),
     _soft_delete(db, user, r)
     db.flush()
     return {"ok": True}
+
+
+# ---------------- 任务内核端点（scms 移植；与上方记录树端点共用 /tasks 前缀） ----------------
+
+from ...core import errors  # noqa: E402
+from ...modules.dynamic_template import services as dyn_tpl_svc  # noqa: E402
+from ...services import artifacts as artifacts_svc  # noqa: E402
+from ...services import task_templates  # noqa: E402
+from ...services import todo as todo_svc  # noqa: E402
+from .deps import require_hq  # noqa: E402
+
+
+@router.get("/templates")
+def list_templates(user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """任务模板目录（小流程清单）：前端派发弹窗与表单渲染的依据；含动态填报模板（dyn_ 前缀）。"""
+    return {"items": dyn_tpl_svc.merge_dynamic_into_list(db, task_templates.list_template_views())}
+
+
+class SpawnIn(BaseModel):
+    template_key: str
+    assignee_ids: list[str] = Field(default_factory=list)
+    period: str | None = None
+    anchor: dict | None = None
+    parent_task_id: str | None = None
+    due: str | None = None
+    reuse_mode: str = "fresh"
+    prev_task_id: str | None = None
+
+
+@router.post("")
+def spawn_task(body: SpawnIn, user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """按模板派发小流程（风险应对方案/应对项等）。fresh 且同锚点有进行中子流程 →
+    409 + children 明细（need_choice），前端弹出「与之前一致 / 基于调整」二选一。
+    dyn_ 前缀 → 动态填报模板（模板定义在 dynamic_template 表，无静态 creator_roles）。"""
+    if not body.template_key.startswith("dyn_"):
+        tpl = task_templates.get_template(body.template_key)
+        roles = tpl.get("creator_roles") or []
+        if roles and user.role not in roles and user.role != "hq_finance":
+            raise errors.forbidden("当前角色不可发起该流程")
+    due = datetime.fromisoformat(body.due) if body.due else None
+    result = todo_svc.spawn_task(
+        db, template_key=body.template_key, dispatcher_id=user.user_id,
+        assignee_ids=body.assignee_ids, period=body.period, anchor=body.anchor,
+        parent_task_id=body.parent_task_id, due=due, reuse_mode=body.reuse_mode,
+        prev_task_id=body.prev_task_id,
+    )
+    # 待办创建阶段的 SSE 可能早于请求级事务提交，接收端立即刷新会查不到新数据。
+    # 此处先提交，再补发一次变更通知，保证派发人与办理人都能立即看到任务。
+    db.commit()
+    todos = db.scalars(select(BizTodo).where(BizTodo.task_id == result["task_id"])).all()
+    for todo in todos:
+        todo_svc._notify_todo(db, todo)
+    return result
+
+
+@router.get("/open")
+def list_open_tasks(only_open: bool = True, user: SysUser = Depends(current_user),
+               db: Session = Depends(get_db)):
+    """我派发的任务列表（看板入口；board 为派发人专属，故此处只列我派发的）。"""
+    q = select(BizTask).where(BizTask.dispatcher_id == user.user_id)
+    if only_open:
+        q = q.where(BizTask.status == "open")
+    q = q.order_by(BizTask.created_at.desc()).limit(50)
+    rows = db.scalars(q).all()
+    return {"items": [todo_svc.task_view(db, t) for t in rows]}
+
+
+@router.get("/board-summary")
+def board_summary(user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """首页任务看板聚合：我派发的 open 任务 + 四态页签计数（待审批/待确认/待反馈/已完成）。"""
+    return {"items": todo_svc.board_summary(db, user.user_id)}
+
+
+@router.get("/{task_id}/board")
+def board(task_id: str, user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """任务看板（临时看板/概览）：状态统计 + 各状态人员明细。"""
+    return todo_svc.board(db, task_id, user.user_id)
+
+
+@router.get("/{task_id}/artifacts")
+def task_artifacts(task_id: str, user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """任务级交付物列表（该任务全部待办的附件，仅派发人）。"""
+    return {"items": artifacts_svc.list_by_task(db, task_id, user.user_id)}
+
+
+@router.get("/{task_id}/analytics")
+def analytics(task_id: str, user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """动态信息填报任务的数据分析（仅派发人）。"""
+    return dyn_tpl_svc.task_analytics(db, task_id, user.user_id)
+
+
+class EndIn(BaseModel):
+    note: str | None = None
+    force: bool = False
+
+
+@router.post("/{task_id}/end")
+def end(task_id: str, body: EndIn, user: SysUser = Depends(current_user),
+        db: Session = Depends(get_db)):
+    return todo_svc.end_task(db, task_id, user.user_id, body.note, body.force)
+
+
+class AppendIn(BaseModel):
+    assignee_ids: list[str]
+
+
+@router.post("/{task_id}/append")
+def append(task_id: str, body: AppendIn, user: SysUser = Depends(current_user),
+           db: Session = Depends(get_db)):
+    """追加承办人：已在范围内者返回 skipped 不重复派发。"""
+    return todo_svc.append_assignees(db, task_id, user.user_id, body.assignee_ids)
+
+
+@router.get("/{task_id}/children")
+def children(task_id: str, anchor_company: str | None = None, anchor_indicator: str | None = None,
+             user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    """派生守卫：父任务下进行中的子任务（可按企业/指标锚点过滤，用于「与之前一致/基于调整」二选一）。"""
+    anchor: dict | None = None
+    if anchor_company or anchor_indicator:
+        anchor = {}
+        if anchor_company:
+            anchor["company"] = anchor_company
+        if anchor_indicator:
+            anchor["indicator"] = anchor_indicator
+    return {"items": todo_svc.in_progress_children(db, task_id, anchor)}
+
+
+class RemarkIn(BaseModel):
+    content: str
+
+
+@router.post("/{task_id}/remarks")
+def add_task_remark(task_id: str, body: RemarkIn, user: SysUser = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    return todo_svc.add_remark(db, body.content, user.user_id, task_id=task_id)
+
+
+@router.get("/{task_id}/remarks")
+def list_task_remarks(task_id: str, user: SysUser = Depends(current_user),
+                      db: Session = Depends(get_db)):
+    return {"items": todo_svc.list_remarks(db, task_id=task_id)}

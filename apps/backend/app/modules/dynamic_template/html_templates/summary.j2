@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{ name }} · 字段汇总</title>
+<style>
+  body { font:13px/1.6 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif; color:#1f2329; padding:12px; }
+  .hd { font-size:15px; font-weight:600; margin-bottom:12px; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { border:1px solid #dee0e3; padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:#f5f6f7; font-weight:600; }
+  .muted { color:#646a73; }
+</style>
+</head>
+<body>
+  <div class="hd">{{ layout.get('title') or name }} · 字段汇总（{{ columns|length }} 项）</div>
+  {% for item in layout.get('metadata', []) %}<div class="muted">{{ item }}</div>{% endfor %}
+  <table>
+    <tr>
+      <th style="width:36%">字段</th>
+      <th style="width:18%">类型</th>
+      <th style="width:12%">必填</th>
+      <th>选项</th>
+    </tr>
+    {% for c in columns %}
+    <tr>
+      <td>{{ c.label }}<div class="muted" style="font-size:11px">{{ c.key }}</div></td>
+      <td>{{ { 'text':'单行文本','textarea':'多行文本','number':'数字','date':'日期','select':'下拉选择','table':'表格' }[c.type] }}</td>
+      <td>{{ '必填' if c.required else '选填' }}</td>
+      <td class="muted">{{ c.options|join('、') if c.options else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

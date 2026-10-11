@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ name }} · 填报</title>
+<style>
+  :root { --primary:#1784bc; --primary-strong:#0d638f; --text:#183445; --muted:#607b8b; --border:rgba(50,105,133,.2); --glass:rgba(239,248,252,.72); --glass-strong:rgba(226,242,249,.88); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { min-height:100vh; font:14px/1.6 'Microsoft YaHei','PingFang SC',sans-serif; color:var(--text); background:radial-gradient(circle at 8% 5%,rgba(76,179,217,.2),transparent 30%),radial-gradient(circle at 92% 88%,rgba(29,143,122,.13),transparent 32%),linear-gradient(145deg,#dceef5,#edf7fa 48%,#dfeff1); padding:26px clamp(14px,3vw,36px) 18px; }
+  .hd { font-size:20px; letter-spacing:.01em; font-weight:700; margin-bottom:16px; color:#102a43; }
+  .hd small { display:block; font-size:12px; color:var(--muted); font-weight:400; margin-top:2px; }
+  .field { margin-bottom:14px; padding:15px 17px; border:1px solid var(--border); border-radius:12px; background:var(--glass); box-shadow:0 8px 24px rgba(30,76,99,.08),inset 0 1px rgba(255,255,255,.55); backdrop-filter:blur(12px); }
+  label { display:block; font-size:13px; margin-bottom:6px; }
+  .req { color:#f53f3f; margin-left:2px; }
+  .tag { font-size:10px; color:var(--primary-strong); border:1px solid rgba(23,132,188,.22); border-radius:999px; padding:1px 7px; margin-left:7px; font-weight:400; background:rgba(23,132,188,.08); }
+  input[type=text], input[type=number], input[type=date], select, textarea {
+    width:100%; border:1px solid var(--border); border-radius:6px; padding:7px 10px;
+    font:inherit; color:var(--text); background:rgba(248,253,255,.68); outline:none; transition:border-color .15s,box-shadow .15s,background .15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color:var(--primary); background:rgba(255,255,255,.9); box-shadow:0 0 0 3px rgba(23,132,188,.12); }
+  textarea { min-height:76px; resize:vertical; }
+  .actions { display:flex; gap:10px; margin-top:20px; position:sticky; bottom:0; z-index:3; background:rgba(224,241,247,.88); border:1px solid var(--border); border-radius:12px; padding:10px; box-shadow:0 -8px 24px rgba(30,76,99,.09); backdrop-filter:blur(14px); }
+  button { border:none; border-radius:6px; padding:9px 0; font:600 14px/1 inherit; cursor:pointer; }
+  .submit { flex:1; background:linear-gradient(135deg,var(--primary),var(--primary-strong)); color:#fff; box-shadow:0 7px 18px rgba(23,132,188,.22); }
+  .submit:hover { filter:brightness(1.08); }
+  .cancel { flex:0 0 96px; background:rgba(255,255,255,.42); color:var(--text); border:1px solid var(--border); }
+  .err { display:none; color:#f53f3f; font-size:12px; margin:6px 0 0; }
+  .meta { margin:-8px 0 18px; padding:10px 13px; color:var(--muted); font-size:12px; border-left:3px solid rgba(23,132,188,.48); border-radius:0 9px 9px 0; background:rgba(232,247,251,.52); }
+  .meta div { margin-top:2px; }
+  .grid-wrap { overflow-x:auto; padding:2px 2px 8px; border-radius:14px; background:rgba(226,242,249,.58); box-shadow:0 10px 30px rgba(30,76,99,.1); backdrop-filter:blur(12px); }
+  .excel-grid { border-collapse:collapse; table-layout:fixed; min-width:100%; }
+  .excel-grid th, .excel-grid td { border:1px solid rgba(54,103,128,.25); vertical-align:middle; }
+  .excel-grid th { background:linear-gradient(180deg,rgba(201,231,243,.92),rgba(219,239,246,.86)); color:#214a60; padding:11px 8px; font-size:12px; line-height:1.4; text-align:center; font-weight:600; }
+  .excel-grid td { background:rgba(244,251,253,.66); padding:0; }
+  .excel-grid input, .excel-grid select, .excel-grid textarea {
+    border:0; border-radius:0; min-width:100%; padding:11px 8px; background:rgba(255,255,255,.18);
+  }
+  .excel-grid input:focus, .excel-grid select:focus, .excel-grid textarea:focus { background:rgba(255,255,255,.72); box-shadow:inset 0 0 0 2px rgba(23,132,188,.38); }
+  .excel-grid textarea { min-height:76px; display:block; resize:vertical; }
+  .excel-grid .err { padding:0 7px 5px; }
+  @media (max-width:640px) { body { padding:16px 10px 12px; } .hd { font-size:17px; } .field { padding:12px; } .actions { bottom:2px; } }
+</style>
+</head>
+<body>
+  <div class="hd">{{ layout.get('title') or name }}<small>请如实填写，标 <span style="color:#f53f3f">*</span> 为必填项；提交后将进入审核流程</small></div>
+  {% if layout.get('metadata') %}<div class="meta">{% for item in layout.metadata %}<div>{{ item }}</div>{% endfor %}</div>{% endif %}
+  <form id="f" novalidate>
+    {% if layout.get('presentation') == 'grid' %}
+    <div class="grid-wrap">
+      <table class="excel-grid">
+        <colgroup>{% for c in columns %}<col style="width:{{ c.get('width', 140) }}px">{% endfor %}</colgroup>
+        <thead><tr>{% for c in columns %}<th>{{ c.label }}{% if c.required %}<span class="req">*</span>{% endif %}</th>{% endfor %}</tr></thead>
+        <tbody><tr>
+          {% for c in columns %}<td>
+            {% if c.type == 'textarea' %}
+            <textarea id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %}>{{ initial.get(c.key, '') }}</textarea>
+            {% elif c.type == 'number' %}
+            <input type="number" id="f_{{ c.key }}" data-key="{{ c.key }}" data-type="number" {% if c.required %}data-req="1"{% endif %} value="{{ initial.get(c.key, '') }}">
+            {% elif c.type == 'date' %}
+            <input type="date" id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %} value="{{ initial.get(c.key, '') }}">
+            {% elif c.type == 'select' %}
+            <select id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %}><option value="">请选择</option>{% for opt in c.options %}<option value="{{ opt }}" {% if initial.get(c.key) == opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select>
+            {% else %}
+            <input type="text" id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %} value="{{ initial.get(c.key, '') }}">
+            {% endif %}
+            <div class="err" id="e_{{ c.key }}"></div>
+          </td>{% endfor %}
+        </tr></tbody>
+      </table>
+    </div>
+    {% else %}
+    {% for c in columns %}
+    <div class="field">
+      <label for="f_{{ c.key }}">{{ c.label }}{% if c.required %}<span class="req">*</span>{% endif %}<span class="tag">{{ { 'text':'单行文本','textarea':'多行文本','number':'数字','date':'日期','select':'下拉选择','table':'表格' }[c.type] }}</span></label>
+      {% if c.type == 'textarea' %}
+      <textarea id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %}>{{ initial.get(c.key, '') }}</textarea>
+      {% elif c.type == 'number' %}
+      <input type="number" id="f_{{ c.key }}" data-key="{{ c.key }}" data-type="number" {% if c.required %}data-req="1"{% endif %} value="{{ initial.get(c.key, '') }}">
+      {% elif c.type == 'date' %}
+      <input type="date" id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %} value="{{ initial.get(c.key, '') }}">
+      {% elif c.type == 'select' %}
+      <select id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %}>
+        <option value="">请选择</option>
+        {% for opt in c.options %}
+        <option value="{{ opt }}" {% if initial.get(c.key) == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <input type="text" id="f_{{ c.key }}" data-key="{{ c.key }}" {% if c.required %}data-req="1"{% endif %} value="{{ initial.get(c.key, '') }}">
+      {% endif %}
+      <div class="err" id="e_{{ c.key }}"></div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    <div class="actions">
+      <button type="button" class="cancel" id="btnDraft">保存草稿</button>
+      <button type="button" class="submit" id="btnSubmit">提交填报</button>
+    </div>
+  </form>
+<script>
+(function () {
+  // 与父页面（React 弹窗 IframeFillHost）的通信协议：submit / cancel / ready
+  var post = function (msg) { parent.postMessage(msg, '*'); };
+  var collect = function () {
+    var data = {};
+    document.querySelectorAll('[data-key]').forEach(function (n) {
+      var v = n.value;
+      if (v === '') { data[n.getAttribute('data-key')] = null; return; }
+      data[n.getAttribute('data-key')] = n.getAttribute('data-type') === 'number' ? Number(v) : v;
+    });
+    return data;
+  };
+  document.getElementById('btnSubmit').addEventListener('click', function () {
+    var ok = true;
+    document.querySelectorAll('[data-req]').forEach(function (n) {
+      var err = document.getElementById('e_' + n.getAttribute('data-key'));
+      if (!n.value || !n.value.trim()) {
+        ok = false; n.style.borderColor = '#f53f3f';
+        if (err) { err.textContent = '该项为必填'; err.style.display = 'block'; }
+      } else if (err) { err.style.display = 'none'; n.style.borderColor = ''; }
+    });
+    if (!ok) return;
+    post({ type: 'xinhere-submit', data: collect() });
+  });
+  document.getElementById('btnDraft').addEventListener('click', function () {
+    post({ type: 'xinhere-draft', data: collect() });
+  });
+  // 就绪上报：父页面据此自适应 iframe 高度
+  setTimeout(function () { post({ type: 'xinhere-ready', height: document.documentElement.scrollHeight }); }, 50);
+  // 父页面指令（预留）：重置表单
+  window.addEventListener('message', function (e) {
+    if (e.source !== parent) return;
+    if (e.data && e.data.type === 'xinhere-reset') { document.getElementById('f').reset(); }
+  });
+})();
+</script>
+</body>
+</html>

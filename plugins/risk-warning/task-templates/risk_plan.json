@@ -1,0 +1,32 @@
+{
+  "template_key": "risk_plan",
+  "name": "风险应对方案",
+  "version": 1,
+  "scene": "generic",
+  "related_system": "风险预警",
+  "review_required": true,
+  "period_rule": "natural_month",
+  "creator_roles": ["hq_finance", "company_operator"],
+  "title_rule": "{anchor_company} · 风险应对方案填报",
+  "sub_rule": "归属期：{period} · 待填报",
+  "form": {
+    "fields": [
+      { "k": "risk_desc", "label": "风险描述", "type": "textarea", "required": true, "placeholder": "描述当前指标反映出的主要风险" },
+      { "k": "cause", "label": "原因分析", "type": "textarea", "required": false },
+      { "k": "measures", "label": "应对措施", "type": "textarea", "required": true, "placeholder": "拟采取的具体应对措施" },
+      { "k": "owner", "label": "责任人", "type": "text", "required": false },
+      { "k": "deadline", "label": "完成时限", "type": "date", "required": false },
+      {
+        "k": "milestones",
+        "label": "里程碑计划",
+        "type": "table",
+        "required": false,
+        "columns": [
+          { "k": "content", "label": "事项", "type": "text" },
+          { "k": "plan_date", "label": "计划完成时间", "type": "date" }
+        ]
+      }
+    ]
+  },
+  "lamp_mode": "none"
+}

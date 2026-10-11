@@ -9,8 +9,51 @@ from langchain_openai import ChatOpenAI
 
 from ...core.config import settings
 
+import logging
 
-class _EmptyRetryChatOpenAI(ChatOpenAI):
+logger = logging.getLogger(__name__)
+
+_TOOL_UNSUPPORTED_MARK = "tool_choice"
+
+
+class FallbackChatOpenAI(ChatOpenAI):
+    """网关 vLLM 未开 tool parser（--enable-auto-tool-choice）时的容错：
+    带 tools 请求被 400 拒绝 → 去掉 tools 降级为纯文本重试一次，保证普通对话可用。
+    网关修复后工具调用自动恢复；降级期间工具类任务仅输出文字回答（日志有 warning）。"""
+
+    @staticmethod
+    def _tool_unsupported(e: Exception) -> bool:
+        return _TOOL_UNSUPPORTED_MARK in str(e) and ("400" in str(e) or "tool" in str(e).lower())
+
+    @staticmethod
+    def _strip_tools(kwargs: dict) -> dict:
+        kw = dict(kwargs)
+        kw.pop("tools", None)
+        kw.pop("tool_choice", None)
+        return kw
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        try:
+            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except Exception as e:
+            if not (kwargs.get("tools") and self._tool_unsupported(e)):
+                raise
+            logger.warning("网关不支持 tool calling，本次降级为纯文本回答（工具未执行）：%s", e)
+            return super()._generate(messages, stop=stop, run_manager=run_manager,
+                                     **self._strip_tools(kwargs))
+
+    def _stream(self, messages, stop=None, run_manager=None, **kwargs):
+        try:
+            yield from super()._stream(messages, stop=stop, run_manager=run_manager, **kwargs)
+        except Exception as e:
+            if not (kwargs.get("tools") and self._tool_unsupported(e)):
+                raise
+            logger.warning("网关不支持 tool calling，本次降级为纯文本回答（工具未执行）：%s", e)
+            yield from super()._stream(messages, stop=stop, run_manager=run_manager,
+                                       **self._strip_tools(kwargs))
+
+
+class _EmptyRetryChatOpenAI(FallbackChatOpenAI):
     """模型侧偶发「整条响应为空」（无文本、无工具调用）时自动重试的防御层。
 
     判定标准：message 无 content 且无 tool_calls/tool_call_chunks 即视为空。

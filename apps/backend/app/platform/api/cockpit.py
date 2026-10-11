@@ -18,6 +18,7 @@ from ...persistence.models import (
     SysUser,
 )
 from ...persistence.session import get_db
+from ...services import permissions as perm_svc
 from .deps import current_user, require_hq, require_perm
 from ..xuanpu_perm import PERM_COCKPIT_MANAGE
 
@@ -245,20 +246,54 @@ def _card_view(c: CockpitCard) -> dict:
     }
 
 
+SURFACES = ("dashboard", "xin_tai")
+
+
+def _scms_card_view(c: CockpitCard) -> dict:
+    """scms 侧 action/params 渲染体系视图（驾驶舱 surface 专用）。"""
+    return {
+        "id": c.id, "key": c.key, "group_key": c.group_key, "name": c.name,
+        "description": c.description, "pending": bool(c.pending),
+        "action": c.action, "params": c.params or {}, "icon": c.icon, "sort": c.sort,
+    }
+
+
 @router.get("/cards")
-def list_cards(user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
-    """分组卡片：启用分组 + 启用卡片（前端按 group_key 组装，每组一行三列）。"""
+def list_cards(surface: str = "xin_tai", user: SysUser = Depends(current_user),
+               db: Session = Depends(get_db)):
+    """分组卡片（启用组 + 启用卡，组间/组内均按 sort 升序）。
+
+    - surface=dashboard：scms 驾驶舱体系（action/params 渲染；perm_key 卡批量判权，
+      未接入放行、判权失败 fail-closed 隐藏）
+    - surface=xin_tai（默认）：Xin台体系（kind/link_url/soon 渲染）
+    """
+    if surface not in SURFACES:
+        from ...core import errors
+        raise errors.validation(f"surface 须为 {'/'.join(SURFACES)}")
     groups = db.scalars(
-        select(CockpitGroup).where(CockpitGroup.enabled.is_(True))
-        .order_by(CockpitGroup.sort, CockpitGroup.id)
+        select(CockpitGroup).where(
+            CockpitGroup.surface == surface, CockpitGroup.enabled.is_(True)
+        ).order_by(CockpitGroup.sort, CockpitGroup.id)
     ).all()
     cards = db.scalars(
-        select(CockpitCard).where(CockpitCard.enabled.is_(True))
-        .order_by(CockpitCard.sort, CockpitCard.id)
+        select(CockpitCard).where(
+            CockpitCard.enabled.is_(True),
+            CockpitCard.group_key.in_([g.key for g in groups]) if groups else False,
+        ).order_by(CockpitCard.sort, CockpitCard.id)
     ).all()
-    by_group: dict[str, list[dict]] = {}
-    for c in cards:
-        by_group.setdefault(c.group_key, []).append(_card_view(c))
+    if surface == "dashboard":
+        allowed = perm_svc.visible_perm_keys(user.user_id, [c.perm_key for c in cards if c.perm_key])
+        by_group: dict[str, list[dict]] = {}
+        for c in cards:
+            if c.perm_key and c.perm_key not in allowed:
+                continue
+            by_group.setdefault(c.group_key, []).append(_scms_card_view(c))
+        view_fn = _scms_card_view
+    else:
+        by_group = {}
+        for c in cards:
+            by_group.setdefault(c.group_key, []).append(_card_view(c))
+        view_fn = _card_view
     return {
         "items": [
             {"key": g.key, "name": g.name, "sort": g.sort, "cards": by_group.get(g.key, [])}
@@ -267,15 +302,48 @@ def list_cards(user: SysUser = Depends(current_user), db: Session = Depends(get_
     }
 
 
+def _admin_card_view(c: CockpitCard) -> dict:
+    return {
+        "id": c.id, "key": c.key, "group_key": c.group_key, "name": c.name,
+        "description": c.description, "pending": bool(c.pending),
+        "action": c.action, "params": c.params or {}, "icon": c.icon or "",
+        "sort": c.sort, "enabled": bool(c.enabled), "perm_key": c.perm_key,
+    }
+
+
+@router.get("/admin/config")
+def admin_config(user: SysUser = Depends(require_hq), db: Session = Depends(get_db)):
+    """管理端全量配置（含禁用分组/卡片、不做权限过滤），驾驶舱配置页专用。"""
+    groups = db.scalars(
+        select(CockpitGroup).order_by(CockpitGroup.surface, CockpitGroup.sort, CockpitGroup.id)
+    ).all()
+    cards = db.scalars(select(CockpitCard).order_by(CockpitCard.sort, CockpitCard.id)).all()
+    by_group: dict[str, list[dict]] = {}
+    for c in cards:
+        by_group.setdefault(c.group_key, []).append(_admin_card_view(c))
+    return {
+        "groups": [
+            {
+                "id": g.id, "key": g.key, "surface": g.surface, "name": g.name,
+                "sort": g.sort, "enabled": bool(g.enabled),
+                "cards": by_group.get(g.key, []),
+            }
+            for g in groups
+        ]
+    }
+
+
 class GroupIn(BaseModel):
     key: str
     name: str
+    surface: str = "xin_tai"
     sort: int = 0
     enabled: bool = True
 
 
 class GroupPatch(BaseModel):
     name: str | None = None
+    surface: str | None = None
     sort: int | None = None
     enabled: bool | None = None
 
@@ -285,7 +353,7 @@ def create_group(body: GroupIn, user: SysUser = Depends(require_hq),
                  db: Session = Depends(get_db)):
     if db.scalars(select(CockpitGroup).where(CockpitGroup.key == body.key)).first():
         raise errors.validation("分组标识已存在")
-    group = CockpitGroup(key=body.key, name=body.name, sort=body.sort, enabled=body.enabled)
+    group = CockpitGroup(key=body.key, name=body.name, surface=body.surface, sort=body.sort, enabled=body.enabled)
     db.add(group)
     db.flush()
     return {"id": group.id, "key": group.key, "name": group.name,
@@ -298,7 +366,7 @@ def update_group(group_id: int, body: GroupPatch, user: SysUser = Depends(requir
     group = db.get(CockpitGroup, group_id)
     if group is None:
         raise errors.not_found("分组不存在")
-    for field in ("name", "sort", "enabled"):
+    for field in ("name", "surface", "sort", "enabled"):
         val = getattr(body, field)
         if val is not None:
             setattr(group, field, val)
@@ -399,3 +467,89 @@ def delete_card(card_id: int, user: SysUser = Depends(require_perm(PERM_COCKPIT_
     db.delete(card)  # 配置表：硬删
     db.flush()
     return {"ok": True}
+
+
+# ---------------- 驾驶舱（dashboard surface）seed（scms 移植，幂等） ----------------
+
+
+SEED_DASHBOARD_GROUPS = [
+    {"key": "dashboard_scene", "surface": "dashboard", "name": "应用场景", "sort": 10},
+    {"key": "dashboard_kb", "surface": "dashboard", "name": "知识库", "sort": 20},
+    {"key": "dashboard_tool", "surface": "dashboard", "name": "AI工具", "sort": 30},
+    {"key": "dashboard_system", "surface": "dashboard", "name": "系统", "sort": 90},
+]
+SEED_DASHBOARD_CARDS = [
+    # 应用场景：报告技能引导进对话 / 简报弹窗 / 占位
+    {"key": "scene_fin_risk_report", "group_key": "dashboard_scene", "name": "风险预警财务指标报告",
+     "action": "skill_prompt", "params": {"skill": "fin_risk_report"}, "description": "生成 PPT 演示", "sort": 10},
+    {"key": "scene_post_report", "group_key": "dashboard_scene", "name": "投后管理报告",
+     "action": "skill_prompt", "params": {"skill": "post_report"}, "description": "生成 Word 报告", "sort": 20},
+    {"key": "scene_brief", "group_key": "dashboard_scene", "name": "信息简报",
+     "action": "modal", "params": {"modal": "brief"}, "description": "月度企业简报", "sort": 30},
+    # 技能执行卡：跳转对话页预选技能（⚡徽标），用户补充输入后发送执行
+    {"key": "scene_research", "group_key": "dashboard_scene", "name": "行业研究报告",
+     "action": "skills", "params": {"skill": "deep_research_v3_with_pdf"}, "sort": 40},
+    {"key": "scene_fixed_income", "group_key": "dashboard_scene", "name": "固收管理",
+     "action": "skills", "params": {"skill": "fixed-income-advisor"}, "description": "固收理财推荐", "sort": 50},
+    # 知识库
+    {"key": "kb_qingshan", "group_key": "dashboard_kb", "name": "青山知识库",
+     "action": "sso_kb", "sort": 10},
+    # AI工具：会议生成=站内功能组件（前端渲染 MeetingToolCard）；报告中心入口（基址仍走 settings）
+    {"key": "tool_meeting", "group_key": "dashboard_tool", "name": "会议生成",
+     "action": "feature", "params": {"feature": "meeting"}, "description": "实时转写 · 自动生成纪要", "sort": 10},
+    {"key": "tool_report_center", "group_key": "dashboard_tool", "name": "报告中心",
+     "action": "feature", "params": {"feature": "report_center"}, "sort": 20},
+    # 系统：SCMS 出票卡（原 config.py COCKPIT_BIZ_CARDS 迁移）
+    {"key": "dash_risk", "group_key": "dashboard_system", "name": "风险预警财务指标",
+     "action": "sso_scms", "params": {"redirect": "/finance-warning/finance-statistics-sample"}, "sort": 10},
+    {"key": "dash_kpi", "group_key": "dashboard_system", "name": "经营考核管理",
+     "action": "sso_scms", "params": {"redirect": "/management/indicator-statistics"}, "sort": 20},
+    {"key": "dash_kpi_dept", "group_key": "dashboard_system", "name": "本部部门考核",
+     "action": "sso_scms", "params": {"redirect": "/dept/annual"}, "sort": 30},
+    {"key": "dash_post", "group_key": "dashboard_system", "name": "投后管理",
+     "action": "sso_scms", "params": {"redirect": "/enterprise/company"}, "sort": 40},
+    # 管理入口：驾驶舱卡片配置页（前端路由 /config/cockpit，页面内再受 require_hq 约束）
+    {"key": "dashboard_config", "group_key": "dashboard_system", "name": "驾驶舱配置",
+     "action": "feature", "params": {"feature": "cockpit_config"}, "description": "卡片分组与入口维护", "sort": 50},
+]
+
+
+# 存量卡定向升级：seed 定义演进时，库中仍为历史 seed 原值的卡迁移到新定义（用户自定义过则不动）
+LEGACY_CARD_UPGRADES = {
+    # 行业研究报告：占位卡（skill_prompt/research + pending）→ 技能执行卡（跳对话页预选技能）
+    "scene_research": {"action": "skill_prompt", "params": {"skill": "research"}, "pending": True},
+}
+
+
+def seed_dashboard(db: Session) -> int:
+    """幂等 seed：补缺失 key；存量卡若与历史 seed 原值一致则按 LEGACY_CARD_UPGRADES 定向升级。
+    返回新增条数（调用方负责 commit）。"""
+    added = 0
+    existing_groups = set(db.scalars(select(CockpitGroup.key)).all())
+    for item in SEED_DASHBOARD_GROUPS:
+        if item["key"] in existing_groups:
+            continue
+        db.add(CockpitGroup(**item))
+        added += 1
+    rows = db.scalars(
+        select(CockpitCard).where(CockpitCard.key.in_([c["key"] for c in SEED_DASHBOARD_CARDS]))
+    ).all()
+    by_key = {r.key: r for r in rows}
+    for item in SEED_DASHBOARD_CARDS:
+        row = by_key.get(item["key"])
+        if row is None:
+            db.add(CockpitCard(**item))
+            added += 1
+            continue
+        legacy = LEGACY_CARD_UPGRADES.get(item["key"])
+        if not legacy:
+            continue
+        if (row.action == legacy["action"] and (row.params or {}) == legacy["params"]
+                and bool(row.pending) == bool(legacy.get("pending"))):
+            row.action = item["action"]
+            row.params = item.get("params")
+            row.pending = bool(item.get("pending", False))
+    db.flush()
+    return added
+
+

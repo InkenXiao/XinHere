@@ -1,0 +1,22 @@
+{
+  "template_key": "oa_generic",
+  "name": "通用审批单",
+  "version": 1,
+  "scene": "oa",
+  "related_system": "OA",
+  "review_required": true,
+  "period_rule": "none",
+  "creator_roles": [],
+  "title_rule": "{name}",
+  "sub_rule": "提交后由审批人处理",
+  "approver_role": "XT_BBBMGL",
+  "form": {
+    "fields": [
+      { "k": "subject", "label": "申请主题", "type": "text", "required": true },
+      { "k": "urgency", "label": "紧急程度", "type": "select", "required": false,
+        "options": ["普通", "紧急"] },
+      { "k": "content", "label": "申请内容", "type": "textarea", "required": true }
+    ]
+  },
+  "lamp_mode": "none"
+}

@@ -146,6 +146,11 @@ class ChatIn(BaseModel):
     skill: str | None = None
     # 跳过技能自动识别（候选确认面板选「不使用技能」重发时置位，避免再次弹层）
     no_skill_intent: bool = False
+    # scms 移植：结构化附件（/attachments/upload 上传的 id）与知识库范围（问数透传）
+    attachments: list[str] | None = None
+    spaceIds: list[int] | None = None
+    fileIds: list[int] | None = None
+    folderIds: list[int] | None = None
 
 
 def _resolve_skill(user: SysUser, skill: str | None) -> tuple[str | None, str, str, str]:
@@ -181,6 +186,32 @@ def _resolve_skill(user: SysUser, skill: str | None) -> tuple[str | None, str, s
     return prompt[:20000], local["skill_key"] if local else "", "xuanpu", (display or s)
 
 
+
+
+def _resolve_chat_attachments(db: Session, ids: list[str] | None, user: SysUser) -> tuple[list[dict], list[dict]]:
+    """附件绑定（scms 移植）：返回 (事件 AttachmentMeta 列表, LLM 注入负载列表)。"""
+    import base64
+
+    from ...services import chat_files
+
+    if not ids:
+        return [], []
+    rows = chat_files.resolve_for_chat(db, ids, user.user_id)
+    metas = [chat_files.attachment_view(r) for r in rows]
+    payloads: list[dict] = []
+    for r in rows:
+        p: dict = {"name": r.file_name, "status": r.parse_status}
+        if r.parse_status == "ok" and r.parsed_text:
+            p["text"] = r.parsed_text
+        elif r.parse_status == "failed" and r.parse_error:
+            p["error"] = r.parse_error
+        elif r.parse_status == "image" and r.size <= chat_files.IMAGE_VISION_MAX_BYTES:
+            b64 = base64.b64encode(chat_files.read_bytes(r)).decode()
+            p["data_url"] = f"data:{r.mime};base64,{b64}"
+        payloads.append(p)
+    return metas, payloads
+
+
 @router.post("/{session_id}/chat")
 async def chat(session_id: str, body: ChatIn, request: Request,
                user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
@@ -214,6 +245,8 @@ async def chat(session_id: str, body: ChatIn, request: Request,
             logger.info("chat 技能候选待确认 sid=%s user=%s cands=%s",
                         session_id, user.username, [c["sel"] for c in det["candidates"]])
             return {"needs_skill": True, "candidates": det["candidates"], "message": body.message}
+
+    att_metas, att_payloads = _resolve_chat_attachments(db, body.attachments, user)
 
     q = bridge.subscribe(session_id)
     store.append(session_id, "user/message",
@@ -258,7 +291,10 @@ async def chat(session_id: str, body: ChatIn, request: Request,
         llm_content = f"{llm_content}\n（{hint}，请严格按系统提示词中的技能约定执行）"
     executor.start_turn(session_id, user, llm_content, request_id,
                         model_key=body.model, skill_prompt=skill_prompt, skill_key=skill_key,
-                        skill_source=skill_source)
+                        skill_source=skill_source,
+        enable_web_search=body.web_search, attachments=att_payloads or None,
+        space_ids=body.spaceIds)
+
 
     async def gen():
         try:
@@ -564,3 +600,142 @@ def _do_component_submit(
     logger.info("component_submit 完成 sid=%s cid=%s action=%s event_seq=%d",
                 session_id, component_id, "cancelled" if cancelled else "submit", seq)
     return seq, summary
+
+
+# ---------------- scms 移植：知识库文件代理与报告嵌入卡端点 ----------------
+
+
+@router.get("/kb-files/{file_id}/preview")
+def kb_file_preview(file_id: int, user: SysUser = Depends(current_user)):
+    """KB 文件在线预览代理（inline，浏览器原生渲染 PDF/图片）。"""
+    return _kb_file_proxy(file_id, attachment=False)
+
+
+# 浏览器原生可渲染的 Content-Type（pdf 化端点判断：已是可直接预览的格式就原样透传）
+_DIRECT_PREVIEW_TYPES = ("application/pdf", "image/", "text/plain")
+
+
+@router.get("/kb-files/{file_id}/preview-pdf")
+def kb_file_preview_pdf(file_id: int, user: SysUser = Depends(current_user)):
+    """KB 文件 PDF 化预览代理：office 文件（ppt/pptx/doc/xls…）soffice 转 PDF 后返回，
+    前端 iframe 原生渲染（替代微软在线查看器——其云服务取不到鉴权内网文件，必然失败）。
+    非 office 或 soffice 未安装/转换失败 → 原样透传原始文件（前端按旧逻辑兜底）。"""
+    from fastapi.responses import Response, StreamingResponse
+
+    from ...platform.office_pdf import cached_pdf, convert_office_to_pdf, soffice_path
+
+    # 已有缓存直接回，不拉网关
+    cached = cached_pdf(file_id)
+    if cached:
+        return Response(cached.read_bytes(), media_type="application/pdf",
+                        headers={"Cache-Control": "no-store"})
+
+    # 非 office 格式无需转换
+    resp = _kb_file_proxy(file_id, attachment=False)
+    if not isinstance(resp, StreamingResponse):
+        return resp
+    ctype = (resp.media_type or "").lower()
+    if soffice_path() is None or any(ctype.startswith(t) for t in _DIRECT_PREVIEW_TYPES):
+        return resp
+
+    # 读全量字节再转换（KB 文件上限约几十 MB，可接受；转完即缓存，后续请求不再拉网关）
+    import asyncio
+
+    async def _collect() -> bytes:
+        return b"".join([chunk async for chunk in resp.body_iterator])
+
+    try:
+        body = asyncio.run(_collect())
+    except Exception:
+        logger.warning("KB 文件拉流失败 file_id=%s（PDF 化预览）", file_id)
+        raise errors.upstream("知识库服务暂不可用")
+    if not body:
+        return Response(b"", media_type=ctype, headers={"Cache-Control": "no-store"})
+
+    ext = "ppt"
+    disposition = resp.headers.get("content-disposition", "") if resp.headers else ""
+    import re
+
+    m = re.search(r'filename="([^"]*\.[A-Za-z0-9]+)"', disposition)
+    if m:
+        ext = m.group(1).rsplit(".", 1)[-1].lower()
+
+    try:
+        pdf_path = convert_office_to_pdf(file_id, body, ext)
+    except RuntimeError as exc:
+        logger.warning("KB 文件 PDF 化失败 file_id=%s：%s，回落原始文件预览", file_id, exc)
+        return Response(body, media_type=resp.media_type or "application/octet-stream",
+                        headers={"Cache-Control": "no-store"})
+    return Response(pdf_path.read_bytes(), media_type="application/pdf",
+                    headers={"Cache-Control": "no-store"})
+
+
+@router.get("/kb-files/{file_id}/download")
+def kb_file_download(file_id: int, user: SysUser = Depends(current_user)):
+    """KB 文件下载代理（透传网关 attachment Content-Disposition 触发保存）。"""
+    return _kb_file_proxy(file_id, attachment=True)
+
+
+@router.post("/{session_id}/report-cards/{card_id}/bind")
+def bind_report_card(
+    session_id: str, card_id: str, body: ReportBindIn,
+    user: SysUser = Depends(current_user), db: Session = Depends(get_db),
+):
+    """报告嵌入卡回流持久化键：把报告系统 postMessage 回来的 sessionId/reportId
+    追加为 report/session-bound 事件（append-only，不改历史），历史回放据此切 view 模式。"""
+    s = _get_session(db, session_id, user)  # 归属校验
+    if body.kind not in ("word", "ppt"):
+        raise errors.validation("kind 必须是 word 或 ppt")
+    if body.status not in ("generating", "done", "restored"):
+        raise errors.validation("status 必须是 generating/done/restored")
+    key = body.session_key.strip()
+    if not key:
+        raise errors.validation("session_key 不能为空")
+    # 卡片存在性：session-bound 必须挂在本会话已存在的 embed-card 上，防凭空事件
+    exists = db.scalar(
+        select(PlatformSessionEvent.seq)
+        .where(PlatformSessionEvent.session_id == s.session_id,
+               PlatformSessionEvent.type == "report/embed-card",
+               PlatformSessionEvent.data["card_id"].astext == card_id)
+        .limit(1)
+    )
+    if exists is None:
+        raise errors.not_found("报告卡片不存在")
+    store.append(session_id, "report/session-bound",
+                 {"card_id": card_id, "kind": body.kind, "status": body.status,
+                  "session_key": key, "user_id": (body.user_id or "").strip() or None,
+                  "version": 1},
+                 turn=None)
+    return {"ok": True}
+
+
+@router.post("/{session_id}/report-cards/{card_id}/choose-params")
+def choose_report_params(
+    session_id: str, card_id: str, body: ParamsChosenIn,
+    user: SysUser = Depends(current_user), db: Session = Depends(get_db),
+):
+    """两步报告卡第一步的参数选择回流：追加 report/params-chosen 事件（append-only），
+    历史回放据此把 form 卡还原成已选参数的 embed 形态。
+    财务风险卡（fin_risk）参数只有报告期间，company/company_id 可空。"""
+    s = _get_session(db, session_id, user)
+    company = body.company.strip()
+    period = body.period.strip()
+    card = db.execute(
+        select(PlatformSessionEvent.data)
+        .where(PlatformSessionEvent.session_id == s.session_id,
+               PlatformSessionEvent.type == "report/embed-card",
+               PlatformSessionEvent.data["card_id"].astext == card_id)
+        .limit(1)
+    ).scalar_one_or_none()
+    if card is None:
+        raise errors.not_found("报告卡片不存在")
+    is_fin_risk = (card.get("report_type") == "fin_risk")
+    if not period:
+        raise errors.validation("period 不能为空")
+    if not is_fin_risk and (not company or not body.company_id):
+        raise errors.validation("company/company_id/period 均不能为空")
+    store.append(session_id, "report/params-chosen",
+                 {"card_id": card_id, "company": company,
+                  "company_id": body.company_id, "period": period, "version": 1},
+                 turn=None)
+    return {"ok": True}

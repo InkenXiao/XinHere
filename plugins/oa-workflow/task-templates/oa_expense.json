@@ -1,0 +1,23 @@
+{
+  "template_key": "oa_expense",
+  "name": "费用报销",
+  "version": 1,
+  "scene": "oa",
+  "related_system": "OA",
+  "review_required": true,
+  "period_rule": "none",
+  "creator_roles": [],
+  "title_rule": "{name}",
+  "sub_rule": "提交后由审批人处理",
+  "approver_role": "QYCWRE",
+  "form": {
+    "fields": [
+      { "k": "expense_type", "label": "费用类型", "type": "select", "required": true,
+        "options": ["差旅费", "办公费", "业务招待费", "培训费", "其他"] },
+      { "k": "amount", "label": "报销金额（元）", "type": "number", "required": true },
+      { "k": "occur_date", "label": "费用发生日期", "type": "date", "required": false, "placeholder": "YYYY-MM-DD" },
+      { "k": "detail", "label": "费用明细说明", "type": "textarea", "required": true, "placeholder": "列明费用构成，如交通/住宿/餐费" }
+    ]
+  },
+  "lamp_mode": "none"
+}

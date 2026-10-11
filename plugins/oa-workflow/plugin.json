@@ -1,0 +1,13 @@
+{
+  "name": "oa-workflow",
+  "version": "0.1.0",
+  "domain": "oa",
+  "description": "企业级 OA 最小版：待办/审批/个人任务派发处理，RuoYi RBAC mock 权限",
+  "tools": ["oa_create_task", "oa_submit_request", "oa_my_dashboard", "oa_audit"],
+  "events": [],
+  "component": { "kinds": ["oa-dispatch-confirm", "oa-request-card", "oa-audit-card"], "version": 1 },
+  "permissions": { "tables": [] },
+  "agent_tools": true,
+  "agent_prompt": "5. OA 事务（oa_create_task / oa_submit_request / oa_my_dashboard / oa_audit）：用户提到请假、报销、审批、OA 待办、给自己或他人安排任务等 OA 事务时，优先使用 oa_* 工具而非通用待办工具：发起审批申请用 oa_submit_request（template_key 取 oa_leave 请假 / oa_expense 报销 / oa_generic 通用审批单；form_values 从对话上下文提取，不得编造）；安排或派发 OA 任务用 oa_create_task（用户给自己记一条待办也用它，assignees 传自己）；查询「我的待办 / 待我审批 / 我发起的申请」用 oa_my_dashboard；审批人逐条审批用 oa_audit。出卡后等用户在卡上操作，不要代答、不要重复确认；提示权限不足时如实转告。",
+  "event_namespace": "oa"
+}

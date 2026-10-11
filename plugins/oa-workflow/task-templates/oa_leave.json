@@ -1,0 +1,24 @@
+{
+  "template_key": "oa_leave",
+  "name": "请假申请",
+  "version": 1,
+  "scene": "oa",
+  "related_system": "OA",
+  "review_required": true,
+  "period_rule": "none",
+  "creator_roles": [],
+  "title_rule": "{name}",
+  "sub_rule": "提交后由审批人处理",
+  "approver_role": "XT_BBBMGL",
+  "form": {
+    "fields": [
+      { "k": "leave_type", "label": "请假类型", "type": "select", "required": true,
+        "options": ["年假", "事假", "病假", "调休", "婚假", "产假", "其他"] },
+      { "k": "start_date", "label": "开始日期", "type": "date", "required": true, "placeholder": "YYYY-MM-DD" },
+      { "k": "end_date", "label": "结束日期", "type": "date", "required": true, "placeholder": "YYYY-MM-DD" },
+      { "k": "duration", "label": "请假天数", "type": "number", "required": true },
+      { "k": "reason", "label": "请假事由", "type": "textarea", "required": true, "placeholder": "简要说明请假原因" }
+    ]
+  },
+  "lamp_mode": "none"
+}
