@@ -68,6 +68,10 @@ export default function App() {
     b.classList.toggle('kanban-open', kanbanOpen)
   }, [mode, historyOpen, historyPinned, kanbanOpen])
 
+  // scms hash 三页（#/oa 等）整屏接管；hook 必须先于任何条件 return
+  const hashPage = useHashPage()
+  if (hashPage) return <HashPages page={hashPage} />
+
   if (!ready) return <section className="layer layer-tower"><div className="bg" /></section>
   // 青山知识库层（登录态无关都要渲染：未登录也可能从开屏进入）：自下向上推进入场，
   // 内嵌知识库平台首页（KB_URL，运行时/构建期配置）；未配置或加载期间露出青绿山水加载幕
@@ -79,9 +83,6 @@ export default function App() {
       )}
     </section>
   )
-  const hashPage = useHashPage()
-  if (hashPage) return <HashPages page={hashPage} />
-
   if (!token) {
     return (
       <>
