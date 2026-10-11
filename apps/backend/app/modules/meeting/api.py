@@ -49,7 +49,7 @@ async def create_meeting(
     """创建新会议，状态为 recording。前置 Fail-Fast 校验 XuanPu 存储服务就绪状态。"""
     xuanpu = get_xuanpu_client()
     if not await xuanpu.check_health():
-        raise errors.AppError(503, "存储服务未就绪，请联系管理员启动 XuanPu")
+        raise errors.AppError("UPSTREAM_ERROR", "存储服务未就绪，请联系管理员启动 XuanPu", 503)
 
     rec = service.create_meeting(
         db=db,
@@ -168,7 +168,7 @@ async def stop_meeting(
 
     xuanpu = get_xuanpu_client()
     if not await xuanpu.check_health():
-        raise errors.AppError(503, "存储服务未就绪，请联系管理员启动 XuanPu")
+        raise errors.AppError("UPSTREAM_ERROR", "存储服务未就绪，请联系管理员启动 XuanPu", 503)
 
     # 关键状态同步：立即将内存态与持久态置为 processing，杜绝并发查询或即刻点看板时的状态回退
     if active_m:
@@ -589,14 +589,14 @@ async def stream_audio(
         else:
             await resp.aclose()
             await client.aclose()
-            raise errors.AppError(503, "存储服务未就绪，请联系管理员启动 XuanPu")
+            raise errors.AppError("UPSTREAM_ERROR", "存储服务未就绪，请联系管理员启动 XuanPu", 503)
     except errors.AppError:
         await client.aclose()
         raise
     except Exception as exc:
         await client.aclose()
         logger.warning("向 XuanPu 请求音频流异常: %s", exc)
-        raise errors.AppError(503, "存储服务未就绪，请联系管理员启动 XuanPu") from exc
+        raise errors.AppError("UPSTREAM_ERROR", "存储服务未就绪，请联系管理员启动 XuanPu", 503) from exc
 
 
 @router.post("/{meeting_id}/actions/{item_index}/dispatch")

@@ -934,8 +934,8 @@ async def generate_minutes_from_transcript(
             getattr(resp, "additional_kwargs", {}),
         )
         if finish_reason == "length":
-            raise errors.AppError(502, "大模型生成因超出 Token 上限被截断，未生成正文纪要")
-        raise errors.AppError(502, "大模型未能生成有效会议纪要正文")
+            raise errors.AppError("UPSTREAM_ERROR", "大模型生成因超出 Token 上限被截断，未生成正文纪要", 502)
+        raise errors.AppError("UPSTREAM_ERROR", "大模型未能生成有效会议纪要正文", 502)
 
     # 提取 JSON 与 Markdown
     json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", full_result, re.DOTALL)
@@ -1066,7 +1066,7 @@ async def finalize_meeting_task(meeting_id: str, user_id: str, reason: str = "ma
                     )
                 except Exception as exc:
                     logger.error("音频直传 XuanPu 异常，Fail-Fast 终止归档: %s", exc)
-                    raise errors.AppError(503, STORAGE_NOT_READY_MSG) from exc
+                    raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503) from exc
 
             async def _generate_minutes_with_llm() -> tuple[str, str, list[dict[str, Any]], str]:
                 try:
@@ -1153,13 +1153,13 @@ async def finalize_meeting_task(meeting_id: str, user_id: str, reason: str = "ma
                 save_res = await xuanpu.call_tool("xuanpu_meeting_save", xuanpu_save_data, user_name=username)
                 if isinstance(save_res, str) and ("失败" in save_res or "Error" in save_res):
                     logger.error("XuanPu 保存会议资产报错: %s", save_res)
-                    raise errors.AppError(503, STORAGE_NOT_READY_MSG)
+                    raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503)
                 logger.info("会议 %s 成功归档持久化至 XuanPu pro_meeting_records", meeting_id)
             except errors.AppError:
                 raise
             except Exception as save_err:
                 logger.error("保存至 XuanPu MCP 异常，Fail-Fast 终止: %s", save_err)
-                raise errors.AppError(503, STORAGE_NOT_READY_MSG) from save_err
+                raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503) from save_err
 
             # 4. 收到成功响应后，物理清理本地临时切片与合并音频 (本地 0 音频残留)
             try:
@@ -1270,12 +1270,12 @@ async def list_meetings_xuanpu(
                 })
             total = res.get("total", len(remote_items)) + len(in_memory_items)
             return in_memory_items + remote_items, total
-        raise errors.AppError(503, STORAGE_NOT_READY_MSG)
+        raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503)
     except errors.AppError:
         raise
     except Exception as exc:
         logger.warning("从 XuanPu 获取会议列表失败，实行 Fail-Fast: %s", exc)
-        raise errors.AppError(503, STORAGE_NOT_READY_MSG) from exc
+        raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503) from exc
 
 
 def format_last_active_iso(val: Any) -> Optional[str]:
@@ -1464,7 +1464,7 @@ async def get_meeting_xuanpu(
         if "404" in err_msg or "不存在" in err_msg:
             raise errors.not_found("会议不存在或无权访问")
         logger.warning("从 XuanPu 获取会议详情失败，实行 Fail-Fast: %s", exc)
-        raise errors.AppError(503, STORAGE_NOT_READY_MSG) from exc
+        raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503) from exc
 
 
 def get_active_meeting_data(db: Session, user_id: str, username: str) -> Optional[dict[str, Any]]:
@@ -1764,12 +1764,12 @@ async def rename_speaker(
             try:
                 res = await client.call_tool("xuanpu_meeting_save", payload, user_name=username)
                 if isinstance(res, str) and ("失败" in res or "Error" in res):
-                    raise errors.AppError(503, STORAGE_NOT_READY_MSG)
+                    raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503)
             except errors.AppError:
                 raise
             except Exception as exc:
                 logger.error("说话人改名回写 XuanPu 失败 meeting=%s: %s", meeting_id, exc)
-                raise errors.AppError(503, STORAGE_NOT_READY_MSG) from exc
+                raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503) from exc
             updated_count = xuanpu_updated
 
     # 7. SSE 广播实时刷新
@@ -1924,7 +1924,7 @@ async def delete_meeting_xuanpu(
             # 远端已不存在但本地有历史残留，允许幂等清理
         else:
             logger.warning("向 XuanPu 请求删除会议资产异常: %s", exc)
-            raise errors.AppError(503, STORAGE_NOT_READY_MSG) from exc
+            raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503) from exc
 
     # 3. 清理本地临时文件目录
     shutil.rmtree(MEETING_LOCAL_DIR / meeting_id, ignore_errors=True)
@@ -2023,12 +2023,12 @@ async def regenerate_meeting_minutes(
             save_res = await xuanpu.call_tool("xuanpu_meeting_save", xuanpu_save_data, user_name=username)
             if isinstance(save_res, str) and ("失败" in save_res or "Error" in save_res):
                 logger.error("XuanPu 保存重生成纪要报错: %s", save_res)
-                raise errors.AppError(503, STORAGE_NOT_READY_MSG)
+                raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503)
         except errors.AppError:
             raise
         except Exception as save_err:
             logger.error("保存重生成纪要至 XuanPu 异常: %s", save_err)
-            raise errors.AppError(503, STORAGE_NOT_READY_MSG) from save_err
+            raise errors.AppError("UPSTREAM_ERROR", STORAGE_NOT_READY_MSG, 503) from save_err
 
         # 同步更新本地数据库临时记录（若存在）
         with SessionLocal() as db:
@@ -2306,7 +2306,7 @@ async def writeback_action_items(
                 await asyncio.sleep(0.5 * (2 ** attempt))
 
     logger.error("回写 XuanPu action_items 最终失败 (重试 %d 次): %s", max_retries, last_exc)
-    raise errors.AppError(503, f"回写 XuanPu 失败: {last_exc}")
+    raise errors.AppError("UPSTREAM_ERROR", f"回写 XuanPu 失败: {last_exc}", 503)
 
 
 async def dispatch_meeting_action(
@@ -2402,7 +2402,7 @@ async def dispatch_meeting_action(
             if isinstance(exc, errors.AppError):
                 raise
             logger.exception("单条派发失败 (meeting_id=%s, item=%d): %s", meeting_id, item_index, exc)
-            raise errors.AppError(503, f"派发待办失败: {exc}") from exc
+            raise errors.AppError("UPSTREAM_ERROR", f"派发待办失败: {exc}", 503) from exc
 
 
 async def batch_dispatch_meeting_actions(
