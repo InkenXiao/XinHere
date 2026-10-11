@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
+from .core import config_check
 from .core.config import settings
 from .core.context import AuditCtx, reset_ctx, set_ctx
 from .core.errors import AppError
@@ -146,7 +147,12 @@ async def internal_handler(request: Request, exc: Exception):
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True}
+    cc = config_check.last_result()
+    return {
+        "ok": True,
+        "config_check": {"ok": cc["ok"], "problems": cc["problems"], "warnings": cc["warnings"]},
+        "daemons": {},
+    }
 
 
 API = "/api/v1"
@@ -162,6 +168,7 @@ for r in (
 
 @app.on_event("startup")
 def startup():
+    config_check.enforce()  # 配置健康检查：域开关→必填项矩阵，缺依赖拒绝启动（Fail-Fast）
     discover()  # 插件装配 fail-loud
     logger.info("启动：插件装配完成")
 

@@ -9,12 +9,30 @@ langgraph==1.2.11
 langchain-openai==1.5.1
 deepagents==0.7.6
 langgraph-checkpoint-postgres==3.1.2
+langfuse==4.15.4  # LLM 观测（LANGFUSE_*，未配置不追踪；platform/agent/tracing.py）
 alembic==1.19.1
 sse-starlette==3.4.8
 bcrypt==5.0.0
+python-multipart==0.0.32  # multipart/form-data 解析（附件上传）
 pytest==9.1.1
-python-multipart==0.0.20
 PyMuPDF==1.26.3
 # 行研报告技能 PDF 成对交付（md2pdf.py）
 weasyprint==70.0
 markdown==3.10.3
+# 对象存储（MINIO_*，未配置回退本地磁盘）
+minio==7.2.20
+# MCP 服务端：/mcp streamable http 同进程挂载（默认关）
+fastmcp==4.0.2
+# 信息填报/Excel 解析（dynamic_template；xlrd 兼容旧 .xls）
+openpyxl==3.1.5
+xlrd==2.0.2
+# 对话附件解析（chat_files）
+pypdf==6.18.0  # 6.18.1 阿里云镜像未同步，Docker 构建会挂
+python-docx==1.2.0
+python-pptx==1.0.2
+# 填报页/汇总页 HTML 模板渲染
+jinja2==3.1.4
+# 声纹 embedding 推理（CAM++ ONNX，CPU；VOICEPRINT_ENABLED=false 时零开销）
+numpy==2.2.6
+onnxruntime==1.22.1
+kaldi-native-fbank==1.19.3  # 80 维 fbank 特征（CAM++ ONNX 部署同款特征前端）
