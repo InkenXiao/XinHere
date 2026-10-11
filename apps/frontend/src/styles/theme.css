@@ -1687,10 +1687,6 @@ body.mode-recorder #root, .rc-app { height: 100%; }
 .form-msg.ok { color: #10b981; }
 .form-msg.err { color: #ef4444; }
 
-/* TopBar 工作台扩展入口（hash 三页） */
-.tb-hashlinks { display: flex; gap: 6px; }
-.tb-hashlinks button { border: 1px solid var(--bd, #2a3242); background: transparent; color: var(--tx-2, #9aa4b2); border-radius: 8px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
-.tb-hashlinks button:hover { color: var(--tx-1, #e8edf3); border-color: var(--ac, #3b82f6); }
 
 /* 驾驶舱「信息填报」入口（右上角浮动） */
 .cp-fill-entry { position: absolute; top: 14px; right: 18px; z-index: 30; border: 1px solid var(--bd, #2a3242); background: color-mix(in srgb, var(--ac, #3b82f6) 14%, transparent); color: var(--tx-1, #e8edf3); border-radius: 999px; padding: 5px 14px; font-size: 12px; cursor: pointer; }

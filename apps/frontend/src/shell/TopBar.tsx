@@ -45,11 +45,6 @@ export default function TopBar() {
       </div>
       <span />
       <div className="topbar-right">
-        <nav className="tb-hashlinks" aria-label="工作台扩展入口">
-          <button type="button" onClick={() => { window.location.hash = '#/oa' }} title="OA 中心">OA</button>
-          <button type="button" onClick={() => { window.location.hash = '#/repo-alerts' }} title="逆回购行情提醒">行情</button>
-          <button type="button" onClick={() => { window.location.hash = '#/config/cockpit' }} title="驾驶舱卡片配置">配置</button>
-        </nav>
         <span className={`conn-dot ${connStatus === 'reconnecting' ? 'reconnecting' : ''}`}>
           <i />
           {connStatus === 'reconnecting' ? '重连中' : '已连接'}
@@ -77,6 +72,32 @@ export default function TopBar() {
                     <i />
                   </button>
                 </div>
+              )}
+              <button
+                onClick={() => {
+                  setMenuOpen(false)
+                  window.location.hash = '#/oa'
+                }}
+              >
+                OA 中心
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false)
+                  window.location.hash = '#/repo-alerts'
+                }}
+              >
+                逆回购行情
+              </button>
+              {(user?.permissions ?? []).includes('xinhere.cockpit.manage') && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    window.location.hash = '#/config/cockpit'
+                  }}
+                >
+                  驾驶舱配置
+                </button>
               )}
               <button
                 onClick={() => {
