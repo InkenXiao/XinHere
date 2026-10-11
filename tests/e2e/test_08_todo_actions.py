@@ -50,12 +50,39 @@ def test_feedback_then_complete(hq, inv, db, hq_auth, inv_auth):
     review = _hq_todo_by_src(hq, todo_id, "feedback_review")
     assert review is not None, "hq01 缺 feedback_review 待办"
 
-    # hq01 对原待办 complete → completed
-    done = hq.ok("POST", f"/todos/{todo_id}/complete")
+    # 两段式语义（scms 任务内核）：原待办 complete 仅限承办人本人（hq 操作应 403）
+    import pytest
+    from .conftest import E2E as _E2E  # noqa: F401
+    r = hq.post(f"/todos/{todo_id}/complete")
+    assert r.status_code == 403, "非承办人 complete 应被拒（两段式内核安全语义）"
+
+    # 派发人闭环 = 完成自己的 feedback_review 待办
+    done = hq.ok("POST", f"/todos/{review['todo_id']}/complete")
     assert done["status"] == "completed"
+
+    # 正典两段式：review_required 任务 经 submit(承办人)→review(派发人通过) 终结
+    task_id2, todo_id2 = gen_id(), gen_id()
+    with db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO biz_tasks (task_id, scene, title, dispatcher_id, payload, period, status, review_required)"
+            " VALUES (%s, 'generic', %s, %s, '{}'::jsonb, NULL, 'open', true)",
+            (task_id2, f"{E2E} 两段式待办", hq_auth["user"]["user_id"]),
+        )
+        cur.execute(
+            "INSERT INTO biz_todos (todo_id, task_id, assignee_id, kind, scene, title, sub, status, ref)"
+            " VALUES (%s, %s, %s, 'action', 'generic', %s, %s, 'pending', '{}'::jsonb)",
+            (todo_id2, task_id2, inv_auth["user"]["user_id"],
+             f"{E2E} 两段式待办", "派送人：李工 · 两段式"),
+        )
+    sub = inv.ok("POST", f"/todos/{todo_id2}/submit",
+                 json={"completion_text": f"{E2E} 已按要求完成"})
+    assert sub["status"] == "submitted"
+    passed = hq.ok("POST", f"/todos/{todo_id2}/review",
+                   json={"approve": True, "comment": f"{E2E} 审核通过"})
+    assert passed["status"] == "completed"
     st = wait_until(
         lambda: db_one(db, "SELECT status FROM biz_todos WHERE todo_id=%s AND status='completed'",
-                       (todo_id,))
+                       (todo_id2,))
     )
     assert st, "DB 未落 completed"
 
