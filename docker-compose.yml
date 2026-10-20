@@ -8,12 +8,12 @@
 # 一次性发布入口：bash deploy/publish.sh（含前端构建、依赖检测、alembic 迁移、启动）
 # ----------------------------------------------------------------------------
 services:
-  xinhere-backend:
+  xinhere-backend-xp:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    image: xinhere-backend:latest
-    container_name: xinhere-backend
+    image: xinhere-backend-xp:latest
+    container_name: xinhere-backend-xp
     env_file:
       # 唯一配置文件（基础设施 + SSO + 模型 + 前端 VITE_* 运行时配置）
       - .docker.env
@@ -41,12 +41,12 @@ services:
     networks:
       - ai_network
 
-  xinhere-frontend:
+  xinhere-frontend-xp:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    image: xinhere-frontend:latest
-    container_name: xinhere-frontend
+    image: xinhere-frontend-xp:latest
+    container_name: xinhere-frontend-xp
     env_file:
       # 与 backend 共用唯一配置文件（VITE_* 经 nginx entrypoint 渲染为 config.js）
       - .docker.env
@@ -57,7 +57,7 @@ services:
     # 不发布宿主端口：宿主 8096 已由外部 nginx 容器 (tool/nginx) 持有并对外提供 https 入口
     # (listen 8096 ssl)；外部 nginx 经 ai_network 静态 IP 直连本容器（见 networks 段）
     depends_on:
-      xinhere-backend:
+      xinhere-backend-xp:
         condition: service_healthy
     restart: no
     networks:
