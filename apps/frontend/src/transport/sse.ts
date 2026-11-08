@@ -45,7 +45,7 @@ export async function* parseSse(stream: ReadableStream<Uint8Array>): AsyncGenera
   }
 }
 
-/** SSE 帧 → 平台事件（data JSON 中 seq/time 提升，其余为 payload） */
+/** SSE 帧 → 平台事件（data JSON 中 seq/time/ignorable 提升，其余为 payload） */
 export function frameToEvent(frame: SseFrame): PlatformEvent | null {
   let parsed: Record<string, unknown>
   try {
@@ -53,12 +53,14 @@ export function frameToEvent(frame: SseFrame): PlatformEvent | null {
   } catch {
     return null
   }
-  const { seq, time, ...payload } = parsed
+  const { seq, time, ignorable, ...payload } = parsed
   return {
     seq: typeof seq === 'number' ? seq : -1,
     type: frame.event,
     time: typeof time === 'string' ? time : new Date().toISOString(),
     data: payload,
+    // ignorable 只影响前端跳过（装配器 fail-closed 前的豁免），不影响事件日志
+    ignorable: ignorable === true,
   }
 }
 

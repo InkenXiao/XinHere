@@ -56,6 +56,17 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
 
+    # ---------- OpenTelemetry 最小闭环（P7 前置；与 Langfuse 相互独立） ----------
+    otel_exporter: str = "console"  # none=不上报 / console=本地 stdout / otlp=本地或远端 collector
+    otel_otlp_endpoint: str = "http://localhost:4318/v1/traces"
+
+    # ---------- P7a 请求侧上下文裁剪（checkpoint 不动，只过滤进模型请求的 messages） ----------
+    agent_trim_enabled: bool = True
+    agent_trim_budget_tokens: int = 24000  # 单次请求 messages 估算 token 预算
+    agent_trim_recent_turns: int = 6  # 保留最近 N 个对话轮（完整轮内不做裁剪）
+    agent_trim_tool_head_chars: int = 400  # 陈旧 tool result 保留头部字符数
+    agent_trim_tool_tail_chars: int = 400  # 陈旧 tool result 保留尾部字符数
+
     # ---------- 语音转写 ----------
     # ASR 提供方：xuanpu=经玄圃 pro-cowork 转写（默认，WorkBuddy 语音输入链路）；
     # gateway=经 LLM 网关同源 ASR（scms 会议管线/声纹采样链路）

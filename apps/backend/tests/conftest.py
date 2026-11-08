@@ -28,6 +28,25 @@ def _audit_ctx():
     yield
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _otel_silent():
+    """测试进程静默 OTel：otel_exporter 置 none，任何 span helper 触发 tracer() 兜底时
+    只建 provider 不挂 processor（无导出线程、无 atexit flush）——避免 console exporter
+    持有 pytest 已关闭的 stdout 在退出时报 I/O 噪音。需要 trace 断言的测试在各自模块
+    fixture 里 reset 后显式注入 InMemorySpanExporter。"""
+    from app.core.config import settings
+    from app.platform.agent import otel
+
+    prev = settings.otel_exporter
+    settings.otel_exporter = "none"
+    otel.reset_for_tests()
+    otel.setup_otel()
+    yield
+    settings.otel_exporter = prev
+    otel.shutdown_otel()
+    otel.reset_for_tests()
+
+
 @pytest.fixture
 def db():
     s = SessionLocal()

@@ -8,6 +8,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from langchain_openai import ChatOpenAI
 
 from ...core.config import settings
+from . import otel
 
 import logging
 
@@ -19,11 +20,17 @@ _TOOL_UNSUPPORTED_MARK = "tool_choice"
 class FallbackChatOpenAI(ChatOpenAI):
     """网关 vLLM 未开 tool parser（--enable-auto-tool-choice）时的容错：
     带 tools 请求被 400 拒绝 → 去掉 tools 降级为纯文本重试一次，保证普通对话可用。
-    网关修复后工具调用自动恢复；降级期间工具类任务仅输出文字回答（日志有 warning）。"""
+    网关修复后工具调用自动恢复；降级期间工具类任务仅输出文字回答（日志有 warning）。
+    另：网关不支持 stream_options.include_usage 时降级关闭 stream_usage 重试。"""
 
     @staticmethod
     def _tool_unsupported(e: Exception) -> bool:
         return _TOOL_UNSUPPORTED_MARK in str(e) and ("400" in str(e) or "tool" in str(e).lower())
+
+    @staticmethod
+    def _usage_unsupported(e: Exception) -> bool:
+        s = str(e).lower()
+        return "stream_options" in s or "include_usage" in s or ("usage" in s and "400" in s)
 
     @staticmethod
     def _strip_tools(kwargs: dict) -> dict:
@@ -46,6 +53,11 @@ class FallbackChatOpenAI(ChatOpenAI):
         try:
             yield from super()._stream(messages, stop=stop, run_manager=run_manager, **kwargs)
         except Exception as e:
+            if self.stream_usage and self._usage_unsupported(e):
+                logger.warning("网关不支持 stream_options(include_usage)，降级关闭流式 token 统计：%s", e)
+                self.stream_usage = False
+                yield from super()._stream(messages, stop=stop, run_manager=run_manager, **kwargs)
+                return
             if not (kwargs.get("tools") and self._tool_unsupported(e)):
                 raise
             logger.warning("网关不支持 tool calling，本次降级为纯文本回答（工具未执行）：%s", e)
@@ -103,6 +115,68 @@ class _EmptyRetryChatOpenAI(FallbackChatOpenAI):
                 return
 
 
+class _OTelChatOpenAI(_EmptyRetryChatOpenAI):
+    """观测层（可观测性最小闭环）：LLM 调用 OTel span（token_usage / step / depth）
+    + P7a 请求侧裁剪挂钩。
+
+    - 裁剪只影响发给模型的 messages 列表（trimming.trim_for_request），checkpoint
+      历史不动，tool call/result 配对不被破坏；
+    - span 父子：图线程内自然挂靠（agent.run 或 subagent.run 之下）；
+    - 非流式读 usage_metadata；流式取最后一个带 usage 的 chunk；
+    - 全部 fail-soft：观测/裁剪异常不改变模型调用语义。
+    """
+
+    @staticmethod
+    def _prepare(messages: list[BaseMessage]) -> list[BaseMessage]:
+        try:
+            from .trimming import trim_for_request
+
+            return trim_for_request(messages)
+        except Exception:  # noqa: BLE001
+            return messages
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: Optional[list[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        msgs = self._prepare(messages)
+        with otel.llm_span(model=self.model_name, channel="", message_count=len(msgs),
+                           prompt_chars=sum(len(str(m.content)) for m in msgs)) as obs:
+            try:
+                result = super()._generate(msgs, stop=stop, run_manager=run_manager, **kwargs)
+                if result.generations:
+                    obs.set_usage(result.generations[0].message.usage_metadata)
+                return result
+            except Exception as exc:  # noqa: BLE001
+                obs.set_error(exc)
+                raise
+
+    def _stream(
+        self,
+        messages: list[BaseMessage],
+        stop: Optional[list[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> Iterator[ChatGenerationChunk]:
+        msgs = self._prepare(messages)
+        with otel.llm_span(model=self.model_name, channel="", message_count=len(msgs),
+                           prompt_chars=sum(len(str(m.content)) for m in msgs)) as obs:
+            try:
+                usage = None
+                for chunk in super()._stream(msgs, stop=stop, run_manager=run_manager, **kwargs):
+                    u = getattr(chunk.message, "usage_metadata", None)
+                    if u:
+                        usage = u
+                    yield chunk
+                obs.set_usage(usage)
+            except Exception as exc:  # noqa: BLE001
+                obs.set_error(exc)
+                raise
+
+
 def build_model(channel: str = "main", *, user_id: str | None = None, **overrides) -> ChatOpenAI:
     """推理型模型：max_tokens 必须 >=4096；reasoning_content 不入历史（langchain 放 additional_kwargs）。
 
@@ -131,12 +205,13 @@ def build_model(channel: str = "main", *, user_id: str | None = None, **override
             key = pref.get("api_key") or key
             name = pref.get("model") or name
             mt = int(pref.get("max_tokens") or 0) or mt
-    return _EmptyRetryChatOpenAI(
+    return _OTelChatOpenAI(
         base_url=url,
         api_key=key,
         model=name,
         max_tokens=max(mt, 4096),
         timeout=120,
+        stream_usage=True,  # 流式响应末尾携带 usage_metadata（网关不支持时自动降级）
         **overrides,
     )
 

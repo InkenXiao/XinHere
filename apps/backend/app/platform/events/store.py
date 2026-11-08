@@ -79,7 +79,8 @@ class EventStore:
         if type_ != "assistant/chunk":
             logger.info("事件落库 sid=%s seq=%d type=%s turn=%s", session_id, next_seq, type_, turn)
         if publish:
-            self._publish(session_id, next_seq, type_, evt_time, payload)
+            self._publish(session_id, next_seq, type_, evt_time, payload,
+                          ignorable=row.ignorable)
         return next_seq, evt_time
 
     def append_chunk(self, session_id: str, data: dict, *, turn: int | None = None) -> None:
@@ -163,7 +164,7 @@ class EventStore:
             for row in rows:
                 out.append((row.seq, row.time, row.data))
         for seq, t, payload in out:
-            self._publish(session_id, seq, "assistant/chunk", t, payload)
+            self._publish(session_id, seq, "assistant/chunk", t, payload, ignorable=False)
         return out
 
     def _flush_loop(self) -> None:
@@ -219,13 +220,15 @@ class EventStore:
             ).scalars()
             return {str((r or {}).get("call_id") or "") for r in rows} - {""}
 
-    def _publish(self, session_id: str, seq: int, type_: str, t: datetime, payload: dict) -> None:
+    def _publish(self, session_id: str, seq: int, type_: str, t: datetime,
+                 payload: dict, *, ignorable: bool = False) -> None:
         bridge.publish(
             session_id,
             {
                 "type": type_,
                 "id": f"{session_id}:{seq}",
-                "data": {"seq": seq, "time": t.isoformat(), **payload},
+                # ignorable 贯通实时帧：前端据此跳过无渲染器的事件（只影响前端，不影响日志写入）
+                "data": {**payload, "seq": seq, "time": t.isoformat(), "ignorable": ignorable},
             },
         )
 
@@ -237,5 +240,6 @@ def frame_of(row: PlatformSessionEvent) -> dict:
     return {
         "type": row.type,
         "id": f"{row.session_id}:{row.seq}",
-        "data": {"seq": row.seq, "time": row.time.isoformat(), **row.data},
+        "data": {**row.data, "seq": row.seq, "time": row.time.isoformat(),
+                 "ignorable": row.ignorable},
     }

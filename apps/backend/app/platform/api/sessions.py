@@ -592,6 +592,21 @@ def _do_component_submit(
         "action": "cancelled" if cancelled else "submit",
         "values": values, "summary": summary, "version": 1,
     })
+    # P8a：审批结果显式落会话日志（可回放）——确认=approval/granted，取消=approval/denied；
+    # high_impact 工具闸门（tool_tiers.guard_high_impact）以此为执行依据
+    cur_turn = int(db.scalar(
+        select(func.max(PlatformSessionEvent.turn)).where(
+            PlatformSessionEvent.session_id == uuid.UUID(session_id)
+        )
+    ) or 0)
+    if cancelled:
+        store.append(session_id, "approval/denied", {
+            "scope": req["kind"], "turn": cur_turn, "reason": summary,
+        }, turn=cur_turn or None)
+    else:
+        store.append(session_id, "approval/granted", {
+            "scope": req["kind"], "turn": cur_turn, "summary": summary,
+        }, turn=cur_turn or None)
     for type_, payload in biz_events:
         store.append(session_id, type_, payload)
     if not cancelled and not biz_events and "异常" in summary:

@@ -193,7 +193,19 @@ for r in plugin_routers():
 @app.on_event("startup")
 def startup():
     config_check.enforce()  # 配置健康检查：域开关→必填项矩阵，缺依赖拒绝启动（Fail-Fast）
+    from .platform.agent import otel as agent_otel
+
+    agent_otel.setup_otel()  # 可观测性最小闭环（P7 前置）：console/OTLP exporter，失败 fail-soft
     discover()  # 插件装配 fail-loud
+    from .platform.events.registry import register_plugin_events
+    from .platform.plugins.loader import plugin_manifests
+
+    register_plugin_events(plugin_manifests())  # 插件事件词表并入注册表（重名 fail-loud）
+    from .platform.agent import builtin_handlers
+    from .platform.agent.prompt import register_plugin_sections
+
+    builtin_handlers.register_builtin_handlers()  # 内置卡走与插件同一注册通道
+    register_plugin_sections(plugin_manifests())  # 插件 agent_prompt → prompt section（P1）
     from .services import task_templates
 
     task_templates.discover_templates()  # 任务模板 fail-loud（大流程固定/小流程可插拔）
@@ -294,6 +306,14 @@ def _start_daemons() -> None:
 
     _guarded_daemon("meeting_watchdog", _start_watchdog)
 
+    # 组件提交补偿重放（业务落库失败的幂等闭环，P6）
+    def _start_compensation():
+        from .platform.daemons import compensation
+
+        compensation.start_replayer()
+
+    _guarded_daemon("compensation_replayer", _start_compensation)
+
 
 # MCP 服务端（默认关；开启后 /mcp 供外部 agent 客户端读写任务平台）
 if settings.mcp_server_enabled:
@@ -308,6 +328,12 @@ def shutdown():
         from .platform.agent import tracing
 
         tracing.shutdown()  # Langfuse 观测：退出前 flush 尾部 trace（未启用时静默）
+    except Exception:
+        pass
+    try:
+        from .platform.agent import otel as agent_otel
+
+        agent_otel.shutdown_otel()  # OTel 观测：退出前 flush 批处理缓冲（未启用时静默）
     except Exception:
         pass
     from .platform.daemons import daemon_states

@@ -130,11 +130,21 @@ class PlatformCompensation(Base):
     action = Column(String(128), nullable=False, comment="补偿动作（固定 replay_submit）")
     payload = Column(JSONB, nullable=False, comment="补偿负载 {component_id, props, values}")
     status = Column(
-        String(16), nullable=False, default="pending",
-        comment="状态：pending=待重放 / done=已重放 / failed=失败",
+        String(24), nullable=False, default="pending",
+        comment="状态：pending=待重放 / replaying=重放中 / done=已重放 / "
+                "needs_manual_review=在途未知待人工 / failed=失败",
     )
     retry_count = Column(Integer, nullable=False, default=0, comment="重放次数（预留）")
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), comment="创建时间")
+
+    @property
+    def idem_key(self) -> str:
+        """确定性幂等键 {kind}:{session_id}:{seq}——透传业务落库做唯一约束/upsert。
+
+        会话事件日志中 (session_id, event_seq) 唯一，故该键全局确定：
+        同一补偿无论重放多少次，业务侧可用它识别重复提交。
+        """
+        return f"{self.plugin_name}:{self.session_id}:{self.event_seq}"
 
     __table_args__ = {
         "comment": "组件提交补偿留痕：component/submit 业务落库失败时记录 pending，"

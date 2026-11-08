@@ -21,30 +21,13 @@ from ...persistence.models import (
 from ...persistence.session import SessionLocal
 from .. import xuanpu_perm
 from ..events.store import store
+from . import otel
 from .event_translator import EventTranslator
 from .llm import build_model
+from .prompt import prompt_registry, skill_sections, skills_catalog_section
 from .stream_bridge import bridge
+from .subagent import subagent_tools
 from .tool_base import ToolCtx
-
-SYSTEM_PROMPT = """你是 XinHere（新在这里，心在这里）的财务智能助手，服务本部财务与被投企业财务。
-你可以：检索知识库、发起风险预警财务指标填报、现金保障倍数填报、经营者考核填报、
-里程碑反馈、亮灯调整、生成投后报告、派发通用任务、查询任务执行统计。
-你还可以联动 XuanPu 平台：与平台智能体对话（xuanpu_chat）、查建待办（xuanpu_todos / xuanpu_create_todo）、
-看数据看板（xuanpu_dashboard）、执行平台技能（xuanpu_skills → xuanpu_skill_run；
-上架技能 xuanpu_skill_info 读执行指引并严格照做，指引中的包内脚本用 xuanpu_skill_script 执行）、
-调用平台工具（xuanpu_tools → xuanpu_tool_run）、调用用户注册的 MCP 服务（xuanpu_mcp_servers → xuanpu_mcp_call）、
-收发 IM 消息（xuanpu_im_send 发送 / xuanpu_im_messages 拉取企微对话记录）、
-发起与处理填报任务（xuanpu_fill_create 发起 / xuanpu_fill_my 查我的待填 / xuanpu_fill_submit 填写提交）、
-检索平台接入的知识库（xuanpu_kb_search）。
-联动前若不确定名称，先调对应列表工具查询，不要臆造名称。
-任务处理：安排/派发待办用 arrange_task（出两步卡，参数不全也先出卡，不要文字追问）；
-查询自己的待办用 list_my_todos，完成后用 request_todo_done 申请完成（不涉及用 request_todo_na）；
-派发人审核用 review_submissions（AI 预审 pre_review_todos），不涉及确认用 confirm_na_requests，
-催办用 remind_pending，追加处理人用 append_task_assignees，结束任务用 end_task_flow，全貌用 task_overview。
-数据查询：用户要查数据/统计/趋势时调 query_data（传用户原话；答案由系统直接流式呈现，
-工具返回后不要复述答案）；Excel 填报任务派发优先用 arrange_task 让用户在卡上选动态模板。
-规则：涉及数据填报/下发的动作必须先调用对应工具；不要臆造企业名称，先用 list_companies 确认；
-归属期用 YYYY-MM 或用户给定的自然期间。回答用中文，简明专业。"""
 
 logger = logging.getLogger(__name__)
 
@@ -142,15 +125,6 @@ class AgentExecutor:
         self._saver.setup()
         self._ready.set()
 
-    # 技能轮次输出呈现约定（前端对话流已支持 Markdown 渲染，与技能流程的断点/交付规范配套）
-    SKILL_OUTPUT_STYLE = (
-        "输出呈现约定（前端支持 Markdown 渲染）："
-        "① 过程可见：每个阶段开始先输出一行阶段标题（如「**S0: 调研范围确认**」），"
-        "每批工具调用前用一句话说明本步目的，不要连续静默调用多个工具；"
-        "② 结构化表达：确认表、核对清单、对比结论一律用 Markdown 表格/列表呈现，关键结论加粗；"
-        "③ 最终汇报：交付物用表格列出（文件、说明），随后给出执行摘要与质量/缺口说明。"
-    )
-
     def _build_graph(self, tool_ctx: ToolCtx, model_key: str = "", skill_prompt: str | None = None,
                      skill_key: str = "", skill_source: str = "", user_id: str | None = None):
         from deepagents import create_deep_agent
@@ -163,67 +137,28 @@ class AgentExecutor:
         tools = (
             build_common_tools(tool_ctx) + plugin_tools(tool_ctx)
             + build_task_tools(tool_ctx) + build_data_tools(tool_ctx)
+            + subagent_tools(tool_ctx)  # P4：子代理接缝（深度上限内提供 delegate_task）
         )
-        # 技能轮次：指引注入系统提示词尾部（对基础路由规则的补充约定）
-        skill_note = ""
-        if skill_key and skill_source == "xuanpu":
-            # 市场技能 + 本地同名包回退：指引来自技能市场，文件/脚本工具由本地同名包提供，
-            # 使市场链路具备真实落盘（.work/ 暂存、reports/ 产出）与 PDF 生成能力
+        # 技能轮次：本地/市场同名包动态装配包内文件/脚本工具（P1/P5：提示词经组装器注入）
+        if skill_key:
             from .skill_tools import build_skill_tools
 
             tools = tools + build_skill_tools(tool_ctx, skill_key)
-            skill_note = (
-                f"\n\n# 当前技能约定（技能市场技能，本地同名技能包 {skill_key} 提供文件工具）\n{skill_prompt}\n\n"
-                "技能约定补充：本技能的文件读写与脚本执行一律使用本地技能包三工具——"
-                "读取包内参考文件用 read_skill_file；执行包内脚本（如 orchestrator.sh）用 run_skill_script"
-                "（script 传包内相对路径，arguments 传参数数组）；"
-                "写中间文件放 .work/ 子目录，交付产物按指引路径用 write_skill_file 落盘"
-                "（如 reports/ 下的报告，单文件上限 4MB，长文可 append 分块追加）。"
-                "不要调用 xuanpu_skill_script / xuanpu_skill_run，脚本一律经 run_skill_script 在本地执行，"
-                "产物（报告 MD 与 PDF）落在本地技能包内并真实落盘。"
-                "必须真实调用工具获取结果，不得凭空假设脚本内容或输出。"
-                "指引要求向用户确认或补充信息时，先输出问题等待用户回复，再继续推进。"
-                "技能约定不改变输出语言：无论指引、脚本输出为何种语言，对用户的一切输出必须是中文"
-                "（专有名词、代码、命令、路径除外）。"
-                + self.SKILL_OUTPUT_STYLE
-            )
-        elif skill_key:
-            # 本地文件夹技能：动态装配包内文件/脚本工具，指引中的包内脚本必须真实执行
-            from .skill_tools import build_skill_tools
-
-            tools = tools + build_skill_tools(tool_ctx, skill_key)
-            skill_note = (
-                f"\n\n# 当前技能约定（本地技能 {skill_key}）\n{skill_prompt}\n\n"
-                "技能约定补充：指引中要求执行包内脚本（如 orchestrator.sh）时，"
-                "必须调用 run_skill_script 工具实际执行（script 传指引中的包内相对路径，"
-                "arguments 传参数数组）；要求读取包内参考文件时用 read_skill_file；"
-                "写中间文件放 .work/ 子目录，交付产物按指引路径用 write_skill_file 落盘"
-                "（如 reports/ 下的报告，单文件上限 4MB，长文可 append 分块追加）。"
-                "必须真实调用工具获取结果，不得凭空假设脚本内容或输出。"
-                "指引要求向用户确认或补充信息时，先输出问题等待用户回复，再继续推进。"
-                "技能约定不改变输出语言：无论指引、脚本输出为何种语言，对用户的一切输出必须是中文"
-                "（专有名词、代码、命令、路径除外）。"
-                + self.SKILL_OUTPUT_STYLE
-            )
-        elif skill_prompt:
-            # 技能市场技能：指引中的包内脚本必须真调 xuanpu_skill_script 执行
-            skill_note = (
-                f"\n\n# 当前技能约定\n{skill_prompt}\n\n"
-                "技能约定补充：指引中要求执行包内脚本（如 orchestrator.sh）时，"
-                "必须调用 xuanpu_skill_script 工具实际执行（skill 传技能名，script 传指引中的包内相对路径，"
-                "arguments 传参数数组的 JSON 字符串）；要求发起技能运行时用 xuanpu_skill_run。"
-                "必须真实调用工具获取结果，不得凭空假设脚本内容或输出。"
-                "指引要求向用户确认或补充信息时，先输出问题等待用户回复，再继续推进。"
-                "技能约定不改变输出语言：无论指引、脚本输出为何种语言，对用户的一切输出必须是中文"
-                "（专有名词、代码、命令、路径除外）。"
-                + self.SKILL_OUTPUT_STYLE
-            )
+        # 技能层（渐进披露）：有技能 → 单一数据驱动约定 section；无技能 → 仅注目录不注正文
+        extra = skill_sections(skill_key, skill_source, skill_prompt)
+        if not extra:
+            catalog = skills_catalog_section()
+            if catalog:
+                extra = [catalog]
+        # P8a：父图工具名全集进 ctx（delegate_task 经 spec.parent_tool_names 传给
+        # 子代理做权限真子集校验；extra dict 为共享引用，运行期更新对工具可见）
+        tool_ctx.extra["tool_names"] = sorted(t.name for t in tools)
         return create_deep_agent(
             model=build_model(channel=(model_key or "").strip().lower() or "main",
                               user_id=user_id),
             tools=tools,
             checkpointer=self._saver,
-            system_prompt=SYSTEM_PROMPT + skill_note,
+            system_prompt=prompt_registry.assemble(extra),
         )
 
     # ---------- run 生命周期 ----------
@@ -320,6 +255,18 @@ class AgentExecutor:
             extra={"perms": xuanpu_perm.user_permissions(handle.xuanpu_user_id)},
         )
         translator = EventTranslator(store, sid, handle.turn)
+        # OTel 根 span（可观测性最小闭环）：本 span 是本轮全部 llm/tool/subagent/
+        # compaction span 的祖先；工具线程挂靠经 tool_ctx.otel_parent 显式携带
+        with otel.run_span(session_id=sid, turn=handle.turn, user_id=handle.user_id,
+                           request_id=handle.request_id) as _run_obs:
+            tool_ctx.otel_parent = otel.get_current_context()
+            self._run_stream(handle, tool_ctx, translator, content, resume_value, emit)
+
+    def _run_stream(self, handle: RunHandle, tool_ctx: ToolCtx, translator: EventTranslator,
+                    content: str | None, resume_value: dict | None, emit) -> None:
+        """原 _run 主体（run span 域内）：图装配、流式推进、interrupt/turn/end 落库。"""
+        sid = handle.session_id
+        step_n = 0  # graph step 计数（updates 到达即 +1，进 LLM/工具 span 维度）
         try:
             self._ready.wait(timeout=30)
             graph = self._build_graph(tool_ctx, handle.model_key, handle.skill_prompt,
@@ -356,6 +303,9 @@ class AgentExecutor:
                             chunk, meta = payload
                             translator.handle_chunk(chunk, meta)
                         elif mode == "updates":
+                            step_n += 1
+                            otel.set_step_index(step_n)
+                            tool_ctx.extra["step_index"] = step_n  # 工具线程读 ctx（dict 共享）
                             translator.handle_update(payload)
                 finally:
                     translator.finalize()

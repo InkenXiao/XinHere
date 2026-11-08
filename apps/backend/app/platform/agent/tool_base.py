@@ -119,6 +119,7 @@ class ToolCtx:
     file_ids: list[int] | None = None  # 本轮知识库范围：文件 id（query_data 以 fileIds 原样透传问数上游）
     folder_ids: list[int] | None = None  # 本轮知识库范围：文件夹 id（query_data 以 folderIds 原样透传问数上游）
     answer_stream: ToolAnswerSink | None = None  # EventTranslator：工具直通正文实时流（begin/emit/end_tool_answer）
+    otel_parent: object = None  # OTel 父上下文（executor 图线程捕获；工具线程跨线程挂靠用）
     extra: dict = field(default_factory=dict)
 
     def emit_event(self, type_: str, payload: dict) -> tuple[int, datetime] | None:
@@ -139,7 +140,19 @@ def tool_scope(ctx: ToolCtx, name: str, call_id: str, arguments: dict):
     detail.context 携带 {call_id, tool_call_arguments, operator_user_id}（AI 溯源）。
     SCMS 用户 token 在此显式绑定——工具可能跑在 ToolNode 线程池，contextvars
     经多层框架（langchain executor / deepagents middleware）传播不保证，带在 ctx 上才可靠。
+
+    分级 guard 链（P8a）：pre-execute 按 tier 分流——read/write 走审计链（既有）；
+    high_impact 先查本会话 approval/granted 事件，无审批直接拒绝（业务零副作用）。
+    OTel 工具 span 覆盖整个域（含 DB 事务），父子经 ctx.otel_parent 跨线程挂靠。
     """
+    from . import otel
+    from .tool_tiers import ToolDeniedError, guard_high_impact, tool_tier
+
+    tier = tool_tier(name)
+    # P8a pre-execute 闸门：high_impact 无审批 → 拒绝（在任何 DB/审计动作之前）
+    if tier == "high_impact":
+        guard_high_impact(ctx.session_id, name, ctx.turn)
+
     audit = AuditCtx(
         user_id=ctx.user_id,
         channel="tool",
@@ -161,22 +174,34 @@ def tool_scope(ctx: ToolCtx, name: str, call_id: str, arguments: dict):
     # 收尾时一次性补录 Langfuse（详见 tracing.flush_tool_deliverables）
     collector = _DeliverableCollector()
     collector_token = _current_collector.set(collector)
+    span_ctx = otel.tool_span(
+        session_id=ctx.session_id, tool_name=name, tool_tier=tier, call_id=call_id,
+        parent_context=ctx.otel_parent,
+        step_index=int(ctx.extra.get("step_index", 0) or 0),
+        subagent_depth=int(ctx.extra.get("subagent_depth", 0) or 0),
+    )
     try:
-        with SessionLocal() as db:
-            try:
-                yield db
-                db.commit()
-                logger.info("tool_scope 提交 sid=%s tool=%s call_id=%s user=%s",
-                            ctx.session_id, name, call_id, ctx.user_id)
-            except GraphInterrupt:
-                # interrupt 挂起是正常控制流：未提交写随会话关闭丢弃，不记回滚告警
-                logger.info("tool_scope 挂起（interrupt） sid=%s tool=%s call_id=%s",
-                            ctx.session_id, name, call_id)
-                raise
-            except Exception as exc:
-                logger.warning("tool_scope 回滚 sid=%s tool=%s call_id=%s err=%r",
-                               ctx.session_id, name, call_id, exc)
-                raise
+        with span_ctx:
+            with SessionLocal() as db:
+                try:
+                    yield db
+                    db.commit()
+                    logger.info("tool_scope 提交 sid=%s tool=%s call_id=%s user=%s",
+                                ctx.session_id, name, call_id, ctx.user_id)
+                except GraphInterrupt:
+                    # interrupt 挂起是正常控制流：未提交写随会话关闭丢弃，不记回滚告警
+                    logger.info("tool_scope 挂起（interrupt） sid=%s tool=%s call_id=%s",
+                                ctx.session_id, name, call_id)
+                    raise
+                except ToolDeniedError:
+                    # 审批拒绝是确定性业务结果：不留回滚告警噪音
+                    logger.info("tool_scope 拒绝（未审批 high_impact） sid=%s tool=%s call_id=%s",
+                                ctx.session_id, name, call_id)
+                    raise
+                except Exception as exc:
+                    logger.warning("tool_scope 回滚 sid=%s tool=%s call_id=%s err=%r",
+                                   ctx.session_id, name, call_id, exc)
+                    raise
     finally:
         # 先取走交付物并解绑收集器，再补录——补录 fail-soft 且与审计/token 解绑顺序无关
         deliverables = collector.take()
