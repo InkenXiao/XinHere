@@ -91,6 +91,8 @@ class TurnStart(BaseModel):
     model_config = ConfigDict(extra='forbid')
     turn: int
     version: Literal[1]
+    run_id: str | None = None
+    epoch: int | None = None
 
 class TurnEnd(BaseModel):
     model_config = ConfigDict(extra='forbid')

@@ -28,6 +28,7 @@ from .platform.api import (
     cowork,
     org,
     repo_alerts,
+    run_ops,
     scms,
     voiceprint,
     html_reports,
@@ -180,7 +181,7 @@ for r in (
     metrics.router, model_prefs.router, artifacts.router, notifications.router,
     voiceprint.router, html_reports.router, ppt_reports.router,
     briefing.router, cowork.router, config_api.router, scms.router,
-    org.router, repo_alerts.router, attachments.router,
+    org.router, repo_alerts.router, attachments.router, run_ops.router,
     dispatch_api.router, dynamic_template_api.router, meeting_api.router,
 ):
     app.include_router(r, prefix=API)
@@ -225,10 +226,12 @@ def startup():
     _start_daemons()
 
     def _init():
-        executor.setup()  # checkpoint 表
+        executor.setup()  # checkpoint 连接池
         logger.info("启动：checkpointer 就绪")
         n = executor.recover_crashed()  # 崩溃恢复：补 turn/end{crashed} 与 tool/result{unknown}
         logger.info("启动：崩溃恢复完成 recovered=%d", n)
+        from .platform.agent import run_record
+        run_record.reconcile_stale_local_runs()  # P9 启动对账：本机遗留非终态 run 置 error
 
     threading.Thread(target=_init, name="agent-init", daemon=True).start()
 
@@ -313,6 +316,14 @@ def _start_daemons() -> None:
         compensation.start_replayer()
 
     _guarded_daemon("compensation_replayer", _start_compensation)
+
+    # P9 §3.2 会话 run 落痕对账（只检测不修复；异常写操作日志，计数进 /healthz.daemons）
+    def _start_run_reconcile():
+        from .platform.daemons import run_reconcile
+
+        run_reconcile.start_reconciler()
+
+    _guarded_daemon("run_reconciler", _start_run_reconcile)
 
 
 # MCP 服务端（默认关；开启后 /mcp 供外部 agent 客户端读写任务平台）

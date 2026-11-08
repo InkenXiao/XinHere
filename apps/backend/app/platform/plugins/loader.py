@@ -67,6 +67,7 @@ def plugin_manifests() -> list[dict]:
             "domain": p["manifest"]["domain"],
             "tools": p["manifest"].get("tools", []),
             "events": p["manifest"].get("events", []),
+            "event_ignorable": p["manifest"].get("event_ignorable", []),
         }
         for p in discover()
     ]

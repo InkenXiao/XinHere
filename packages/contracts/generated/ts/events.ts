@@ -86,6 +86,8 @@ export interface Usage {
 export interface TurnStart {
   turn: number;
   version: 1;
+  run_id?: string;
+  epoch?: number;
 }
 
 export interface TurnEnd {

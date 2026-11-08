@@ -32,6 +32,16 @@ def run_busy() -> AppError:
     return AppError("RUN_BUSY", "会话已有进行中的任务", 409)
 
 
+def run_taken_over() -> AppError:
+    """会话状态已被并发迁移（接管/重入）：不重试，刷新会话状态重新拉取（P9 §3.1）。"""
+    return AppError("RUN_TAKEN_OVER", "会话状态已变化，请刷新后重试", 409)
+
+
+def run_pool_busy() -> AppError:
+    """执行资源满（连接池借空）：快速失败不排队，客户端稍后重试（P9 §2.3）。"""
+    return AppError("RUN_POOL_BUSY", "当前任务较多，请稍后重试", 503)
+
+
 def run_waiting() -> AppError:
     return AppError("RUN_WAITING", "会话有未处理的确认卡，请先完成卡片操作", 409)
 

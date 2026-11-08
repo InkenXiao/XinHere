@@ -168,11 +168,20 @@ def _start_span(name: str, attrs: dict, parent_context=None):
 
 
 @contextmanager
-def run_span(*, session_id: str, turn: int, user_id: str, request_id: str):
-    """executor 每轮根 span；同时设置图线程内的 session 维度。"""
+def run_span(*, session_id: str, turn: int, user_id: str, request_id: str,
+             run_id: str = "", epoch: int | None = None):
+    """executor 每轮根 span；同时设置图线程内的 session 维度。
+
+    P9：run_id / epoch 随根 span 属性落痕（epoch 落痕用于事后审计旧代次写入）。
+    """
     _session_id.set(session_id or "")
-    cm = _start_span("agent.run", {"session_id": session_id, "turn": turn,
-                                   "user_id": user_id, "request_id": request_id})
+    attrs = {"session_id": session_id, "turn": turn,
+             "user_id": user_id, "request_id": request_id}
+    if run_id:
+        attrs["run_id"] = run_id
+    if epoch is not None:
+        attrs["epoch"] = epoch
+    cm = _start_span("agent.run", attrs)
     if cm is None:
         yield _NullObs()
         return

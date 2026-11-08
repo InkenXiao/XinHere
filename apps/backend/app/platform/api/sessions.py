@@ -26,7 +26,8 @@ from ...services import skill_intent
 from ...services import xuanpu as xuanpu_svc
 from ...persistence.session import get_db
 from ..agent.component_handlers import HANDLERS, apply_update_draft
-from ..agent.executor import executor
+from ..agent import run_record
+from ..agent.executor import executor, PoolExhausted
 from ..agent.stream_bridge import bridge
 from ..events.store import frame_of, store
 from ..plugins.loader import plugin_set_locked
@@ -35,6 +36,15 @@ from .deps import current_user
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 logger = logging.getLogger(__name__)
+
+
+def _raise_claim_http(exc: Exception) -> None:
+    """claim/借池失败 → HTTP：409 busy（可重试）/ 409 taken_over（刷新重拉）/ 503 池满（P9 §3.1）。"""
+    if isinstance(exc, PoolExhausted):
+        raise errors.run_pool_busy()
+    if isinstance(exc, run_record.ClaimRejected):
+        raise errors.run_taken_over() if exc.reason == "taken_over" else errors.run_busy()
+    raise exc
 
 
 def _header(s: PlatformSession) -> dict:
@@ -219,9 +229,7 @@ async def chat(session_id: str, body: ChatIn, request: Request,
     if s.status != "active":
         logger.info("chat 拒绝：会话已归档 sid=%s status=%s user=%s", session_id, s.status, user.username)
         raise errors.session_archived()
-    if executor.get_run(session_id) is not None:
-        logger.info("chat 拒绝：RUN_BUSY sid=%s user=%s", session_id, user.username)
-        raise errors.run_busy()
+    # P9：进程内句柄只放行不拒绝（§1）——同会话互斥由 RunRecord CAS 权威判定
     if not body.message.strip():
         raise errors.validation("消息不能为空")
     file_names = [n for n in (body.file_names or []) if n]
@@ -247,53 +255,73 @@ async def chat(session_id: str, body: ChatIn, request: Request,
             return {"needs_skill": True, "candidates": det["candidates"], "message": body.message}
 
     att_metas, att_payloads = _resolve_chat_attachments(db, body.attachments, user)
+    # 技能解析（可能外部调用/抛错）先于 claim：避免 claim 成功后又因解析失败回退
+    skill_prompt, skill_key, skill_source, skill_name = _resolve_skill(user, skill_sel)
 
-    q = bridge.subscribe(session_id)
-    store.append(session_id, "user/message",
-                 {"content": message, "source": "human", "version": 1})
-    turn = db.scalar(
+    # P9 §1/§2.3：先借池连接（借空 → 503 快速失败，尚未触碰 RunRecord），后 claim——
+    # 同会话互斥与登记原子完成（闭合「先查后登」TOCTOU），409 按 reason 区分 busy / taken_over
+    turn = (db.scalar(
         select(func.count()).select_from(PlatformSessionEvent).where(
             PlatformSessionEvent.session_id == s.session_id,
             PlatformSessionEvent.type == "turn/start",
         )
-    ) + 1
-    store.append(session_id, "turn/start", {"turn": turn, "version": 1}, turn=turn)
-    logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s files=%s model=%s web=%s skill=%s%s msg=%.80s",
-                session_id, turn, user.username, body.kb_ids, file_names,
-                body.model, body.web_search, skill_sel or "-", "（自动识别）" if skill_auto else "",
-                message)
+    ) or 0) + 1
+    try:
+        saver = executor.acquire_run_slot()
+        ticket = run_record.claim_start(
+            session_id, turn=turn, user_id=user.user_id, request_id=request_id,
+            model_key=body.model, skill_key=skill_key, skill_source=skill_source,
+        )
+    except (run_record.ClaimRejected, PoolExhausted) as exc:
+        _raise_claim_http(exc)
 
-    # 组装 LLM 实际输入: 附件深度解析 (图片→视觉模型 / PDF→文本层→mineru) + 联网开关提示
-    llm_content = message
-    if file_names:
+    try:
+        q = bridge.subscribe(session_id)
         store.append(session_id, "user/message",
-                     {"content": "正在解析附件…", "source": "inject", "version": 1})
-        try:
-            block = await files_svc.build_attachment_block(
-                user.user_id, file_names,
-                on_progress=lambda t: store.append(session_id, "user/message",
-                                                   {"content": t, "source": "inject", "version": 1}),
-            )
-            if block:
-                llm_content = f"{llm_content}\n\n以下是用户上传附件的解析结果，回答时请结合使用：\n{block}"
-        except Exception as exc:  # noqa: BLE001 - 解析整体失败不阻塞对话
-            logger.warning("附件解析失败 sid=%s: %s", session_id, exc)
-    if body.web_search:
-        llm_content = f"【联网搜索已开启】可使用 web_search 工具检索互联网公开信息后作答。\n{llm_content}"
-    skill_prompt, skill_key, skill_source, skill_name = _resolve_skill(user, skill_sel)
-    if skill_prompt:
-        skill_data = {"name": skill_name or (skill_key or ""), "source": skill_source or "xuanpu",
-                      "key": skill_key, "version": 1}
-        if skill_auto:
-            skill_data["auto"] = True
-        store.append(session_id, "skill/start", skill_data, turn=turn)
-        hint = "系统已根据请求内容自动匹配技能" if skill_auto else "用户已选择技能"
-        llm_content = f"{llm_content}\n（{hint}，请严格按系统提示词中的技能约定执行）"
-    executor.start_turn(session_id, user, llm_content, request_id,
-                        model_key=body.model, skill_prompt=skill_prompt, skill_key=skill_key,
-                        skill_source=skill_source,
-        enable_web_search=body.web_search, attachments=att_payloads or None,
-        space_ids=body.spaceIds)
+                     {"content": message, "source": "human", "version": 1})
+        store.append(session_id, "turn/start",
+                     {"turn": turn, "version": 1, "run_id": ticket.run_id, "epoch": ticket.epoch}, turn=turn)
+        logger.info("chat 受理 sid=%s turn=%d user=%s kb_ids=%s files=%s model=%s web=%s skill=%s%s "
+                    "run=%s epoch=%d msg=%.80s",
+                    session_id, turn, user.username, body.kb_ids, file_names,
+                    body.model, body.web_search, skill_sel or "-", "（自动识别）" if skill_auto else "",
+                    ticket.run_id, ticket.epoch, message)
+
+        # 组装 LLM 实际输入: 附件深度解析 (图片→视觉模型 / PDF→文本层→mineru) + 联网开关提示
+        llm_content = message
+        if file_names:
+            store.append(session_id, "user/message",
+                         {"content": "正在解析附件…", "source": "inject", "version": 1})
+            try:
+                block = await files_svc.build_attachment_block(
+                    user.user_id, file_names,
+                    on_progress=lambda t: store.append(session_id, "user/message",
+                                                       {"content": t, "source": "inject", "version": 1}),
+                )
+                if block:
+                    llm_content = f"{llm_content}\n\n以下是用户上传附件的解析结果，回答时请结合使用：\n{block}"
+            except Exception as exc:  # noqa: BLE001 - 解析整体失败不阻塞对话
+                logger.warning("附件解析失败 sid=%s: %s", session_id, exc)
+        if body.web_search:
+            llm_content = f"【联网搜索已开启】可使用 web_search 工具检索互联网公开信息后作答。\n{llm_content}"
+        if skill_prompt:
+            skill_data = {"name": skill_name or (skill_key or ""), "source": skill_source or "xuanpu",
+                          "key": skill_key, "version": 1}
+            if skill_auto:
+                skill_data["auto"] = True
+            store.append(session_id, "skill/start", skill_data, turn=turn)
+            hint = "系统已根据请求内容自动匹配技能" if skill_auto else "用户已选择技能"
+            llm_content = f"{llm_content}\n（{hint}，请严格按系统提示词中的技能约定执行）"
+        executor.start_turn(session_id, user, llm_content, request_id,
+                            ticket=ticket, saver=saver, turn=turn,
+                            model_key=body.model, skill_prompt=skill_prompt, skill_key=skill_key,
+                            skill_source=skill_source,
+                            enable_web_search=body.web_search, attachments=att_payloads or None,
+                            space_ids=body.spaceIds)
+    except BaseException:
+        # claim 已成功但 run 未启动：释放池连接并 fenced 置 error（下轮 claim 立即可用）
+        executor.abandon(ticket, saver)
+        raise
 
 
     async def gen():
@@ -404,7 +432,10 @@ def cancel(session_id: str, user: SysUser = Depends(current_user), db: Session =
             db, session_id, handle.pending_component_id, "cancel", None,
             handle.pending_interrupt_id or "", user,
         )
-        executor.resume(session_id, {"action": "cancelled"})
+        try:
+            executor.resume(session_id, {"action": "cancelled"})
+        except (run_record.ClaimRejected, PoolExhausted) as exc:
+            _raise_claim_http(exc)
         return {"ok": True}
     logger.info("cancel 中止运行 sid=%s turn=%d user=%s", session_id, handle.turn, user.username)
     executor.cancel(session_id)
@@ -460,19 +491,27 @@ def component_submit(session_id: str, component_id: str, body: SubmitIn, request
         expected_interrupt_id=expected,
     )
     if handle is not None and handle.status == "waiting_interrupt":
-        executor.resume(
-            session_id,
-            {"action": "cancelled" if body.action == "cancel" else "submit",
-             "values": body.values, "summary": summary},
-        )
+        try:
+            executor.resume(
+                session_id,
+                {"action": "cancelled" if body.action == "cancel" else "submit",
+                 "values": body.values, "summary": summary},
+            )
+        except (run_record.ClaimRejected, PoolExhausted) as exc:
+            # submit 已落（幂等键兜底），但本副本未获得 resume 执行权（被并发接管/恢复）
+            _raise_claim_http(exc)
     elif handle is None:
-        # 进程重启后的孤儿 interrupt：凭 PG checkpoint 恢复 run 再 resume
+        # 进程重启后的孤儿 interrupt：凭 PG checkpoint 恢复 run 再 resume；
+        # claim 胜者获得执行权，败者 409（P9 §3.3/T3：恰好一胜一拒）
         logger.info("component_submit 孤儿 interrupt 恢复 sid=%s cid=%s", session_id, component_id)
-        executor.resume_detached(
-            session_id, user, getattr(request.state, "request_id", ""),
-            {"action": "cancelled" if body.action == "cancel" else "submit",
-             "values": body.values, "summary": summary},
-        )
+        try:
+            executor.resume_detached(
+                session_id, user, getattr(request.state, "request_id", ""),
+                {"action": "cancelled" if body.action == "cancel" else "submit",
+                 "values": body.values, "summary": summary},
+            )
+        except (run_record.ClaimRejected, PoolExhausted) as exc:
+            _raise_claim_http(exc)
     # submit-ack：SSE 下行确认帧，不落日志
     bridge.publish(session_id, {
         "type": "component/submit-ack", "id": f"{session_id}:{event_seq}",

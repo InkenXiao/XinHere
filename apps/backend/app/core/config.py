@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     # 工具并入对话工具集（前缀 mcp_<server>_）。未配置=不接；不可达 fail-soft 跳过
     agent_mcp_servers: str = ""
 
+    # ---------- P9 会话执行并发化 ----------
+    # 摘除全局 checkpoint 锁（不同会话并行执行）；同会话互斥始终锚定 RunRecord CAS，
+    # 本开关只切「互斥范围」。启动时读取一次，禁止 run 中途切换（P9 设计 §5.1）
+    session_parallel_enabled: bool = False
+    checkpoint_pool_size: int = 8  # checkpointer 连接池容量（≥ 最大并发 run 数，借满即拒不排队）
+    run_lease_ttl_seconds: int = 30  # run 租约 TTL（过期即可被其他副本接管）
+    run_lease_renew_seconds: int = 10  # 租约续期间隔（须显著小于 TTL，防自弃误触发）
+    run_reconcile_interval_seconds: int = 600  # §3.2 落痕对账扫描周期（低频守护，租约单实例）
+    run_reconcile_event_window_seconds: int = 86400  # 事件签名回看窗口（防全表扫）
+
     # ---------- Langfuse LLM 观测（可选；三项齐备即启用） ----------
     langfuse_host: str = ""
     langfuse_public_key: str = ""

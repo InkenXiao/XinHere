@@ -15,7 +15,13 @@ WORKDIR /app/apps/backend
 
 # 依赖层（requirements 变化时仅重跑这一层，代码变化不触发重建）
 COPY apps/backend/requirements.txt /app/apps/backend/requirements.txt
-RUN pip install -r /app/apps/backend/requirements.txt
+# RUN pip install -r /app/apps/backend/requirements.txt
+RUN pip install -r /app/apps/backend/requirements.txt \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    --trusted-host pypi.tuna.tsinghua.edu.cn
+
+# 替换 Debian 软件源为清华镜像 
+RUN sed -i 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
 
 # 健康检查用 curl（python:slim 不带）；pango + 中文字体供 weasyprint 渲染报告 PDF；
 # libreoffice 供知识库 Office 文件转 PDF 预览（scms 集成 office_pdf）

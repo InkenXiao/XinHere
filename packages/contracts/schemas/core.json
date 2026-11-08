@@ -37,6 +37,14 @@
         "version": {
           "type": "integer",
           "const": 1
+        },
+        "run_id": {
+          "type": "string",
+          "description": "P9 并发化落痕：本轮 run 标识（对账签名数据源，§3.2；历史事件无此字段）"
+        },
+        "epoch": {
+          "type": "integer",
+          "description": "P9 并发化落痕：本轮代次（历史事件无此字段）"
         }
       },
       "required": [

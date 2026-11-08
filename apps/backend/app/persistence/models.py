@@ -232,6 +232,52 @@ class PlatformDaemonLock(Base):
                          comment="本次获锁时间")
 
 
+class PlatformSessionRun(Base):
+    """会话 run 互斥与协调（一会话一行原位变更；只做互斥不做历史，历史本体是事件日志）。
+
+    - claim = 条件 UPSERT（无行 / 终态 / 租约过期 → 置 running），影响 0 行 = 会话忙；
+    - 持锁者周期续期 expires_at，过期即视为崩溃，可被其他副本接管；
+    - epoch 为抢占代次（fencing token），每次 claim/接管 +1，旧代次写入可事后审计。
+    """
+
+    __tablename__ = "platform_session_runs"
+    __table_args__ = {"comment": "会话 run 互斥与协调：同会话跨副本执行互斥 + 租约接管 + 重建上下文"}
+
+    session_id = Column(Uuid, primary_key=True, comment="会话 ID（PK 原位变更；互斥锚点）")
+    run_id = Column(Uuid, nullable=False, comment="本次 run 标识（每次 claim 重新生成，fencing 用）")
+    status = Column(
+        String(24), nullable=False,
+        comment="状态：running=执行中 / waiting_interrupt=等待卡片 / done=完成 / error=异常（终态不删行，下轮 claim 原位覆盖）",
+    )
+    owner = Column(String(128), nullable=False, default="", server_default="",
+                   comment="持有者标识（host:pid）")
+    epoch = Column(BigInteger, nullable=False, default=1, server_default="1",
+                   comment="抢占代次（fencing token），每次 claim/接管 +1")
+    turn = Column(Integer, comment="当前轮次（start 路由 claim 时确定）")
+    interrupt_id = Column(String(64), comment="waiting_interrupt 状态的中断 id（重建恢复用）")
+    component_id = Column(String(64), comment="waiting_interrupt 状态的组件 id（重建恢复用）")
+    user_id = Column(String(64), nullable=False, default="", server_default="",
+                     comment="归属用户（resume 重建图装配上下文）")
+    request_id = Column(String(64), nullable=False, default="", server_default="",
+                        comment="触发本次 run 的请求 id（追踪）")
+    model_key = Column(String(64), nullable=False, default="", server_default="",
+                       comment="模型通道（run 期重建图保持一致）")
+    skill_key = Column(String(64), nullable=False, default="", server_default="",
+                       comment="本地技能 key（重建上下文）")
+    skill_source = Column(String(32), nullable=False, default="", server_default="",
+                          comment="技能来源：local / xuanpu（重建上下文）")
+    expires_at = Column(DateTime(timezone=True), nullable=False,
+                        comment="租约到期时间（持锁者周期续期，过期即可被接管）")
+    heartbeat_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(),
+                          comment="最近心跳时间")
+    detail = Column(JSONB, nullable=False, default=dict, server_default="{}",
+                    comment="结构化补充信息（对账原因、接管记录等）")
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(),
+                        comment="首行创建时间")
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(),
+                        comment="最近变更时间")
+
+
 # ---------------- 导航/卡片配置表（配置数据：硬删、无软删无审计，非业务数据） ----------------
 
 
