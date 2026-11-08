@@ -17,8 +17,13 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@contracts/*": ["../../packages/contracts/generated/ts/*"]
+      "@app/*": ["src/*"],
+      "@plugins/*": ["../../plugins/*"],
+      "@contracts/*": ["../../packages/contracts/generated/ts/*"],
+      // 插件前端位于 apps/frontend 外，bare specifier 走不到本目录 node_modules，显式映射
+      "react": ["node_modules/@types/react"],
+      "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime"]
     }
   },
-  "include": ["src", "../../packages/contracts/generated/ts"]
+  "include": ["src", "../../packages/contracts/generated/ts", "../../plugins/*/frontend"]
 }

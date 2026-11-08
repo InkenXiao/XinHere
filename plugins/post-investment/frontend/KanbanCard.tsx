@@ -1,6 +1,6 @@
 // kanban-card@1：风险批次进度网格（会话内追踪卡；网格展示件复用于屏2看板）
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { PlatformEvent } from '@/types'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { PlatformEvent } from '@app/types'
 
 interface CoState {
   status: 'unfilled' | 'filled' | 'reviewed'

@@ -1,9 +1,9 @@
 // kpi-fill-form@1：经营者考核指标 + 里程碑拆分
 import { useEffect, useState } from 'react'
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { KpiIndicator, KpiMilestone, PlatformEvent } from '@/types'
-import { api } from '@/transport/api'
-import { useUiStore } from '@/state/uiStore'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { KpiIndicator, KpiMilestone, PlatformEvent } from '@app/types'
+import { api } from '@app/transport/api'
+import { useUiStore } from '@app/state/uiStore'
 
 interface S {
   batch_id: string

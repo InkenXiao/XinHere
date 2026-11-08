@@ -1,11 +1,11 @@
 // risk-fill-form@1：16 项填报（红黄绿灯选择+字段组；pf=true 预算值只读预填；草稿 update + submit）
 // 明细数据走 REST（/risk-fills，页面与工具共用 service 层），事件族折叠头部状态
 import { useEffect, useMemo, useState } from 'react'
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { PlatformEvent, RiskItem, RiskReport } from '@/types'
-import { api } from '@/transport/api'
-import { LampPick } from '@/primitives/Lamp'
-import { useUiStore } from '@/state/uiStore'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { PlatformEvent, RiskItem, RiskReport } from '@app/types'
+import { api } from '@app/transport/api'
+import { LampPick } from '@app/primitives/Lamp'
+import { useUiStore } from '@app/state/uiStore'
 
 interface S {
   batch_id: string

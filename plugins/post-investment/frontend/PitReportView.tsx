@@ -1,7 +1,7 @@
 // pit-report-view@1：投后报告生成进度（事件族直接起件，纯展示，不调 emit）
 // 防乱序：首帧为 update 时以空骨架容错后再折
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { PlatformEvent } from '@/types'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { PlatformEvent } from '@app/types'
 
 interface S {
   report_id: string

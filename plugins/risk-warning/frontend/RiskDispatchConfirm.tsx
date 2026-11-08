@@ -1,7 +1,7 @@
 // risk-dispatch-confirm@1：发起确认卡（公司清单+期间+确认/取消）
 import { useState } from 'react'
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { PlatformEvent } from '@/types'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { PlatformEvent } from '@app/types'
 
 interface S {
   period: string

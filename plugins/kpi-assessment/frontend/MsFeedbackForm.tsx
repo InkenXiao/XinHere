@@ -1,11 +1,11 @@
 // ms-feedback-form@1：里程碑反馈 + 亮灯
 import { useEffect, useState } from 'react'
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { MsFeedback, PlatformEvent } from '@/types'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { MsFeedback, PlatformEvent } from '@app/types'
 import type { Lamp } from '@contracts/events'
-import { api } from '@/transport/api'
-import { LampPick } from '@/primitives/Lamp'
-import { useUiStore } from '@/state/uiStore'
+import { api } from '@app/transport/api'
+import { LampPick } from '@app/primitives/Lamp'
+import { useUiStore } from '@app/state/uiStore'
 
 interface S {
   feedback_id: string

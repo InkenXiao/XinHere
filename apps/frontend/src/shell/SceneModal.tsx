@@ -6,10 +6,10 @@ import { useTodoStore } from '@/state/todoStore'
 import { api } from '@/transport/api'
 import type { CashReport } from '@/types'
 import Modal from '@/primitives/Modal'
-import { RiskFillView } from '@/plugins/RiskFillForm'
-import { CashGuaranteeView } from '@/plugins/CashGuaranteeForm'
-import { KpiFillView } from '@/plugins/KpiFillForm'
-import { MsFeedbackView } from '@/plugins/MsFeedbackForm'
+import { RiskFillView } from '@plugins/risk-warning/frontend/RiskFillForm'
+import { CashGuaranteeView } from '@plugins/risk-warning/frontend/CashGuaranteeForm'
+import { KpiFillView } from '@plugins/kpi-assessment/frontend/KpiFillForm'
+import { MsFeedbackView } from '@plugins/kpi-assessment/frontend/MsFeedbackForm'
 
 export default function SceneModal() {
   const target = useUiStore((s) => s.sceneTarget)

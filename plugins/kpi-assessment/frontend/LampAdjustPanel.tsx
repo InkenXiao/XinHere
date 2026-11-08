@@ -1,10 +1,10 @@
 // lamp-adjust-panel@1：亮灯调整面板（hq 手工调灯 + 原因留痕）
 // 事件族 kpi/lamp-adjust 经 aliases(company:indicator_name) 折进本基座，到达即 end 收尾
 import { useState } from 'react'
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { PlatformEvent } from '@/types'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { PlatformEvent } from '@app/types'
 import type { Lamp } from '@contracts/events'
-import { LampPick, LampPill } from '@/primitives/Lamp'
+import { LampPick, LampPill } from '@app/primitives/Lamp'
 
 interface S {
   company: string

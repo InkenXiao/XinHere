@@ -1,11 +1,11 @@
 // cash-guarantee-form@1：四字段试算（改值实时倍数 + 亮灯 ≤3红/≤6黄/>6绿）
 // 金额单位：万元
 import { useEffect, useState } from 'react'
-import type { ComponentDefinition, ComponentProps } from '@/registry/types'
-import type { PlatformEvent } from '@/types'
+import type { ComponentDefinition, ComponentProps } from '@app/registry/types'
+import type { PlatformEvent } from '@app/types'
 import type { CashValues } from '@contracts/events'
-import { cashLamp, cashRatio } from '@/utils'
-import { LampPill } from '@/primitives/Lamp'
+import { cashLamp, cashRatio } from '@app/utils'
+import { LampPill } from '@app/primitives/Lamp'
 
 interface S {
   form_id: string
